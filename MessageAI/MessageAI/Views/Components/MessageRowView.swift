@@ -21,6 +21,8 @@ struct MessageRowView: View {
     let senderDisplayName: String
     let timestamp: String
     let chat: Chat?
+    let isGroupChat: Bool
+    let groupMembers: [String]
     let currentUserID: String
     
     // MARK: - Initialization
@@ -34,6 +36,8 @@ struct MessageRowView: View {
         self.senderDisplayName = viewModel.getSenderDisplayName(message: message)
         self.timestamp = viewModel.formatTimestamp(date: message.timestamp)
         self.chat = viewModel.chat
+        self.isGroupChat = viewModel.chat?.isGroupChat ?? false
+        self.groupMembers = viewModel.groupMembers
         self.currentUserID = viewModel.currentUserID
     }
     
@@ -42,29 +46,13 @@ struct MessageRowView: View {
     var body: some View {
         VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
             
-            // Sender name (for group chats)
-            if shouldShowSenderName {
-                HStack {
-                    if isFromCurrentUser {
-                        Spacer()
-                    }
-                    
-                    Text(senderDisplayName)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                    
-                    if !isFromCurrentUser {
-                        Spacer()
-                    }
-                }
-            }
-            
             // Message bubble
             MessageBubbleView(
                 message: message,
                 isFromCurrentUser: isFromCurrentUser,
-                status: message.status
+                status: message.status,
+                showSenderName: shouldShowSenderName,
+                senderName: shouldShowSenderName ? senderDisplayName : nil
             )
             
             // Timestamp and status
@@ -119,6 +107,20 @@ struct MessageRowView: View {
                             retryCount: message.retryCount
                         )
                     }
+                }
+                .padding(.horizontal, 12)
+            }
+            
+            // Read receipt for group chats
+            if isGroupChat && isFromCurrentUser && !groupMembers.isEmpty {
+                HStack {
+                    Spacer()
+                    
+                    ReadReceiptView(
+                        message: message,
+                        chatMembers: groupMembers,
+                        currentUserID: currentUserID
+                    )
                 }
                 .padding(.horizontal, 12)
             }

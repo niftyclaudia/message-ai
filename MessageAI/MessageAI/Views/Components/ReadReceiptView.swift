@@ -14,7 +14,8 @@ struct ReadReceiptView: View {
     // MARK: - Properties
     
     let message: Message
-    let chat: Chat
+    let chat: Chat?
+    let chatMembers: [String]
     let currentUserID: String
     
     // MARK: - Computed Properties
@@ -26,12 +27,17 @@ struct ReadReceiptView: View {
     
     /// Total number of group members (excluding sender)
     private var totalMembers: Int {
-        chat.members.count - 1
+        if let chat = chat {
+            return chat.members.count - 1
+        } else {
+            return chatMembers.count - 1
+        }
     }
     
     /// Whether this is a group chat and message is from current user
     private var shouldShow: Bool {
-        chat.isGroupChat && message.senderID == currentUserID
+        let isGroupChat = chat?.isGroupChat ?? (chatMembers.count > 2)
+        return isGroupChat && message.senderID == currentUserID
     }
     
     /// Read receipt color based on read status
@@ -79,6 +85,104 @@ struct ReadReceiptView: View {
     }
 }
 
+/// Detailed read receipt view showing individual member read status
+struct DetailedReadReceiptView: View {
+    
+    // MARK: - Properties
+    
+    let message: Message
+    let chatMembers: [String]
+    let currentUserID: String
+    @State private var isExpanded: Bool = false
+    
+    // MARK: - Computed Properties
+    
+    private var readMembers: [String] {
+        message.readBy.filter { $0 != currentUserID }
+    }
+    
+    private var unreadMembers: [String] {
+        chatMembers.filter { !message.readBy.contains($0) && $0 != currentUserID }
+    }
+    
+    // MARK: - Body
+    
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            // Summary view
+            HStack(spacing: 4) {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Text("\(message.readBy.count) of \(chatMembers.count) read")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }
+            
+            // Expanded view
+            if isExpanded {
+                VStack(alignment: .trailing, spacing: 2) {
+                    if !readMembers.isEmpty {
+                        Text("Read by:")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        ForEach(readMembers, id: \.self) { memberID in
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 6, height: 6)
+                                
+                                Text(getMemberDisplayName(memberID))
+                                    .font(.caption2)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                    }
+                    
+                    if !unreadMembers.isEmpty {
+                        Text("Not read by:")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 4)
+                        
+                        ForEach(unreadMembers, id: \.self) { memberID in
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(Color.gray)
+                                    .frame(width: 6, height: 6)
+                                
+                                Text(getMemberDisplayName(memberID))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getMemberDisplayName(_ memberID: String) -> String {
+        // In a real app, you'd fetch this from a user service
+        // For now, return a simplified display name
+        if memberID == currentUserID {
+            return "You"
+        } else {
+            return "User \(memberID.prefix(4))"
+        }
+    }
+}
+
 // MARK: - Preview
 
 #Preview("All Read") {
@@ -102,6 +206,7 @@ struct ReadReceiptView: View {
             createdAt: Date(),
             createdBy: "user1"
         ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
         currentUserID: "user1"
     )
     .padding()
@@ -128,6 +233,7 @@ struct ReadReceiptView: View {
             createdAt: Date(),
             createdBy: "user1"
         ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
         currentUserID: "user1"
     )
     .padding()
@@ -154,6 +260,7 @@ struct ReadReceiptView: View {
             createdAt: Date(),
             createdBy: "user1"
         ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
         currentUserID: "user1"
     )
     .padding()
@@ -179,8 +286,8 @@ struct ReadReceiptView: View {
             createdAt: Date(),
             createdBy: "user1"
         ),
+        chatMembers: ["user1", "user2"],
         currentUserID: "user1"
     )
     .padding()
 }
-

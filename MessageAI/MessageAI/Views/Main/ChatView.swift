@@ -79,10 +79,16 @@ struct ChatView: View {
             Task {
                 await viewModel.loadMessages(chatID: chat.id)
                 viewModel.observeMessagesRealTime(chatID: chat.id)
+                
+                // Set up group member presence for group chats
+                if chat.isGroupChat {
+                    viewModel.setupGroupMemberPresence(chat: chat)
+                }
             }
         }
         .onDisappear {
             viewModel.stopObserving()
+            viewModel.stopGroupMemberPresence()
         }
     }
     

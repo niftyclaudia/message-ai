@@ -219,6 +219,7 @@ class ConversationListViewModel: ObservableObject {
     deinit {
         // Clean up Firestore listener
         listener?.remove()
+        listener = nil
         
         // Clean up presence observers - must be done synchronously in deinit
         for (userID, handle) in presenceHandles {
