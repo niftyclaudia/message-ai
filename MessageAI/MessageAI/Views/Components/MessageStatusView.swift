@@ -45,11 +45,20 @@ struct MessageStatusView: View {
             case .sending:
                 Image(systemName: "clock")
             case .sent:
+                // Single checkmark for sent
                 Image(systemName: "checkmark")
             case .delivered:
-                Image(systemName: "checkmark.circle")
+                // Double checkmark for delivered
+                HStack(spacing: -4) {
+                    Image(systemName: "checkmark")
+                    Image(systemName: "checkmark")
+                }
             case .read:
-                Image(systemName: "checkmark.circle.fill")
+                // Double checkmark for read (will be blue via statusColor)
+                HStack(spacing: -4) {
+                    Image(systemName: "checkmark")
+                    Image(systemName: "checkmark")
+                }
             case .failed:
                 Image(systemName: "exclamationmark.triangle")
             case .queued:
@@ -61,17 +70,17 @@ struct MessageStatusView: View {
     private var statusColor: Color {
         switch status {
         case .sending:
-            return .orange
+            return .gray
         case .sent:
-            return .blue
+            return .gray
         case .delivered:
-            return .green
+            return .gray
         case .read:
-            return .green
+            return .blue  // Blue for read receipts per PRD
         case .failed:
             return .red
         case .queued:
-            return .purple
+            return .orange
         }
     }
 }
