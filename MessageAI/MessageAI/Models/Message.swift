@@ -33,8 +33,11 @@ struct Message: Codable, Identifiable {
     /// The message text content
     var text: String
     
-    /// When this message was sent
+    /// When this message was sent (client timestamp for optimistic UI)
     var timestamp: Date
+    
+    /// Server timestamp for consistent ordering across devices
+    var serverTimestamp: Date?
     
     /// Array of user IDs who have read this message
     var readBy: [String]
@@ -51,6 +54,9 @@ struct Message: Codable, Identifiable {
     /// Number of retry attempts for failed messages
     var retryCount: Int = 0
     
+    /// Whether this is an optimistic update (not yet confirmed by server)
+    var isOptimistic: Bool = false
+    
     /// Firestore collection name
     static let collectionName = "messages"
     
@@ -62,26 +68,30 @@ struct Message: Codable, Identifiable {
         case senderID
         case text
         case timestamp
+        case serverTimestamp
         case readBy
         case status
         case senderName
         case isOffline
         case retryCount
+        case isOptimistic
     }
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, readBy: [String] = [], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
         self.text = text
         self.timestamp = timestamp
+        self.serverTimestamp = serverTimestamp
         self.readBy = readBy
         self.status = status
         self.senderName = senderName
         self.isOffline = isOffline
         self.retryCount = retryCount
+        self.isOptimistic = isOptimistic
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -99,12 +109,20 @@ struct Message: Codable, Identifiable {
         senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
         isOffline = try container.decodeIfPresent(Bool.self, forKey: .isOffline) ?? false
         retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
+        isOptimistic = try container.decodeIfPresent(Bool.self, forKey: .isOptimistic) ?? false
         
-        // Handle Firestore Timestamp conversion
+        // Handle Firestore Timestamp conversion for client timestamp
         if let timestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
             self.timestamp = timestamp.dateValue()
         } else {
             self.timestamp = try container.decode(Date.self, forKey: .timestamp)
+        }
+        
+        // Handle server timestamp (optional)
+        if let serverTimestamp = try? container.decode(Timestamp.self, forKey: .serverTimestamp) {
+            self.serverTimestamp = serverTimestamp.dateValue()
+        } else if let serverTimestamp = try? container.decodeIfPresent(Date.self, forKey: .serverTimestamp) {
+            self.serverTimestamp = serverTimestamp
         }
     }
     
@@ -121,8 +139,14 @@ struct Message: Codable, Identifiable {
         try container.encodeIfPresent(senderName, forKey: .senderName)
         try container.encode(isOffline, forKey: .isOffline)
         try container.encode(retryCount, forKey: .retryCount)
+        try container.encode(isOptimistic, forKey: .isOptimistic)
         
         // Convert date to Firestore Timestamp
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
+        
+        // Handle server timestamp if present
+        if let serverTimestamp = serverTimestamp {
+            try container.encode(Timestamp(date: serverTimestamp), forKey: .serverTimestamp)
+        }
     }
 }

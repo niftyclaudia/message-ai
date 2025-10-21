@@ -27,6 +27,65 @@ class MessageService {
     
     // MARK: - Public Methods
     
+    /// Sends a message with optimistic UI updates
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - text: The message text
+    /// - Returns: Message ID
+    /// - Throws: MessageServiceError for various failure scenarios
+    func sendMessageOptimistic(chatID: String, text: String) async throws -> String {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw MessageServiceError.permissionDenied
+        }
+        
+        let messageID = UUID().uuidString
+        let timestamp = Date()
+        
+        // Create optimistic message for immediate UI display
+        let optimisticMessage = OptimisticMessage(
+            id: messageID,
+            chatID: chatID,
+            text: text,
+            timestamp: timestamp,
+            senderID: currentUser.uid,
+            status: .sending
+        )
+        
+        do {
+            // Create message with server timestamp
+            let message = Message(
+                id: messageID,
+                chatID: chatID,
+                senderID: currentUser.uid,
+                text: text,
+                timestamp: timestamp,
+                serverTimestamp: nil, // Will be set by server
+                readBy: [currentUser.uid],
+                status: .sending,
+                senderName: nil,
+                isOffline: false,
+                retryCount: 0,
+                isOptimistic: true
+            )
+            
+            // Save to Firestore with server timestamp
+            try firestore.collection("chats")
+                .document(chatID)
+                .collection(Message.collectionName)
+                .document(messageID)
+                .setData(from: message)
+            
+            // Update status to sent
+            try await updateMessageStatus(messageID: messageID, status: .sent)
+            
+            return messageID
+        } catch {
+            // If send fails, mark as failed
+            try? await updateMessageStatus(messageID: messageID, status: .failed)
+            throw MessageServiceError.networkError(error)
+        }
+    }
+    
     /// Sends a message to Firestore with real-time delivery
     /// - Parameters:
     ///   - chatID: The chat's ID
@@ -214,6 +273,39 @@ class MessageService {
         removeQueuedMessage(id: messageID)
     }
     
+    /// Updates a message with server timestamp
+    /// - Parameters:
+    ///   - messageID: The message ID to update
+    ///   - serverTimestamp: The server timestamp to set
+    /// - Throws: MessageServiceError for various failure scenarios
+    func updateMessageWithServerTimestamp(messageID: String, serverTimestamp: Date) async throws {
+        let query = firestore.collectionGroup(Message.collectionName)
+            .whereField("id", isEqualTo: messageID)
+            .limit(to: 1)
+        
+        let snapshot = try await query.getDocuments()
+        
+        guard let document = snapshot.documents.first else {
+            throw MessageServiceError.messageNotFound
+        }
+        
+        try await document.reference.updateData([
+            "serverTimestamp": Timestamp(date: serverTimestamp)
+        ])
+    }
+    
+    /// Sorts messages by server timestamp for consistent ordering
+    /// - Parameter messages: Array of messages to sort
+    /// - Returns: Messages sorted by server timestamp (fallback to client timestamp)
+    func sortMessagesByServerTimestamp(_ messages: [Message]) -> [Message] {
+        return messages.sorted { message1, message2 in
+            // Use server timestamp if available, otherwise fall back to client timestamp
+            let timestamp1 = message1.serverTimestamp ?? message1.timestamp
+            let timestamp2 = message2.serverTimestamp ?? message2.timestamp
+            return timestamp1 < timestamp2
+        }
+    }
+    
     /// Fetches messages for a specific chat with pagination
     /// - Parameters:
     ///   - chatID: The chat's ID
@@ -384,6 +476,8 @@ enum MessageServiceError: LocalizedError {
     case networkError(Error)
     case offlineQueueFull
     case retryLimitExceeded
+    case optimisticUpdateFailed
+    case serverTimestampError
     case unknown(Error)
     
     var errorDescription: String? {
@@ -398,6 +492,10 @@ enum MessageServiceError: LocalizedError {
             return "Offline message queue is full"
         case .retryLimitExceeded:
             return "Retry limit exceeded for message"
+        case .optimisticUpdateFailed:
+            return "Optimistic update failed"
+        case .serverTimestampError:
+            return "Server timestamp error"
         case .unknown(let error):
             return "Unknown error: \(error.localizedDescription)"
         }
