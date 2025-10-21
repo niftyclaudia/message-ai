@@ -1,0 +1,42 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userID) {
+      return isAuthenticated() && request.auth.uid == userID;
+    }
+    
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isUnderSizeLimit() {
+      return request.resource.size < 10 * 1024 * 1024;  // 10MB limit
+    }
+    
+    // Profile photos rules
+    match /profile_photos/{userID}/{fileName} {
+      // Anyone authenticated can read profile photos
+      allow read: if isAuthenticated();
+      
+      // Only the user can write their own photos
+      // Must be an image and under 10MB
+      allow write: if isOwner(userID) && isImage() && isUnderSizeLimit();
+      
+      // Only the user can delete their own photos
+      allow delete: if isOwner(userID);
+    }
+    
+    // Deny all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
