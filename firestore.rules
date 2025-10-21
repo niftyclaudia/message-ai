@@ -42,7 +42,16 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       
       // Allow authenticated users to update profiles (for development)
-      allow update: if isAuthenticated();
+      // Special rule: Allow users to update their own FCM token
+      allow update: if isAuthenticated() && (
+        // General update (development mode)
+        true
+        ||
+        // Specific FCM token update (production-ready)
+        (request.auth.uid == userID 
+         && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['fcmToken', 'lastTokenUpdate']))
+      );
       
       // No one can delete user documents (admin only, not implemented here)
       allow delete: if false;
