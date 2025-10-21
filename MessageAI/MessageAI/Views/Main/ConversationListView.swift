@@ -20,66 +20,39 @@ struct ConversationListView: View {
     // MARK: - Body
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                AppTheme.backgroundColor
-                    .ignoresSafeArea()
-                
-                // Content based on state
-                if viewModel.isLoading {
-                    LoadingView(message: "Loading conversations...")
-                } else if viewModel.chats.isEmpty {
-                    emptyStateView
-                } else {
-                    VStack {
-                        // Test button for PR-5 (always visible)
-                        Button("🧪 Test Chat View") {
-                            // Create a test chat and navigate to it
-                            let testChat = Chat(
-                                id: "test-chat-pr5",
-                                members: [currentUserID, "user-2"],
-                                lastMessage: "Test message",
-                                lastMessageTimestamp: Date(),
-                                lastMessageSenderID: "user-2",
-                                isGroupChat: false,
-                                createdAt: Date()
-                            )
-                            
-                            // Add to view model
-                            viewModel.chats = [testChat]
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding()
+        ZStack {
+            // Background
+            AppTheme.backgroundColor
+                .ignoresSafeArea()
+            
+            // Content based on state
+            if viewModel.isLoading {
+                LoadingView(message: "Loading conversations...")
+            } else if viewModel.chats.isEmpty {
+                emptyStateView
+            } else {
+                VStack {
+                    // Test button for PR-5 (always visible)
+                    Button("🧪 Test Chat View") {
+                        // Create a test chat and navigate to it
+                        let testChat = Chat(
+                            id: "test-chat-pr5",
+                            members: [currentUserID, "user-2"],
+                            lastMessage: "Test message",
+                            lastMessageTimestamp: Date(),
+                            lastMessageSenderID: "user-2",
+                            isGroupChat: false,
+                            createdAt: Date(),
+                            createdBy: currentUserID
+                        )
                         
-                        conversationList
+                        // Add to view model
+                        viewModel.chats = [testChat]
                     }
-                }
-            }
-            .navigationTitle("Chats")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("🧪 Create Test Data") {
-                        Task {
-                            do {
-                                try await testDataService.createTestChatData(currentUserID: currentUserID)
-                                await viewModel.loadChats(userID: currentUserID)
-                            } catch {
-                                print("⚠️ Failed to create test data: \(error)")
-                            }
-                        }
-                    }
-                    .foregroundColor(AppTheme.primaryColor)
-                    .font(.caption)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Logout") {
-                        // TODO: Implement logout functionality
-                        print("Logout tapped")
-                    }
-                    .foregroundColor(AppTheme.primaryColor)
+                    .buttonStyle(.borderedProminent)
+                    .padding()
+                    
+                    conversationList
                 }
             }
         }
@@ -125,6 +98,14 @@ struct ConversationListView: View {
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                await viewModel.deleteChat(chatID: chat.id)
+                            }
+                        }
+                        .tint(.red)
+                    }
                     
                     // Divider between rows
                     if chat.id != viewModel.chats.last?.id {
@@ -155,7 +136,8 @@ struct ConversationListView: View {
                     lastMessageTimestamp: Date(),
                     lastMessageSenderID: "user-2",
                     isGroupChat: false,
-                    createdAt: Date()
+                    createdAt: Date(),
+                    createdBy: currentUserID
                 )
                 
                 // Add to view model

@@ -92,7 +92,8 @@ struct ConversationRowView: View {
             lastMessageTimestamp: Date().addingTimeInterval(-300),
             lastMessageSenderID: "user2",
             isGroupChat: false,
-            createdAt: Date()
+            createdAt: Date(),
+            createdBy: "user1"
         ),
         otherUser: User(
             id: "user2",
@@ -116,7 +117,8 @@ struct ConversationRowView: View {
             lastMessageTimestamp: Date().addingTimeInterval(-600),
             lastMessageSenderID: "user1",
             isGroupChat: false,
-            createdAt: Date()
+            createdAt: Date(),
+            createdBy: "user1"
         ),
         otherUser: User(
             id: "user2",
@@ -140,7 +142,8 @@ struct ConversationRowView: View {
             lastMessageTimestamp: Date().addingTimeInterval(-3600),
             lastMessageSenderID: "user2",
             isGroupChat: false,
-            createdAt: Date()
+            createdAt: Date(),
+            createdBy: "user1"
         ),
         otherUser: User(
             id: "user2",
