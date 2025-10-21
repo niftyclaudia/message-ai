@@ -119,7 +119,50 @@ struct SignUpView: View {
                     }
                 }
                 .disabled(!isFormValid || viewModel.isLoading)
-                
+
+                // Divider with "or" text
+                HStack {
+                    Rectangle()
+                        .fill(AppTheme.secondaryTextColor.opacity(0.3))
+                        .frame(height: 1)
+
+                    Text("or")
+                        .font(AppTheme.bodyFont)
+                        .foregroundColor(AppTheme.secondaryTextColor)
+                        .padding(.horizontal, AppTheme.smallSpacing)
+
+                    Rectangle()
+                        .fill(AppTheme.secondaryTextColor.opacity(0.3))
+                        .frame(height: 1)
+                }
+                .padding(.vertical, AppTheme.smallSpacing)
+
+                // Google Sign-In button
+                Button {
+                    Task {
+                        await viewModel.signInWithGoogle()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "g.circle.fill")
+                            .font(.title3)
+
+                        Text("Sign up with Google")
+                            .font(AppTheme.bodyFont)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppTheme.mediumRadius)
+                            .stroke(AppTheme.secondaryTextColor.opacity(0.5), lineWidth: 1)
+                    )
+                    .cornerRadius(AppTheme.mediumRadius)
+                }
+                .disabled(viewModel.isLoading)
+
                 // Back to login hint
                 Button {
                     dismiss()
