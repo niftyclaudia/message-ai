@@ -91,8 +91,6 @@ final class SecurityRulesTests: XCTestCase {
         
         // When: User B tries to read User A's document
         // Then: Should succeed
-        XCTAssertNoThrow(try await userService.fetchUser(userID: testUserA_ID))
-        
         let userA = try await userService.fetchUser(userID: testUserA_ID)
         XCTAssertEqual(userA.id, testUserA_ID, "Should be able to read other user's document")
     }
@@ -179,7 +177,7 @@ final class SecurityRulesTests: XCTestCase {
         
         // When: User B tries to update own document
         // Then: Should succeed
-        XCTAssertNoThrow(try await userService.updateUser(userID: testUserB_ID, displayName: "Updated B"))
+        try await userService.updateUser(userID: testUserB_ID, displayName: "Updated B")
         
         // When: User B tries to update User A's document
         // Then: Should fail

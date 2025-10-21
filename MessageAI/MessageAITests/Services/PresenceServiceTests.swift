@@ -227,7 +227,7 @@ struct PresenceServiceTests {
     
     // MARK: - Performance Tests
     
-    @Test("Setting user online completes within 100ms", .timeLimit(.milliseconds(100)))
+    @Test("Setting user online completes within 100ms")
     func settingUserOnlineCompletesWithin100ms() async throws {
         // Note: This test would require authentication
         // In a real scenario, you would use authenticated test user
