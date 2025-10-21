@@ -74,7 +74,7 @@ struct ContactListView: View {
                     
                     if user.id != viewModel.filteredUsers.last?.id {
                         Divider()
-                            .padding(.leading, 72) // Indent to align with text
+                            .padding(.leading, 72)
                     }
                 }
             }

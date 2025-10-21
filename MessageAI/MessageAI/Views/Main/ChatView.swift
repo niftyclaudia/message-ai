@@ -77,6 +77,9 @@ struct ChatView: View {
             Task {
                 await viewModel.loadMessages(chatID: chat.id)
                 viewModel.observeMessagesRealTime(chatID: chat.id)
+                
+                // Mark all messages in chat as read when opening (PR-12)
+                viewModel.markChatAsRead()
             }
         }
         .onDisappear {
@@ -134,6 +137,7 @@ struct ChatView: View {
                 messagesList
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Messages List

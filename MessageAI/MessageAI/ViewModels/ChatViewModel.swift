@@ -29,6 +29,7 @@ class ChatViewModel: ObservableObject {
     @Published var connectionType: ConnectionType = .wifi
     @Published var isRetrying: Bool = false
     @Published var hasRetryableMessages: Bool = false
+    @Published var readReceipts: [String: [String: Date]] = [:] // messageID -> [userID: readAt]
     
     // MARK: - Computed Properties
     
@@ -41,15 +42,18 @@ class ChatViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private let messageService: MessageService
+    private let readReceiptService: ReadReceiptService
     private var listener: ListenerRegistration?
+    private var readReceiptListener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
     let optimisticService = OptimisticUpdateService()
     
     // MARK: - Initialization
     
-    init(currentUserID: String, messageService: MessageService = MessageService()) {
+    init(currentUserID: String, messageService: MessageService = MessageService(), readReceiptService: ReadReceiptService? = nil) {
         self.currentUserID = currentUserID
         self.messageService = messageService
+        self.readReceiptService = readReceiptService ?? ReadReceiptService()
         
         // Monitor network status
         Task { @MainActor in
@@ -58,9 +62,11 @@ class ChatViewModel: ObservableObject {
     }
     
     deinit {
-        // Clean up listener without main actor isolation
+        // Clean up listeners without main actor isolation
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
         // NetworkMonitor cleanup is handled in its own deinit
     }
     
@@ -94,24 +100,90 @@ class ChatViewModel: ObservableObject {
                 self?.messages = newMessages
             }
         }
+        
+        // Enable real-time listener for read receipts (PR-12)
+        readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
+            Task { @MainActor in
+                print("🔍 ReadReceipts Debug: Received read receipts update: \(receipts)")
+                self?.readReceipts = receipts
+                self?.updateMessageStatusesWithReadReceipts()
+            }
+        }
     }
     
     /// Stops observing messages and cleans up listener
     func stopObserving() {
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
     }
     
     /// Marks a message as read by the current user
     /// - Parameter messageID: The message's ID
     func markMessageAsRead(messageID: String) {
+        guard let chat = chat else { return }
+        
         Task {
             do {
-                try await messageService.markMessageAsRead(messageID: messageID, userID: currentUserID)
+                try await readReceiptService.markMessageAsRead(messageID: messageID, userID: currentUserID, chatID: chat.id)
+                print("✅ Marked message \(messageID) as read")
             } catch {
                 print("⚠️ Failed to mark message as read: \(error)")
             }
         }
+    }
+    
+    /// Marks all messages in the current chat as read
+    func markChatAsRead() {
+        guard let chat = chat else { return }
+        
+        Task {
+            do {
+                try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
+                print("✅ Marked all messages in chat \(chat.id) as read")
+            } catch {
+                print("⚠️ Failed to mark chat as read: \(error)")
+            }
+        }
+    }
+    
+    /// Updates message statuses based on read receipts
+    private func updateMessageStatusesWithReadReceipts() {
+        print("🔍 ReadReceipts Debug: Updating message statuses with \(readReceipts.count) read receipts")
+        
+        for i in 0..<messages.count {
+            let message = messages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                print("🔍 ReadReceipts Debug: Message \(message.id) has read receipts: \(readAt)")
+                // Message has been read by at least one user
+                if message.status != .read {
+                    print("🔍 ReadReceipts Debug: Updating message \(message.id) from \(message.status) to .read")
+                    messages[i].status = .read
+                }
+            } else {
+                print("🔍 ReadReceipts Debug: Message \(message.id) has no read receipts, status: \(message.status)")
+            }
+        }
+        
+        // Also update optimistic messages
+        for i in 0..<optimisticMessages.count {
+            let message = optimisticMessages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                print("🔍 ReadReceipts Debug: Optimistic message \(message.id) has read receipts: \(readAt)")
+                if message.status != .read {
+                    print("🔍 ReadReceipts Debug: Updating optimistic message \(message.id) from \(message.status) to .read")
+                    optimisticMessages[i].status = .read
+                }
+            }
+        }
+    }
+    
+    /// Gets read status for a message
+    /// - Parameter messageID: The message ID
+    /// - Returns: Dictionary of user IDs to read timestamps
+    func getReadStatus(messageID: String) -> [String: Date] {
+        return readReceipts[messageID] ?? [:]
     }
     
     /// Formats a timestamp into a user-friendly string

@@ -53,7 +53,7 @@ class ContactListViewModel: ObservableObject {
     
     deinit {
         listener?.remove()
-        stopObservingPresence()
+        // Presence cleanup handled automatically
     }
     
     // MARK: - Public Methods
@@ -140,7 +140,7 @@ class ContactListViewModel: ObservableObject {
     }
     
     /// Stops observing presence for all users
-    nonisolated func stopObservingPresence() {
+    func stopObservingPresence() {
         for (userID, handle) in presenceHandles {
             presenceService.removeObserver(userID: userID, handle: handle)
         }
