@@ -19,11 +19,11 @@
 
 ## 1. Setup
 
-- [ ] Create branch `feat/pr-6-real-time-messaging` from develop
-- [ ] Read PRD thoroughly
-- [ ] Read `MessageAI/agents/shared-standards.md` for patterns
-- [ ] Confirm environment and test runner work
-- [ ] Review existing MessageService and ChatViewModel from PR #5
+- [x] Create branch `feat/pr-6-real-time-messaging` from develop
+- [x] Read PRD thoroughly
+- [x] Read `MessageAI/agents/shared-standards.md` for patterns
+- [x] Confirm environment and test runner work
+- [x] Review existing MessageService and ChatViewModel from PR #5
 
 ---
 
@@ -31,30 +31,30 @@
 
 Implement deterministic service contracts from PRD.
 
-- [ ] Create NetworkMonitor service
+- [x] Create NetworkMonitor service
   - Test Gate: Unit test passes for connection state changes
-- [ ] Implement MessageService.sendMessage() method
+- [x] Implement MessageService.sendMessage() method
   - Test Gate: Unit test passes for valid/invalid cases
-- [ ] Implement MessageService.observeMessages() method
+- [x] Implement MessageService.observeMessages() method
   - Test Gate: Unit test passes for listener setup/cleanup
-- [ ] Add offline message queuing methods
+- [x] Add offline message queuing methods
   - Test Gate: Unit test passes for queue operations
-- [ ] Implement message status update methods
+- [x] Implement message status update methods
   - Test Gate: Unit test passes for status transitions
-- [ ] Add retry logic for failed messages
+- [x] Add retry logic for failed messages
   - Test Gate: Unit test passes for retry scenarios
 
 ---
 
 ## 3. Data Model & Rules
 
-- [ ] Extend Message model with offline and retry fields
+- [x] Extend Message model with offline and retry fields
   - Test Gate: Model serialization/deserialization works
-- [ ] Create QueuedMessage model for offline storage
+- [x] Create QueuedMessage model for offline storage
   - Test Gate: Model persists correctly in UserDefaults
-- [ ] Update Firestore security rules for message creation
+- [x] Update Firestore security rules for message creation
   - Test Gate: Reads/writes succeed with rules applied
-- [ ] Add MessageStatus enum with all states
+- [x] Add MessageStatus enum with all states
   - Test Gate: Status transitions work correctly
 
 ---
@@ -63,17 +63,17 @@ Implement deterministic service contracts from PRD.
 
 Create/modify SwiftUI views per PRD Section 10.
 
-- [ ] Create MessageInputView component
+- [x] Create MessageInputView component
   - Test Gate: SwiftUI Preview renders; zero console errors
-- [ ] Create MessageStatusView component
+- [x] Create MessageStatusView component
   - Test Gate: All status states render correctly
-- [ ] Create OfflineIndicatorView component
+- [x] Create OfflineIndicatorView component
   - Test Gate: Shows/hides based on connection status
-- [ ] Create RetryButtonView component
+- [x] Create RetryButtonView component
   - Test Gate: Retry action triggers correctly
-- [ ] Wire up state management in ChatViewModel
+- [x] Wire up state management in ChatViewModel
   - Test Gate: Interaction updates state correctly
-- [ ] Add loading/error/offline states to ChatView
+- [x] Add loading/error/offline states to ChatView
   - Test Gate: All states render correctly
 
 ---
@@ -82,15 +82,15 @@ Create/modify SwiftUI views per PRD Section 10.
 
 Reference requirements from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Firebase service integration for message sending
+- [x] Firebase service integration for message sending
   - Test Gate: Messages save to Firestore successfully
-- [ ] Real-time listeners working
+- [x] Real-time listeners working
   - Test Gate: Data syncs across devices <100ms
-- [ ] Offline persistence implemented
+- [x] Offline persistence implemented
   - Test Gate: App restarts work offline with cached data
-- [ ] Network status monitoring
+- [x] Network status monitoring
   - Test Gate: Connection changes trigger UI updates
-- [ ] Message status updates in real-time
+- [x] Message status updates in real-time
   - Test Gate: Status changes reflect immediately
 
 ---
@@ -99,21 +99,21 @@ Reference requirements from `MessageAI/agents/shared-standards.md`.
 
 Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agents/test-template.md`.
 
-- [ ] Unit Tests (Swift Testing)
+- [x] Unit Tests (Swift Testing)
   - Path: `MessageAITests/Services/MessageServiceTests.swift`
   - Test Gate: Service logic validated, edge cases covered
-- [ ] Network Tests (Swift Testing)
+- [x] Network Tests (Swift Testing)
   - Path: `MessageAITests/Services/NetworkMonitorTests.swift`
   - Test Gate: Connection state changes tested
-- [ ] Offline Tests (Swift Testing)
+- [x] Offline Tests (Swift Testing)
   - Path: `MessageAITests/Services/OfflineQueueTests.swift`
   - Test Gate: Offline queuing and sync tested
-- [ ] UI Tests (XCTest)
+- [x] UI Tests (XCTest)
   - Path: `MessageAIUITests/MessageSendingUITests.swift`
   - Test Gate: User flows succeed, navigation works
-- [ ] Multi-device sync test
+- [x] Multi-device sync test
   - Test Gate: Use pattern from shared-standards.md
-- [ ] Visual states verification
+- [x] Visual states verification
   - Test Gate: Empty, loading, error, success render correctly
 
 ---
@@ -122,13 +122,13 @@ Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agent
 
 Verify targets from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Message delivery latency < 100ms
+- [x] Message delivery latency < 100ms
   - Test Gate: Firebase calls measured with instruments
-- [ ] Real-time sync < 100ms
+- [x] Real-time sync < 100ms
   - Test Gate: Cross-device message delivery measured
-- [ ] No UI blocking during message send
+- [x] No UI blocking during message send
   - Test Gate: Main thread stays responsive
-- [ ] Memory usage stable with listeners
+- [x] Memory usage stable with listeners
   - Test Gate: No memory leaks detected
 
 ---
@@ -136,21 +136,21 @@ Verify targets from `MessageAI/agents/shared-standards.md`.
 ## 8. Acceptance Gates
 
 Check every gate from PRD Section 12:
-- [ ] All happy path gates pass
-- [ ] All edge case gates pass
-- [ ] All multi-user gates pass
-- [ ] All performance gates pass
+- [x] All happy path gates pass
+- [x] All edge case gates pass
+- [x] All multi-user gates pass
+- [x] All performance gates pass
 
 ---
 
 ## 9. Documentation & PR
 
-- [ ] Add inline code comments for complex logic
-- [ ] Update README if needed
-- [ ] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
-- [ ] Verify with user before creating PR
-- [ ] Open PR targeting develop branch
-- [ ] Link PRD and TODO in PR description
+- [x] Add inline code comments for complex logic
+- [x] Update README if needed
+- [x] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
+- [x] Verify with user before creating PR
+- [x] Open PR targeting develop branch
+- [x] Link PRD and TODO in PR description
 
 ---
 
