@@ -74,22 +74,38 @@ class AuthViewModel: ObservableObject {
             showErrorAlert("Passwords do not match")
             return
         }
-        
+
         if let validationError = Validation.getValidationError(email: email, password: password, displayName: displayName) {
             showErrorAlert(validationError)
             return
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         do {
             _ = try await authService.signUp(email: email, password: password, displayName: displayName)
             // Success - AuthService will update isAuthenticated
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
-        
+
+        isLoading = false
+    }
+
+    /// Sign in with Google
+    /// - Note: Updates isLoading and errorMessage during operation
+    func signInWithGoogle() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await authService.signInWithGoogle()
+            // Success - AuthService will update isAuthenticated
+        } catch {
+            showErrorAlert(getUserFriendlyMessage(for: error))
+        }
+
         isLoading = false
     }
     
@@ -128,11 +144,17 @@ class AuthViewModel: ObservableObject {
                 return "Network error. Please check your connection and try again."
             case .userDocumentCreationFailed:
                 return "Failed to create user profile. Please try again."
+            case .googleSignInCancelled:
+                return "Google Sign-In was cancelled"
+            case .googleSignInFailed:
+                return "Google Sign-In failed. Please try again."
+            case .missingGoogleClientID:
+                return "Google Sign-In is not configured properly"
             case .unknown(let underlyingError):
                 return "An error occurred: \(underlyingError.localizedDescription)"
             }
         }
-        
+
         return "An unexpected error occurred. Please try again."
     }
 }
