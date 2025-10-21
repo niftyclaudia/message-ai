@@ -140,7 +140,7 @@ class ContactListViewModel: ObservableObject {
     }
     
     /// Stops observing presence for all users
-    func stopObservingPresence() {
+    nonisolated func stopObservingPresence() {
         for (userID, handle) in presenceHandles {
             presenceService.removeObserver(userID: userID, handle: handle)
         }
