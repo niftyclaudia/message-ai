@@ -108,7 +108,8 @@ class TestDataService: ObservableObject {
                 lastMessageTimestamp: now.addingTimeInterval(-300), // 5 minutes ago
                 lastMessageSenderID: "user-2",
                 isGroupChat: false,
-                createdAt: now.addingTimeInterval(-3600) // 1 hour ago
+                createdAt: now.addingTimeInterval(-3600), // 1 hour ago
+                createdBy: currentUserID
             ),
             Chat(
                 id: "test-chat-2",
@@ -117,7 +118,8 @@ class TestDataService: ObservableObject {
                 lastMessageTimestamp: now.addingTimeInterval(-1800), // 30 minutes ago
                 lastMessageSenderID: currentUserID,
                 isGroupChat: false,
-                createdAt: now.addingTimeInterval(-7200) // 2 hours ago
+                createdAt: now.addingTimeInterval(-7200), // 2 hours ago
+                createdBy: currentUserID
             ),
             Chat(
                 id: "test-chat-3",
@@ -127,7 +129,8 @@ class TestDataService: ObservableObject {
                 lastMessageSenderID: "user-4",
                 isGroupChat: true,
                 groupName: "Team Chat",
-                createdAt: now.addingTimeInterval(-10800) // 3 hours ago
+                createdAt: now.addingTimeInterval(-10800), // 3 hours ago
+                createdBy: currentUserID
             )
         ]
         

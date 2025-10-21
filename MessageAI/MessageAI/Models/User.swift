@@ -12,7 +12,7 @@ import FirebaseFirestore
 /// - Note: Maps to Firestore collection 'users' with document ID = userID
 struct User: Codable, Identifiable, Equatable {
     /// Firebase Auth UID - immutable
-    let id: String
+    var id: String
     
     /// Display name shown in UI
     /// - Validation: 1-50 characters

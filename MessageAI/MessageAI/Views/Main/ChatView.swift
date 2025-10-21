@@ -284,7 +284,8 @@ struct ChatView: View {
                 lastMessageTimestamp: Date(),
                 lastMessageSenderID: "user2",
                 isGroupChat: false,
-                createdAt: Date()
+                createdAt: Date(),
+                createdBy: "user1"
             ),
             currentUserID: "user1"
         )
