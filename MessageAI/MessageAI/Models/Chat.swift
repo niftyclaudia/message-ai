@@ -29,6 +29,9 @@ struct Chat: Codable, Identifiable, Equatable {
     /// Whether this is a group chat (false for 1-on-1 chats)
     var isGroupChat: Bool
     
+    /// Group name for group chats (nil for 1-on-1 chats)
+    var groupName: String?
+    
     /// When this chat was created
     var createdAt: Date
     
@@ -54,18 +57,20 @@ struct Chat: Codable, Identifiable, Equatable {
         case lastMessageTimestamp
         case lastMessageSenderID
         case isGroupChat
+        case groupName
         case createdAt
     }
     
     // MARK: - Initialization
     
-    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, createdAt: Date) {
+    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
         self.lastMessageTimestamp = lastMessageTimestamp
         self.lastMessageSenderID = lastMessageSenderID
         self.isGroupChat = isGroupChat
+        self.groupName = groupName
         self.createdAt = createdAt
     }
     
@@ -80,6 +85,7 @@ struct Chat: Codable, Identifiable, Equatable {
         lastMessage = try container.decode(String.self, forKey: .lastMessage)
         lastMessageSenderID = try container.decode(String.self, forKey: .lastMessageSenderID)
         isGroupChat = try container.decode(Bool.self, forKey: .isGroupChat)
+        groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
         
         // Handle Firestore Timestamp conversion for dates
         if let timestamp = try? container.decode(Timestamp.self, forKey: .lastMessageTimestamp) {
@@ -104,6 +110,7 @@ struct Chat: Codable, Identifiable, Equatable {
         try container.encode(lastMessage, forKey: .lastMessage)
         try container.encode(lastMessageSenderID, forKey: .lastMessageSenderID)
         try container.encode(isGroupChat, forKey: .isGroupChat)
+        try container.encodeIfPresent(groupName, forKey: .groupName)
         
         // Convert dates to Firestore Timestamps
         try container.encode(Timestamp(date: lastMessageTimestamp), forKey: .lastMessageTimestamp)
