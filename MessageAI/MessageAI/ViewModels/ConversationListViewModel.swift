@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseDatabase
 
 /// ViewModel for managing conversation list state and real-time updates
 /// - Note: Handles chat loading, real-time updates, and user data management
@@ -27,12 +28,17 @@ class ConversationListViewModel: ObservableObject {
     /// Error message for display
     @Published var errorMessage: String?
     
+    /// Dictionary mapping user IDs to presence status
+    @Published var userPresence: [String: PresenceState] = [:]
+    
     // MARK: - Private Properties
     
     private var listener: ListenerRegistration?
     private let chatService = ChatService()
     private let userService = UserService()
+    private let presenceService = PresenceService()
     private var currentUserID: String?
+    private var presenceHandles: [String: DatabaseHandle] = [:]
     
     // MARK: - Public Methods
     
@@ -80,6 +86,43 @@ class ConversationListViewModel: ObservableObject {
     func stopObserving() {
         listener?.remove()
         listener = nil
+    }
+    
+    /// Observes presence for all chat participants
+    /// - Note: Updates userPresence dictionary in real-time
+    func observePresence() {
+        // Stop any existing presence observers
+        stopObservingPresence()
+        
+        // Get all unique user IDs from chats
+        var userIDs = Set<String>()
+        for chat in chats {
+            if let currentUserID = currentUserID,
+               let otherUserID = chat.getOtherUserID(currentUserID: currentUserID) {
+                userIDs.insert(otherUserID)
+            }
+        }
+        
+        // Observe presence for each user
+        for userID in userIDs {
+            let handle = presenceService.observeUserPresence(userID: userID) { [weak self] presence in
+                Task { @MainActor in
+                    self?.userPresence[userID] = presence.status
+                }
+            }
+            presenceHandles[userID] = handle
+        }
+        
+        print("✅ Observing presence for \(userIDs.count) chat participants")
+    }
+    
+    /// Stops observing presence for all users
+    func stopObservingPresence() {
+        for (userID, handle) in presenceHandles {
+            presenceService.removeObserver(userID: userID, handle: handle)
+        }
+        presenceHandles.removeAll()
+        userPresence.removeAll()
     }
     
     /// Gets the other user in a 1-on-1 chat
@@ -164,5 +207,6 @@ class ConversationListViewModel: ObservableObject {
         // Clean up listener without main actor isolation
         listener?.remove()
         listener = nil
+        stopObservingPresence()
     }
 }

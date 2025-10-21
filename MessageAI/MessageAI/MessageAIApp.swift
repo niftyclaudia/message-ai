@@ -16,6 +16,9 @@ struct MessageAIApp: App {
     /// Authentication service - single source of truth for auth state
     @StateObject private var authService = AuthService()
     
+    /// App lifecycle manager - handles presence status based on app state
+    @StateObject private var lifecycleManager = AppLifecycleManager()
+    
     // MARK: - Initialization
     
     init() {

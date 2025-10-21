@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseDatabase
 
 /// View model managing contact list and search
 @MainActor
@@ -23,30 +24,36 @@ class ContactListViewModel: ObservableObject {
     }
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var userPresence: [String: PresenceState] = [:]
     
     // MARK: - Services
     
     private let userService: UserService
     private let authService: AuthService
+    private let presenceService: PresenceService
     
     // MARK: - Private Properties
     
     private var listener: ListenerRegistration?
+    private var presenceHandles: [String: DatabaseHandle] = [:]
     
     // MARK: - Initialization
     
     init(
         userService: UserService = UserService(),
-        authService: AuthService = AuthService()
+        authService: AuthService = AuthService(),
+        presenceService: PresenceService = PresenceService()
     ) {
         self.userService = userService
         self.authService = authService
+        self.presenceService = presenceService
     }
     
     // MARK: - Deinitialization
     
     deinit {
         listener?.remove()
+        stopObservingPresence()
     }
     
     // MARK: - Public Methods
@@ -111,6 +118,34 @@ class ContactListViewModel: ObservableObject {
     func stopObserving() {
         listener?.remove()
         listener = nil
+    }
+    
+    /// Observes presence for all users in the contact list
+    /// - Note: Updates userPresence dictionary in real-time
+    func observePresence() {
+        // Stop any existing presence observers
+        stopObservingPresence()
+        
+        // Observe presence for all users
+        for user in allUsers {
+            let handle = presenceService.observeUserPresence(userID: user.id) { [weak self] presence in
+                Task { @MainActor in
+                    self?.userPresence[user.id] = presence.status
+                }
+            }
+            presenceHandles[user.id] = handle
+        }
+        
+        print("✅ Observing presence for \(allUsers.count) users")
+    }
+    
+    /// Stops observing presence for all users
+    func stopObservingPresence() {
+        for (userID, handle) in presenceHandles {
+            presenceService.removeObserver(userID: userID, handle: handle)
+        }
+        presenceHandles.removeAll()
+        userPresence.removeAll()
     }
 }
 

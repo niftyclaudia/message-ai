@@ -94,9 +94,11 @@ struct ConversationListView: View {
             // Load chats from Firestore
             await viewModel.loadChats(userID: currentUserID)
             viewModel.observeChatsRealTime(userID: currentUserID)
+            viewModel.observePresence()
         }
         .onDisappear {
             viewModel.stopObserving()
+            viewModel.stopObservingPresence()
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK") {
@@ -121,7 +123,13 @@ struct ConversationListView: View {
                             chat: chat,
                             otherUser: viewModel.getOtherUser(chat: chat),
                             currentUserID: currentUserID,
-                            timestamp: viewModel.formatTimestamp(date: chat.lastMessageTimestamp)
+                            timestamp: viewModel.formatTimestamp(date: chat.lastMessageTimestamp),
+                            presenceStatus: {
+                                if let otherUser = viewModel.getOtherUser(chat: chat) {
+                                    return viewModel.userPresence[otherUser.id]
+                                }
+                                return nil
+                            }()
                         )
                     }
                     .buttonStyle(PlainButtonStyle())

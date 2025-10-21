@@ -50,9 +50,11 @@ struct ContactListView: View {
             .task {
                 await viewModel.loadUsers()
                 viewModel.observeUsersRealTime()
+                viewModel.observePresence()
             }
             .onDisappear {
                 viewModel.stopObserving()
+                viewModel.stopObservingPresence()
             }
         }
     }
@@ -64,8 +66,11 @@ struct ContactListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.filteredUsers) { user in
-                    UserRowView(user: user)
-                        .padding(.horizontal, AppTheme.mediumSpacing)
+                    UserRowView(
+                        user: user,
+                        presenceStatus: viewModel.userPresence[user.id]
+                    )
+                    .padding(.horizontal, AppTheme.mediumSpacing)
                     
                     if user.id != viewModel.filteredUsers.last?.id {
                         Divider()
