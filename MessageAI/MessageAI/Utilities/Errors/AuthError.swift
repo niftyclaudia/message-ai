@@ -16,6 +16,9 @@ enum AuthError: LocalizedError, Equatable {
     case userNotFound
     case networkError
     case userDocumentCreationFailed
+    case googleSignInCancelled
+    case googleSignInFailed
+    case missingGoogleClientID
     case unknown(Error)
     
     // MARK: - Equatable
@@ -35,6 +38,12 @@ enum AuthError: LocalizedError, Equatable {
         case (.networkError, .networkError):
             return true
         case (.userDocumentCreationFailed, .userDocumentCreationFailed):
+            return true
+        case (.googleSignInCancelled, .googleSignInCancelled):
+            return true
+        case (.googleSignInFailed, .googleSignInFailed):
+            return true
+        case (.missingGoogleClientID, .missingGoogleClientID):
             return true
         case (.unknown(let lhsError), .unknown(let rhsError)):
             return (lhsError as NSError).domain == (rhsError as NSError).domain &&
@@ -61,6 +70,12 @@ enum AuthError: LocalizedError, Equatable {
             return "Network connection error. Please check your internet connection and try again."
         case .userDocumentCreationFailed:
             return "Failed to create user profile. Please try again."
+        case .googleSignInCancelled:
+            return "Google Sign-In was cancelled."
+        case .googleSignInFailed:
+            return "Google Sign-In failed. Please try again."
+        case .missingGoogleClientID:
+            return "Google Sign-In is not properly configured. Please contact support."
         case .unknown(let error):
             return "An unexpected error occurred: \(error.localizedDescription)"
         }
@@ -83,6 +98,12 @@ enum AuthError: LocalizedError, Equatable {
             return "Check your internet connection and try again."
         case .userDocumentCreationFailed:
             return "Please try signing up again. If the problem persists, contact support."
+        case .googleSignInCancelled:
+            return "You can try again by tapping the 'Sign in with Google' button."
+        case .googleSignInFailed:
+            return "Make sure you have an active internet connection and try again."
+        case .missingGoogleClientID:
+            return "This is a configuration issue. Please contact support."
         case .unknown:
             return "Please try again. If the problem persists, contact support."
         }
