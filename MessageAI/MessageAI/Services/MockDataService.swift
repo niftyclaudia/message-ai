@@ -231,7 +231,7 @@ extension MockDataService {
             ("Wow, that's impressive! I'd love to see it when it's ready", false)
         ]
         
-        for (index, (text, isFromCurrentUser)) in presetMessages.enumerated() {
+        for (_, (text, isFromCurrentUser)) in presetMessages.enumerated() {
             let message = generateMockMessage(
                 isFromCurrentUser: isFromCurrentUser,
                 text: text,
