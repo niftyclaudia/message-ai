@@ -59,7 +59,7 @@ class PresenceService {
         
         // Set up onDisconnect hook first (critical for reliability)
         let offlineStatus = PresenceStatus(status: .offline, lastSeen: Date())
-        await presenceRef.onDisconnectSetValue(offlineStatus.toFirebaseDict())
+        try await presenceRef.onDisconnectSetValue(offlineStatus.toFirebaseDict())
         
         // Now set user as online
         do {
@@ -90,7 +90,7 @@ class PresenceService {
         let offlineStatus = PresenceStatus(status: .offline, lastSeen: Date())
         
         // Cancel onDisconnect hooks
-        await presenceRef.onDisconnectRemoveValue()
+        try await presenceRef.onDisconnectRemoveValue()
         
         // Set user as offline
         do {
@@ -164,7 +164,7 @@ class PresenceService {
         let presenceRef = database.child(presencePath).child(userID)
         
         // Cancel any onDisconnect hooks
-        await presenceRef.onDisconnectRemoveValue()
+        try await presenceRef.onDisconnectRemoveValue()
         
         // Remove presence data
         do {
