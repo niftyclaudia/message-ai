@@ -69,7 +69,7 @@ class PhotoService {
 
         do {
             // Wait for upload to complete
-            _ = await uploadTask
+            _ = try await uploadTask
 
             // Get download URL
             let downloadURL = try await storageRef.downloadURL()

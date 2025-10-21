@@ -26,6 +26,9 @@ class ChatViewModel: ObservableObject {
     @Published var queuedMessageCount: Int = 0
     @Published var optimisticMessages: [Message] = []
     @Published var isOptimisticUpdate: Bool = false
+    @Published var connectionType: ConnectionType = .wifi
+    @Published var isRetrying: Bool = false
+    @Published var hasRetryableMessages: Bool = false
     
     // MARK: - Computed Properties
     
@@ -49,7 +52,7 @@ class ChatViewModel: ObservableObject {
         self.messageService = messageService
         
         // Monitor network status
-        Task {
+        Task { @MainActor in
             await monitorNetworkStatus()
         }
     }
@@ -181,7 +184,7 @@ class ChatViewModel: ObservableObject {
                 if isOffline {
                     // Queue message for offline delivery
                     _ = try await messageService.queueMessage(chatID: chat.id, text: text)
-                    await updateQueuedMessageCount()
+                    updateQueuedMessageCount()
                 } else {
                     // Create optimistic message for immediate UI display
                     let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
@@ -289,7 +292,7 @@ class ChatViewModel: ObservableObject {
                 } else {
                     // Fallback to regular retry
                     try await messageService.retryFailedMessage(messageID: messageID)
-                    await updateQueuedMessageCount()
+                    updateQueuedMessageCount()
                 }
             } catch {
                 // Mark as failed
@@ -330,7 +333,7 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await messageService.syncQueuedMessages()
-                await updateQueuedMessageCount()
+                updateQueuedMessageCount()
             } catch {
                 errorMessage = "Failed to sync messages: \(error.localizedDescription)"
             }
@@ -343,8 +346,10 @@ class ChatViewModel: ObservableObject {
     }
     
     /// Monitors network status and updates offline state
+    @MainActor
     func monitorNetworkStatus() {
         isOffline = !networkMonitor.isConnected
+        connectionType = networkMonitor.connectionType
         
         // Sync queued messages when connection is restored
         if !isOffline && queuedMessageCount > 0 {
@@ -352,6 +357,45 @@ class ChatViewModel: ObservableObject {
         }
         
         updateQueuedMessageCount()
+        updateRetryableMessages()
+    }
+    
+    /// Updates the retryable messages state
+    func updateRetryableMessages() {
+        hasRetryableMessages = messageService.hasRetryableMessages()
+    }
+    
+    /// Retries all failed messages
+    func retryAllFailedMessages() {
+        isRetrying = true
+        
+        Task {
+            do {
+                try await messageService.retryAllFailedMessages()
+                updateQueuedMessageCount()
+                updateRetryableMessages()
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to retry messages: \(error.localizedDescription)"
+                }
+            }
+            
+            await MainActor.run {
+                isRetrying = false
+            }
+        }
+    }
+    
+    /// Clears all queued messages
+    func clearAllQueuedMessages() {
+        messageService.clearAllQueuedMessages()
+        updateQueuedMessageCount()
+        updateRetryableMessages()
+    }
+    
+    /// Gets the current connection type
+    func getConnectionType() -> ConnectionType {
+        return messageService.getConnectionType()
     }
     
 }

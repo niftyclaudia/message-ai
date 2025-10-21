@@ -18,6 +18,7 @@ enum AuthError: LocalizedError, Equatable {
     case userDocumentCreationFailed
     case googleSignInCancelled
     case googleSignInFailed
+    case googleSignInTimeout
     case missingGoogleClientID
     case unknown(Error)
     
@@ -42,6 +43,8 @@ enum AuthError: LocalizedError, Equatable {
         case (.googleSignInCancelled, .googleSignInCancelled):
             return true
         case (.googleSignInFailed, .googleSignInFailed):
+            return true
+        case (.googleSignInTimeout, .googleSignInTimeout):
             return true
         case (.missingGoogleClientID, .missingGoogleClientID):
             return true
@@ -74,6 +77,8 @@ enum AuthError: LocalizedError, Equatable {
             return "Google Sign-In was cancelled."
         case .googleSignInFailed:
             return "Google Sign-In failed. Please try again."
+        case .googleSignInTimeout:
+            return "Google Sign-In timed out. Please try again."
         case .missingGoogleClientID:
             return "Google Sign-In is not properly configured. Please contact support."
         case .unknown(let error):
@@ -102,6 +107,8 @@ enum AuthError: LocalizedError, Equatable {
             return "You can try again by tapping the 'Sign in with Google' button."
         case .googleSignInFailed:
             return "Make sure you have an active internet connection and try again."
+        case .googleSignInTimeout:
+            return "The sign-in process took too long. Please try again."
         case .missingGoogleClientID:
             return "This is a configuration issue. Please contact support."
         case .unknown:
