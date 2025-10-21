@@ -17,6 +17,7 @@ struct ConversationRowView: View {
     let otherUser: User?
     let currentUserID: String
     let timestamp: String
+    let presenceStatus: PresenceState?
     
     // MARK: - Private Computed Properties
     
@@ -43,12 +44,20 @@ struct ConversationRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
-            AvatarView(
-                photoURL: profilePhotoURL,
-                displayName: displayName,
-                size: 40
-            )
+            // Avatar with presence indicator
+            ZStack(alignment: .bottomTrailing) {
+                AvatarView(
+                    photoURL: profilePhotoURL,
+                    displayName: displayName,
+                    size: 40
+                )
+                
+                // Presence indicator
+                if let presenceStatus = presenceStatus {
+                    PresenceIndicator(status: presenceStatus, size: 12)
+                        .offset(x: 2, y: 2)
+                }
+            }
             
             // Chat info
             VStack(alignment: .leading, spacing: 4) {
@@ -103,7 +112,8 @@ struct ConversationRowView: View {
             lastActiveAt: Date()
         ),
         currentUserID: "user1",
-        timestamp: "5m"
+        timestamp: "5m",
+        presenceStatus: .online
     )
 }
 
@@ -127,7 +137,8 @@ struct ConversationRowView: View {
             lastActiveAt: Date()
         ),
         currentUserID: "user1",
-        timestamp: "10m"
+        timestamp: "10m",
+        presenceStatus: .offline
     )
 }
 
@@ -151,6 +162,7 @@ struct ConversationRowView: View {
             lastActiveAt: Date()
         ),
         currentUserID: "user1",
-        timestamp: "1h"
+        timestamp: "1h",
+        presenceStatus: nil
     )
 }
