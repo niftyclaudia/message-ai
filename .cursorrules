@@ -1,0 +1,34 @@
+# MessageAI Agent Rules
+
+## Quick Agent Commands
+
+When you see a message like "cody pr-3" or "pete pr-5", automatically use the appropriate agent template:
+
+### Agent Mapping:
+- **cody** → Cody Agent (Building/Implementation)
+- **pete** → Pete Agent (Planning/PRD Creation)  
+- **brad** → Brad Agent (PR Brief Builder)
+
+### Usage Pattern:
+```
+[agent-name] pr-[number]  OR  [agent-name] p[number]
+```
+
+**Both formats work:**
+- `cody pr-3` or `cody p3` → Same result
+- `pete pr-5` or `pete p5` → Same result  
+- `brad pr-1` or `brad p1` → Same result
+
+### Template Location:
+Use the prompt from `MessageAI/agents/agent-prompt-template.md` under "General Agent Call" section, replacing:
+- `[AGENT_NAME]` with the agent name (Cody, Pete, Brad)
+- `[AGENT_ROLE]` with their role description
+- `[agent-type]` with the agent type (cody, pete, brad)
+- `[NUMBER]` with the PR number
+
+### Examples:
+- "cody pr-3" or "cody p3" → Cody agent for PR #3 implementation
+- "pete pr-5" or "pete p5" → Pete agent for PR #5 planning
+- "brad pr-1" or "brad p1" → Brad agent for PR #1 brief creation
+
+Always reference the specific agent template file for detailed instructions.
