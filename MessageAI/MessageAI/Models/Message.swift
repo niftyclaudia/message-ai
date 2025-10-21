@@ -15,6 +15,7 @@ enum MessageStatus: String, Codable, CaseIterable {
     case delivered = "delivered"
     case read = "read"
     case failed = "failed"
+    case queued = "queued"       // For offline messages
 }
 
 /// Message data model representing a single message in a chat
@@ -44,6 +45,12 @@ struct Message: Codable, Identifiable {
     /// Sender's display name (for group chats)
     var senderName: String?
     
+    /// Whether this message was created offline (for queued messages)
+    var isOffline: Bool = false
+    
+    /// Number of retry attempts for failed messages
+    var retryCount: Int = 0
+    
     /// Firestore collection name
     static let collectionName = "messages"
     
@@ -58,11 +65,13 @@ struct Message: Codable, Identifiable {
         case readBy
         case status
         case senderName
+        case isOffline
+        case retryCount
     }
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, readBy: [String] = [], status: MessageStatus = .sending, senderName: String? = nil) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, readBy: [String] = [], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
@@ -71,6 +80,8 @@ struct Message: Codable, Identifiable {
         self.readBy = readBy
         self.status = status
         self.senderName = senderName
+        self.isOffline = isOffline
+        self.retryCount = retryCount
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -86,6 +97,8 @@ struct Message: Codable, Identifiable {
         readBy = try container.decodeIfPresent([String].self, forKey: .readBy) ?? []
         status = try container.decodeIfPresent(MessageStatus.self, forKey: .status) ?? .sending
         senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
+        isOffline = try container.decodeIfPresent(Bool.self, forKey: .isOffline) ?? false
+        retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
         
         // Handle Firestore Timestamp conversion
         if let timestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
@@ -106,6 +119,8 @@ struct Message: Codable, Identifiable {
         try container.encode(readBy, forKey: .readBy)
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(senderName, forKey: .senderName)
+        try container.encode(isOffline, forKey: .isOffline)
+        try container.encode(retryCount, forKey: .retryCount)
         
         // Convert date to Firestore Timestamp
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
