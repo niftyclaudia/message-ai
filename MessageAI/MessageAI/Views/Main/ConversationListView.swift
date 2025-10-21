@@ -31,29 +31,7 @@ struct ConversationListView: View {
             } else if viewModel.chats.isEmpty {
                 emptyStateView
             } else {
-                VStack {
-                    // Test button for PR-5 (always visible)
-                    Button("🧪 Test Chat View") {
-                        // Create a test chat and navigate to it
-                        let testChat = Chat(
-                            id: "test-chat-pr5",
-                            members: [currentUserID, "user-2"],
-                            lastMessage: "Test message",
-                            lastMessageTimestamp: Date(),
-                            lastMessageSenderID: "user-2",
-                            isGroupChat: false,
-                            createdAt: Date(),
-                            createdBy: currentUserID
-                        )
-                        
-                        // Add to view model
-                        viewModel.chats = [testChat]
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding()
-                    
-                    conversationList
-                }
+                conversationList
             }
         }
         .task {
@@ -91,7 +69,7 @@ struct ConversationListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.chats) { chat in
-                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID)) {
+                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID, otherUser: viewModel.getOtherUser(chat: chat))) {
                         ConversationRowView(
                             chat: chat,
                             otherUser: viewModel.getOtherUser(chat: chat),
@@ -133,26 +111,6 @@ struct ConversationListView: View {
                 icon: "bubble.left.and.bubble.right",
                 message: "No conversations yet"
             )
-            
-            // Test button for PR-5
-            Button("Test Chat View") {
-                // Create a test chat and navigate to it
-                let testChat = Chat(
-                    id: "test-chat-pr5",
-                    members: [currentUserID, "user-2"],
-                    lastMessage: "Test message",
-                    lastMessageTimestamp: Date(),
-                    lastMessageSenderID: "user-2",
-                    isGroupChat: false,
-                    createdAt: Date(),
-                    createdBy: currentUserID
-                )
-                
-                // Add to view model
-                viewModel.chats = [testChat]
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
     }
     
