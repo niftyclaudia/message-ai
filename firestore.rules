@@ -30,6 +30,58 @@ service cloud.firestore {
         && data.createdAt == existingData.createdAt;
     }
     
+    // Development mode - allow all authenticated users to read/write for testing
+    // TODO: Remove this in production and use proper security rules below
+    
+    // Users collection rules
+    match /users/{userID} {
+      // Allow authenticated users to read any user profile (for development)
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to create user profiles (for development)
+      allow create: if isAuthenticated();
+      
+      // Allow authenticated users to update profiles (for development)
+      allow update: if isAuthenticated();
+      
+      // No one can delete user documents (admin only, not implemented here)
+      allow delete: if false;
+    }
+    
+    // Chats collection rules (PR #4) - Development mode
+    match /chats/{chatID} {
+      // Allow authenticated users to read any chat (for development)
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to create chats (for development)
+      allow create: if isAuthenticated();
+      
+      // Allow authenticated users to update chats (for development)
+      allow update: if isAuthenticated();
+      
+      // No one can delete chats (admin only, not implemented here)
+      allow delete: if false;
+    }
+    
+    // Messages collection rules (PR #6) - Development mode
+    match /chats/{chatID}/messages/{messageID} {
+      // Allow authenticated users to read any message (for development)
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to create messages (for development)
+      allow create: if isAuthenticated();
+      
+      // Allow authenticated users to update messages (for development)
+      allow update: if isAuthenticated();
+      
+      // No one can delete messages (admin only, not implemented here)
+      allow delete: if false;
+    }
+    
+    /* 
+    // PRODUCTION SECURITY RULES (commented out for development)
+    // Uncomment and use these rules in production:
+    
     // Users collection rules
     match /users/{userID} {
       // Anyone authenticated can read any user profile
@@ -71,13 +123,21 @@ service cloud.firestore {
         && request.auth.uid == resource.data.senderID;
       
       // Users can update their own messages (for status updates)
+      // OR update readBy field of any message in chats they are members of
       allow update: if isAuthenticated() 
         && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members
-        && request.auth.uid == resource.data.senderID;
+        && (
+          // Allow updating own messages (for status updates)
+          request.auth.uid == resource.data.senderID
+          ||
+          // Allow updating readBy field of any message (for read receipts)
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']))
+        );
       
       // No one can delete messages (admin only, not implemented here)
       allow delete: if false;
     }
+    */
   }
 }
 

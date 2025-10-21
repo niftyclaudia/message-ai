@@ -24,12 +24,23 @@ class ChatViewModel: ObservableObject {
     @Published var isSending: Bool = false
     @Published var isOffline: Bool = false
     @Published var queuedMessageCount: Int = 0
+    @Published var optimisticMessages: [Message] = []
+    @Published var isOptimisticUpdate: Bool = false
+    
+    // MARK: - Computed Properties
+    
+    /// Combined messages including optimistic updates
+    var allMessages: [Message] {
+        let combined = messages + optimisticMessages
+        return messageService.sortMessagesByServerTimestamp(combined)
+    }
     
     // MARK: - Private Properties
     
     private let messageService: MessageService
     private var listener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
+    let optimisticService = OptimisticUpdateService()
     
     // MARK: - Initialization
     
@@ -60,14 +71,11 @@ class ChatViewModel: ObservableObject {
         
         do {
             let fetchedMessages = try await messageService.fetchMessages(chatID: chatID)
-            // For PR-5 testing, always use mock messages since Firebase permissions aren't set up yet
-            messages = createTestMessages(for: chatID)
+            messages = fetchedMessages
             isLoading = false
         } catch {
-            // For PR-5 testing, always show mock messages on error
-            print("⚠️ Using mock messages for PR-5 testing: \(error.localizedDescription)")
-            messages = createTestMessages(for: chatID)
-            errorMessage = nil
+            print("⚠️ Failed to load messages: \(error.localizedDescription)")
+            errorMessage = "Failed to load messages: \(error.localizedDescription)"
             isLoading = false
         }
     }
@@ -159,7 +167,7 @@ class ChatViewModel: ObservableObject {
         return timeDifference > 300 // Show timestamp if more than 5 minutes apart
     }
     
-    /// Sends a message to the chat
+    /// Sends a message to the chat with optimistic UI updates
     /// - Parameter text: The message text to send
     func sendMessage(text: String) {
         guard let chat = chat else { return }
@@ -175,47 +183,85 @@ class ChatViewModel: ObservableObject {
                     _ = try await messageService.queueMessage(chatID: chat.id, text: text)
                     await updateQueuedMessageCount()
                 } else {
-                    // For PR-6 testing, use mock data when Firebase fails
+                    // Create optimistic message for immediate UI display
+                    let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
+                    
+                    // Add to optimistic messages for immediate display
+                    await MainActor.run {
+                        optimisticMessages.append(optimisticMessage)
+                        isOptimisticUpdate = true
+                    }
+                    
+                    // Try to send with optimistic updates
                     do {
-                        _ = try await messageService.sendMessage(chatID: chat.id, text: text)
+                        let messageID = try await messageService.sendMessageOptimistic(chatID: chat.id, text: text)
+                        
+                        // Update optimistic message status
+                        await MainActor.run {
+                            if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+                                optimisticMessages[index].status = .sent
+                                optimisticMessages[index].isOptimistic = false
+                            }
+                        }
+                        
+                        // Simulate delivered status after delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+                                self.optimisticMessages[index].status = .delivered
+                            }
+                        }
+                        
                     } catch {
-                        // Create mock message for testing
+                        // Handle optimistic update failure
+                        await MainActor.run {
+                            if let index = optimisticMessages.firstIndex(where: { $0.text == text }) {
+                                optimisticMessages[index].status = .failed
+                                optimisticMessages[index].retryCount += 1
+                            }
+                        }
+                        
+                        // For PR-7 testing, create mock message when Firebase fails
                         let mockMessage = Message(
                             id: UUID().uuidString,
                             chatID: chat.id,
                             senderID: currentUserID,
                             text: text,
                             timestamp: Date(),
+                            serverTimestamp: nil,
                             readBy: [currentUserID],
                             status: .sending,
                             senderName: nil,
                             isOffline: false,
-                            retryCount: 0
+                            retryCount: 0,
+                            isOptimistic: true
                         )
                         
-                        // Add to messages array
+                        // Add to optimistic messages
                         await MainActor.run {
-                            messages.append(mockMessage)
+                            optimisticMessages.append(mockMessage)
                         }
                         
-                        // Simulate status update
+                        // Simulate status updates
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            if let index = self.messages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                self.messages[index].status = .sent
+                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
+                                self.optimisticMessages[index].status = .sent
                             }
                         }
                         
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            if let index = self.messages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                self.messages[index].status = .delivered
+                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
+                                self.optimisticMessages[index].status = .delivered
+                                self.optimisticMessages[index].isOptimistic = false
                             }
                         }
                     }
                 }
                 
                 isSending = false
+                isOptimisticUpdate = false
             } catch {
                 isSending = false
+                isOptimisticUpdate = false
                 errorMessage = "Failed to send message: \(error.localizedDescription)"
             }
         }
@@ -226,12 +272,57 @@ class ChatViewModel: ObservableObject {
     func retryMessage(messageID: String) {
         Task {
             do {
-                try await messageService.retryFailedMessage(messageID: messageID)
-                await updateQueuedMessageCount()
+                // Find the optimistic message
+                if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+                    await MainActor.run {
+                        optimisticMessages[index].status = .sending
+                        optimisticMessages[index].retryCount += 1
+                    }
+                    
+                    // Try to resend
+                    let _ = try await messageService.sendMessageOptimistic(chatID: chat?.id ?? "", text: optimisticMessages[index].text)
+                    
+                    await MainActor.run {
+                        optimisticMessages[index].status = .sent
+                        optimisticMessages[index].isOptimistic = false
+                    }
+                } else {
+                    // Fallback to regular retry
+                    try await messageService.retryFailedMessage(messageID: messageID)
+                    await updateQueuedMessageCount()
+                }
             } catch {
+                // Mark as failed
+                if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+                    await MainActor.run {
+                        optimisticMessages[index].status = .failed
+                    }
+                }
                 errorMessage = "Failed to retry message: \(error.localizedDescription)"
             }
         }
+    }
+    
+    /// Creates an optimistic message for immediate UI display
+    /// - Parameters:
+    ///   - chatID: The chat ID
+    ///   - text: The message text
+    /// - Returns: Optimistic message
+    private func createOptimisticMessage(chatID: String, text: String) -> Message {
+        return Message(
+            id: UUID().uuidString,
+            chatID: chatID,
+            senderID: currentUserID,
+            text: text,
+            timestamp: Date(),
+            serverTimestamp: nil,
+            readBy: [currentUserID],
+            status: .sending,
+            senderName: nil,
+            isOffline: false,
+            retryCount: 0,
+            isOptimistic: true
+        )
     }
     
     /// Syncs queued messages when connection is restored
@@ -263,84 +354,4 @@ class ChatViewModel: ObservableObject {
         updateQueuedMessageCount()
     }
     
-    // MARK: - Test Data Methods
-    
-    /// Creates test messages for PR-5 testing
-    /// - Parameter chatID: The chat ID to create messages for
-    /// - Returns: Array of test messages
-    private func createTestMessages(for chatID: String) -> [Message] {
-        let now = Date()
-        let otherUserID = "user-2" // Mock other user ID
-        
-        return [
-            // Message from other user
-            Message(
-                id: "msg-1",
-                chatID: chatID,
-                senderID: otherUserID,
-                text: "Hey! How are you doing?",
-                timestamp: now.addingTimeInterval(-300), // 5 minutes ago
-                readBy: [otherUserID, currentUserID],
-                status: .read,
-                senderName: "John Doe"
-            ),
-            
-            // Message from current user
-            Message(
-                id: "msg-2",
-                chatID: chatID,
-                senderID: currentUserID,
-                text: "I'm doing great! Thanks for asking. How about you?",
-                timestamp: now.addingTimeInterval(-240), // 4 minutes ago
-                readBy: [currentUserID, otherUserID],
-                status: .read
-            ),
-            
-            // Another message from other user
-            Message(
-                id: "msg-3",
-                chatID: chatID,
-                senderID: otherUserID,
-                text: "Pretty good! Just working on some new projects. What's new with you?",
-                timestamp: now.addingTimeInterval(-180), // 3 minutes ago
-                readBy: [otherUserID, currentUserID],
-                status: .read,
-                senderName: "John Doe"
-            ),
-            
-            // Long message to test text wrapping
-            Message(
-                id: "msg-4",
-                chatID: chatID,
-                senderID: currentUserID,
-                text: "That's awesome! I've been working on this new messaging app. It's been really interesting to build the real-time features and make sure everything works smoothly. The UI is coming together nicely too!",
-                timestamp: now.addingTimeInterval(-120), // 2 minutes ago
-                readBy: [currentUserID, otherUserID],
-                status: .read
-            ),
-            
-            // Recent message with different status
-            Message(
-                id: "msg-5",
-                chatID: chatID,
-                senderID: otherUserID,
-                text: "That sounds really cool! I'd love to see it when it's ready.",
-                timestamp: now.addingTimeInterval(-60), // 1 minute ago
-                readBy: [otherUserID],
-                status: .delivered,
-                senderName: "John Doe"
-            ),
-            
-            // Very recent message
-            Message(
-                id: "msg-6",
-                chatID: chatID,
-                senderID: currentUserID,
-                text: "Sure! I'll send you a link when it's ready for testing.",
-                timestamp: now.addingTimeInterval(-30), // 30 seconds ago
-                readBy: [currentUserID],
-                status: .sent
-            )
-        ]
-    }
 }
