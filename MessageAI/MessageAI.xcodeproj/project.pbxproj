@@ -71,20 +71,20 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-	E40294462EA6D28100620649 /* Frameworks */ = {
-		isa = PBXFrameworksBuildPhase;
-		buildActionMask = 2147483647;
-		files = (
-			E4D5E30B2EA76D20005FDC1D /* GoogleSignIn in Frameworks */,
-			E45981172EA7246E00628BB0 /* FirebaseCore in Frameworks */,
-			E45982282EA748DE00628BB0 /* FirebaseStorage in Frameworks */,
-			E4D5E30D2EA76D20005FDC1D /* GoogleSignInSwift in Frameworks */,
-			E45981152EA7246E00628BB0 /* FirebaseAuth in Frameworks */,
-			E45981192EA7246E00628BB0 /* FirebaseFirestore in Frameworks */,
-			E459811B2EA7246E00628BB0 /* FirebaseDatabase in Frameworks */,
-		);
-		runOnlyForDeploymentPostprocessing = 0;
-	};
+		E40294462EA6D28100620649 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4D5E30B2EA76D20005FDC1D /* GoogleSignIn in Frameworks */,
+				E45981172EA7246E00628BB0 /* FirebaseCore in Frameworks */,
+				E45982282EA748DE00628BB0 /* FirebaseStorage in Frameworks */,
+				E4D5E30D2EA76D20005FDC1D /* GoogleSignInSwift in Frameworks */,
+				E45981152EA7246E00628BB0 /* FirebaseAuth in Frameworks */,
+				E45981192EA7246E00628BB0 /* FirebaseFirestore in Frameworks */,
+				E459811B2EA7246E00628BB0 /* FirebaseDatabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E40294532EA6D28200620649 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -149,16 +149,16 @@
 				E402944B2EA6D28100620649 /* MessageAI */,
 			);
 			name = MessageAI;
-		packageProductDependencies = (
-			E45981142EA7246E00628BB0 /* FirebaseAuth */,
-			E45981162EA7246E00628BB0 /* FirebaseCore */,
-			E45981182EA7246E00628BB0 /* FirebaseFirestore */,
-			E459811A2EA7246E00628BB0 /* FirebaseDatabase */,
-			E45982272EA748DE00628BB0 /* FirebaseStorage */,
-			E4D5E30A2EA76D20005FDC1D /* GoogleSignIn */,
-			E4D5E30C2EA76D20005FDC1D /* GoogleSignInSwift */,
-		);
-		productName = MessageAI;
+			packageProductDependencies = (
+				E45981142EA7246E00628BB0 /* FirebaseAuth */,
+				E45981162EA7246E00628BB0 /* FirebaseCore */,
+				E45981182EA7246E00628BB0 /* FirebaseFirestore */,
+				E459811A2EA7246E00628BB0 /* FirebaseDatabase */,
+				E45982272EA748DE00628BB0 /* FirebaseStorage */,
+				E4D5E30A2EA76D20005FDC1D /* GoogleSignIn */,
+				E4D5E30C2EA76D20005FDC1D /* GoogleSignInSwift */,
+			);
+			productName = MessageAI;
 			productReference = E40294492EA6D28100620649 /* MessageAI.app */;
 			productType = "com.apple.product-type.application";
 		};
