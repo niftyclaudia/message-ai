@@ -18,6 +18,7 @@ struct MainTabView: View {
     // MARK: - State
     
     @State private var showLogoutAlert: Bool = false
+    @State private var showMockTesting: Bool = false
     
     // MARK: - Body
     
@@ -58,6 +59,17 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Profile", systemImage: "person.circle")
                 }
+            
+            // Mock Testing tab (Debug only)
+            Button("🧪 Mock Testing") {
+                showMockTesting = true
+            }
+            .tabItem {
+                Label("Testing", systemImage: "wrench.and.screwdriver")
+            }
+        }
+        .sheet(isPresented: $showMockTesting) {
+            MockTestingView(isPresented: $showMockTesting)
         }
     }
     

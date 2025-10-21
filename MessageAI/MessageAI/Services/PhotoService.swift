@@ -88,12 +88,7 @@ class PhotoService {
     /// - Throws: PhotoServiceError.deleteFailed if deletion fails
     func deleteProfilePhoto(photoURL: String) async throws {
         // Extract storage reference from URL
-        let storageRef: StorageReference
-        do {
-            storageRef = try storage.reference(forURL: photoURL)
-        } catch {
-            throw PhotoServiceError.invalidURL
-        }
+        let storageRef = storage.reference(forURL: photoURL)
 
         do {
             try await storageRef.delete()
