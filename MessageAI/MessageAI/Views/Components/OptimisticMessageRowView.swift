@@ -20,6 +20,8 @@ struct OptimisticMessageRowView: View {
     let shouldShowTimestamp: Bool
     let senderDisplayName: String
     let timestamp: String
+    let chat: Chat?
+    let currentUserID: String
     let onRetry: (() -> Void)?
     
     // MARK: - Animation Properties
@@ -39,6 +41,8 @@ struct OptimisticMessageRowView: View {
         self.shouldShowTimestamp = viewModel.shouldShowTimestamp(message: message, previousMessage: previousMessage)
         self.senderDisplayName = viewModel.getSenderDisplayName(message: message)
         self.timestamp = viewModel.formatTimestamp(date: message.timestamp)
+        self.chat = viewModel.chat
+        self.currentUserID = viewModel.currentUserID
         self.onRetry = onRetry
     }
     
@@ -85,12 +89,20 @@ struct OptimisticMessageRowView: View {
                     if isFromCurrentUser {
                         Spacer()
                         
-                        // Status indicator for current user's messages
-                        OptimisticMessageStatusView(
-                            status: message.status,
-                            isOptimistic: message.isOptimistic,
-                            onRetry: message.status == .failed ? onRetry : nil
-                        )
+                        // Use ReadReceiptView for group chats, OptimisticMessageStatusView for 1-on-1
+                        if let chat = chat, chat.isGroupChat {
+                            ReadReceiptView(
+                                message: message,
+                                chat: chat,
+                                currentUserID: currentUserID
+                            )
+                        } else {
+                            OptimisticMessageStatusView(
+                                status: message.status,
+                                isOptimistic: message.isOptimistic,
+                                onRetry: message.status == .failed ? onRetry : nil
+                            )
+                        }
                         
                         Text(timestamp)
                             .font(.caption2)
@@ -109,11 +121,20 @@ struct OptimisticMessageRowView: View {
                 HStack {
                     Spacer()
                     
-                    OptimisticMessageStatusView(
-                        status: message.status,
-                        isOptimistic: message.isOptimistic,
-                        onRetry: message.status == .failed ? onRetry : nil
-                    )
+                    // Use ReadReceiptView for group chats, OptimisticMessageStatusView for 1-on-1
+                    if let chat = chat, chat.isGroupChat {
+                        ReadReceiptView(
+                            message: message,
+                            chat: chat,
+                            currentUserID: currentUserID
+                        )
+                    } else {
+                        OptimisticMessageStatusView(
+                            status: message.status,
+                            isOptimistic: message.isOptimistic,
+                            onRetry: message.status == .failed ? onRetry : nil
+                        )
+                    }
                 }
                 .padding(.horizontal, 12)
             }

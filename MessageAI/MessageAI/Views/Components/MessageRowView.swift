@@ -20,6 +20,8 @@ struct MessageRowView: View {
     let shouldShowTimestamp: Bool
     let senderDisplayName: String
     let timestamp: String
+    let chat: Chat?
+    let currentUserID: String
     
     // MARK: - Initialization
     
@@ -31,6 +33,8 @@ struct MessageRowView: View {
         self.shouldShowTimestamp = viewModel.shouldShowTimestamp(message: message, previousMessage: previousMessage)
         self.senderDisplayName = viewModel.getSenderDisplayName(message: message)
         self.timestamp = viewModel.formatTimestamp(date: message.timestamp)
+        self.chat = viewModel.chat
+        self.currentUserID = viewModel.currentUserID
     }
     
     // MARK: - Body
@@ -69,12 +73,20 @@ struct MessageRowView: View {
                     if isFromCurrentUser {
                         Spacer()
                         
-                        // Status indicator for current user's messages
-                        MessageStatusView(
-                            status: message.status,
-                            isOptimistic: message.isOptimistic,
-                            retryCount: message.retryCount
-                        )
+                        // Use ReadReceiptView for group chats, MessageStatusView for 1-on-1
+                        if let chat = chat, chat.isGroupChat {
+                            ReadReceiptView(
+                                message: message,
+                                chat: chat,
+                                currentUserID: currentUserID
+                            )
+                        } else {
+                            MessageStatusView(
+                                status: message.status,
+                                isOptimistic: message.isOptimistic,
+                                retryCount: message.retryCount
+                            )
+                        }
                         
                         Text(timestamp)
                             .font(.caption2)
@@ -93,11 +105,20 @@ struct MessageRowView: View {
                 HStack {
                     Spacer()
                     
-                    MessageStatusView(
-                        status: message.status,
-                        isOptimistic: message.isOptimistic,
-                        retryCount: message.retryCount
-                    )
+                    // Use ReadReceiptView for group chats, MessageStatusView for 1-on-1
+                    if let chat = chat, chat.isGroupChat {
+                        ReadReceiptView(
+                            message: message,
+                            chat: chat,
+                            currentUserID: currentUserID
+                        )
+                    } else {
+                        MessageStatusView(
+                            status: message.status,
+                            isOptimistic: message.isOptimistic,
+                            retryCount: message.retryCount
+                        )
+                    }
                 }
                 .padding(.horizontal, 12)
             }
