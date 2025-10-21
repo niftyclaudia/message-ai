@@ -35,6 +35,9 @@ struct Chat: Codable, Identifiable, Equatable {
     /// When this chat was created
     var createdAt: Date
     
+    /// User ID of who created this chat
+    var createdBy: String
+    
     /// Firestore collection name
     static let collectionName = "chats"
     
@@ -59,11 +62,12 @@ struct Chat: Codable, Identifiable, Equatable {
         case isGroupChat
         case groupName
         case createdAt
+        case createdBy
     }
     
     // MARK: - Initialization
     
-    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date) {
+    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date, createdBy: String) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -72,6 +76,7 @@ struct Chat: Codable, Identifiable, Equatable {
         self.isGroupChat = isGroupChat
         self.groupName = groupName
         self.createdAt = createdAt
+        self.createdBy = createdBy
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -86,18 +91,26 @@ struct Chat: Codable, Identifiable, Equatable {
         lastMessageSenderID = try container.decode(String.self, forKey: .lastMessageSenderID)
         isGroupChat = try container.decode(Bool.self, forKey: .isGroupChat)
         groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
+        createdBy = try container.decode(String.self, forKey: .createdBy)
         
-        // Handle Firestore Timestamp conversion for dates
+        // Handle lastMessageTimestamp with fallback for null values
         if let timestamp = try? container.decode(Timestamp.self, forKey: .lastMessageTimestamp) {
             lastMessageTimestamp = timestamp.dateValue()
+        } else if let date = try? container.decode(Date.self, forKey: .lastMessageTimestamp) {
+            lastMessageTimestamp = date
         } else {
-            lastMessageTimestamp = try container.decode(Date.self, forKey: .lastMessageTimestamp)
+            // Fallback to current date if lastMessageTimestamp is null or missing
+            lastMessageTimestamp = Date()
         }
         
+        // Handle createdAt with fallback for null values
         if let timestamp = try? container.decode(Timestamp.self, forKey: .createdAt) {
             createdAt = timestamp.dateValue()
+        } else if let date = try? container.decode(Date.self, forKey: .createdAt) {
+            createdAt = date
         } else {
-            createdAt = try container.decode(Date.self, forKey: .createdAt)
+            // Fallback to current date if createdAt is null or missing
+            createdAt = Date()
         }
     }
     
@@ -111,6 +124,7 @@ struct Chat: Codable, Identifiable, Equatable {
         try container.encode(lastMessageSenderID, forKey: .lastMessageSenderID)
         try container.encode(isGroupChat, forKey: .isGroupChat)
         try container.encodeIfPresent(groupName, forKey: .groupName)
+        try container.encode(createdBy, forKey: .createdBy)
         
         // Convert dates to Firestore Timestamps
         try container.encode(Timestamp(date: lastMessageTimestamp), forKey: .lastMessageTimestamp)
