@@ -55,28 +55,28 @@ class PhotoService {
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
         
-        do {
-            // Upload with progress tracking
-            let uploadTask = storageRef.putData(imageData, metadata: metadata)
-            
-            // Observe progress
-            uploadTask.observe(.progress) { snapshot in
-                guard let progress = snapshot.progress else { return }
-                let percentComplete = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
-                DispatchQueue.main.async {
-                    progressHandler(percentComplete)
-                }
+        // Upload with progress tracking
+        let uploadTask = storageRef.putData(imageData, metadata: metadata)
+
+        // Observe progress
+        uploadTask.observe(.progress) { snapshot in
+            guard let progress = snapshot.progress else { return }
+            let percentComplete = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+            DispatchQueue.main.async {
+                progressHandler(percentComplete)
             }
-            
+        }
+
+        do {
             // Wait for upload to complete
             _ = try await uploadTask
-            
+
             // Get download URL
             let downloadURL = try await storageRef.downloadURL()
-            
+
             print("✅ Photo uploaded: \(photoPath)")
             return downloadURL.absoluteString
-            
+
         } catch {
             print("❌ Photo upload failed: \(error.localizedDescription)")
             throw PhotoServiceError.uploadFailed(error)
@@ -94,11 +94,11 @@ class PhotoService {
         } catch {
             throw PhotoServiceError.invalidURL
         }
-        
+
         do {
             try await storageRef.delete()
             print("✅ Photo deleted: \(photoURL)")
-            
+
         } catch {
             print("❌ Photo deletion failed: \(error.localizedDescription)")
             throw PhotoServiceError.deleteFailed(error)
