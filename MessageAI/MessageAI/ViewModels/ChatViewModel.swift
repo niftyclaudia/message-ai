@@ -83,6 +83,12 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    /// Sets the current chat for the view model
+    /// - Parameter chat: The chat to set
+    func setChat(_ chat: Chat) {
+        self.chat = chat
+    }
+    
     /// Sets up real-time listener for messages in a chat
     /// - Parameter chatID: The chat's ID
     func observeMessagesRealTime(chatID: String) {
