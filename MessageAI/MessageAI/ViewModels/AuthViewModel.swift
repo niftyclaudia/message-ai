@@ -148,6 +148,8 @@ class AuthViewModel: ObservableObject {
                 return "Google Sign-In was cancelled"
             case .googleSignInFailed:
                 return "Google Sign-In failed. Please try again."
+            case .googleSignInTimeout:
+                return "Google Sign-In timed out. Please try again."
             case .missingGoogleClientID:
                 return "Google Sign-In is not configured properly"
             case .unknown(let underlyingError):
