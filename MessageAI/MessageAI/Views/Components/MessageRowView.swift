@@ -72,10 +72,8 @@ struct MessageRowView: View {
                         // Status indicator for current user's messages
                         MessageStatusView(
                             status: message.status,
-                            onRetry: message.status == .failed ? {
-                                // Retry logic would be handled by the view model
-                                print("Retry message: \(message.id)")
-                            } : nil
+                            isOptimistic: message.isOptimistic,
+                            retryCount: message.retryCount
                         )
                         
                         Text(timestamp)
@@ -97,9 +95,8 @@ struct MessageRowView: View {
                     
                     MessageStatusView(
                         status: message.status,
-                        onRetry: message.status == .failed ? {
-                            print("Retry message: \(message.id)")
-                        } : nil
+                        isOptimistic: message.isOptimistic,
+                        retryCount: message.retryCount
                     )
                 }
                 .padding(.horizontal, 12)
