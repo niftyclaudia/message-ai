@@ -69,7 +69,7 @@ struct ConversationListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.chats) { chat in
-                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID)) {
+                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID, otherUser: viewModel.getOtherUser(chat: chat))) {
                         ConversationRowView(
                             chat: chat,
                             otherUser: viewModel.getOtherUser(chat: chat),

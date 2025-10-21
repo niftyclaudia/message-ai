@@ -2,70 +2,84 @@
 //  ReadReceiptView.swift
 //  MessageAI
 //
-//  Read receipt component for group chat messages
+//  Read receipt indicator for group chats showing member read status
 //
 
 import SwiftUI
 
-/// Read receipt component showing who has read a message in group chats
-/// - Note: Displays read status for group members with avatar/name indicators
+/// View that displays read receipt information for group chats
+/// - Note: Shows "Read by X of Y" format for group messages
 struct ReadReceiptView: View {
     
     // MARK: - Properties
     
     let message: Message
+    let chat: Chat?
     let chatMembers: [String]
     let currentUserID: String
     
     // MARK: - Computed Properties
     
+    /// Number of group members who have read the message (excluding sender)
     private var readCount: Int {
-        message.readBy.count
+        message.readBy.filter { $0 != currentUserID }.count
     }
     
+    /// Total number of group members (excluding sender)
     private var totalMembers: Int {
-        chatMembers.count
+        if let chat = chat {
+            return chat.members.count - 1
+        } else {
+            return chatMembers.count - 1
+        }
     }
     
-    private var unreadMembers: [String] {
-        chatMembers.filter { !message.readBy.contains($0) }
+    /// Whether this is a group chat and message is from current user
+    private var shouldShow: Bool {
+        let isGroupChat = chat?.isGroupChat ?? (chatMembers.count > 2)
+        return isGroupChat && message.senderID == currentUserID
     }
     
-    private var readMembers: [String] {
-        message.readBy.filter { $0 != currentUserID }
+    /// Read receipt color based on read status
+    private var receiptColor: Color {
+        if readCount == totalMembers {
+            return .blue  // All read
+        } else if readCount > 0 {
+            return .green  // Some read
+        } else {
+            return .secondary  // None read yet
+        }
+    }
+    
+    /// Icon to display based on read status
+    private var receiptIcon: String {
+        if readCount == totalMembers {
+            return "checkmark.circle.fill"  // All read
+        } else if readCount > 0 {
+            return "checkmark.circle"  // Some read
+        } else {
+            return "checkmark"  // None read yet
+        }
     }
     
     // MARK: - Body
     
     var body: some View {
-        HStack(spacing: 4) {
-            if readCount == totalMembers {
-                // All members have read
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.blue)
-                    .font(.caption)
+        if shouldShow {
+            HStack(spacing: 4) {
+                Image(systemName: receiptIcon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(receiptColor)
                 
-                Text("Read by all")
-                    .font(.caption2)
-                    .foregroundColor(.blue)
-            } else if readCount > 1 {
-                // Some members have read
-                Image(systemName: "checkmark.circle")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                
-                Text("Read by \(readCount) of \(totalMembers)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            } else {
-                // Only sender has read (or no one)
-                Image(systemName: "checkmark")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-                
-                Text("Sent")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                if totalMembers > 0 {
+                    Text("Read by \(readCount) of \(totalMembers)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Sent")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -171,63 +185,109 @@ struct DetailedReadReceiptView: View {
 
 // MARK: - Preview
 
-#Preview {
-    VStack(spacing: 16) {
-        // All members read
-        ReadReceiptView(
-            message: Message(
-                id: "1",
-                chatID: "chat1",
-                senderID: "user1",
-                text: "Hello everyone!",
-                timestamp: Date(),
-                readBy: ["user1", "user2", "user3", "user4"]
-            ),
-            chatMembers: ["user1", "user2", "user3", "user4"],
-            currentUserID: "user1"
-        )
-        
-        // Some members read
-        ReadReceiptView(
-            message: Message(
-                id: "2",
-                chatID: "chat1",
-                senderID: "user1",
-                text: "How are you all?",
-                timestamp: Date(),
-                readBy: ["user1", "user2"]
-            ),
-            chatMembers: ["user1", "user2", "user3", "user4"],
-            currentUserID: "user1"
-        )
-        
-        // Only sender read
-        ReadReceiptView(
-            message: Message(
-                id: "3",
-                chatID: "chat1",
-                senderID: "user1",
-                text: "Just sent this",
-                timestamp: Date(),
-                readBy: ["user1"]
-            ),
-            chatMembers: ["user1", "user2", "user3", "user4"],
-            currentUserID: "user1"
-        )
-        
-        // Detailed view
-        DetailedReadReceiptView(
-            message: Message(
-                id: "4",
-                chatID: "chat1",
-                senderID: "user1",
-                text: "Detailed read receipt",
-                timestamp: Date(),
-                readBy: ["user1", "user2", "user3"]
-            ),
-            chatMembers: ["user1", "user2", "user3", "user4"],
-            currentUserID: "user1"
-        )
-    }
+#Preview("All Read") {
+    ReadReceiptView(
+        message: Message(
+            id: "msg1",
+            chatID: "chat1",
+            senderID: "user1",
+            text: "Hello everyone!",
+            timestamp: Date(),
+            readBy: ["user1", "user2", "user3", "user4"]
+        ),
+        chat: Chat(
+            id: "chat1",
+            members: ["user1", "user2", "user3", "user4"],
+            lastMessage: "Hello everyone!",
+            lastMessageTimestamp: Date(),
+            lastMessageSenderID: "user1",
+            isGroupChat: true,
+            groupName: "Team Chat",
+            createdAt: Date(),
+            createdBy: "user1"
+        ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
+        currentUserID: "user1"
+    )
+    .padding()
+}
+
+#Preview("Partially Read") {
+    ReadReceiptView(
+        message: Message(
+            id: "msg1",
+            chatID: "chat1",
+            senderID: "user1",
+            text: "Hello everyone!",
+            timestamp: Date(),
+            readBy: ["user1", "user2"]
+        ),
+        chat: Chat(
+            id: "chat1",
+            members: ["user1", "user2", "user3", "user4"],
+            lastMessage: "Hello everyone!",
+            lastMessageTimestamp: Date(),
+            lastMessageSenderID: "user1",
+            isGroupChat: true,
+            groupName: "Team Chat",
+            createdAt: Date(),
+            createdBy: "user1"
+        ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
+        currentUserID: "user1"
+    )
+    .padding()
+}
+
+#Preview("Not Read Yet") {
+    ReadReceiptView(
+        message: Message(
+            id: "msg1",
+            chatID: "chat1",
+            senderID: "user1",
+            text: "Hello everyone!",
+            timestamp: Date(),
+            readBy: ["user1"]
+        ),
+        chat: Chat(
+            id: "chat1",
+            members: ["user1", "user2", "user3", "user4"],
+            lastMessage: "Hello everyone!",
+            lastMessageTimestamp: Date(),
+            lastMessageSenderID: "user1",
+            isGroupChat: true,
+            groupName: "Team Chat",
+            createdAt: Date(),
+            createdBy: "user1"
+        ),
+        chatMembers: ["user1", "user2", "user3", "user4"],
+        currentUserID: "user1"
+    )
+    .padding()
+}
+
+#Preview("One-on-One Chat (Should Not Show)") {
+    ReadReceiptView(
+        message: Message(
+            id: "msg1",
+            chatID: "chat1",
+            senderID: "user1",
+            text: "Hello!",
+            timestamp: Date(),
+            readBy: ["user1", "user2"]
+        ),
+        chat: Chat(
+            id: "chat1",
+            members: ["user1", "user2"],
+            lastMessage: "Hello!",
+            lastMessageTimestamp: Date(),
+            lastMessageSenderID: "user1",
+            isGroupChat: false,
+            createdAt: Date(),
+            createdBy: "user1"
+        ),
+        chatMembers: ["user1", "user2"],
+        currentUserID: "user1"
+    )
     .padding()
 }
