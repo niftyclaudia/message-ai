@@ -78,6 +78,7 @@ struct MainTabView: View {
             
             // Contacts tab (PR #3)
             ContactListView()
+                .environmentObject(authService)
                 .tabItem {
                     Label("Contacts", systemImage: "person.2")
                 }

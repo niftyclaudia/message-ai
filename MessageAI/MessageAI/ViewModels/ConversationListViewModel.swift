@@ -117,7 +117,7 @@ class ConversationListViewModel: ObservableObject {
     }
     
     /// Stops observing presence for all users
-    nonisolated func stopObservingPresence() {
+    func stopObservingPresence() {
         for (userID, handle) in presenceHandles {
             presenceService.removeObserver(userID: userID, handle: handle)
         }
@@ -220,6 +220,8 @@ class ConversationListViewModel: ObservableObject {
         // Clean up listener without main actor isolation
         listener?.remove()
         listener = nil
-        stopObservingPresence()
+        Task { @MainActor in
+            stopObservingPresence()
+        }
     }
 }
