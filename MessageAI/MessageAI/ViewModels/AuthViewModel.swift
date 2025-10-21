@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 /// View model handling authentication flow logic
 /// - Note: Delegates actual authentication to AuthService, handles UI state
@@ -27,11 +28,13 @@ class AuthViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let authService: AuthService
+    private let notificationService: NotificationService
     
     // MARK: - Initialization
     
-    init(authService: AuthService) {
+    init(authService: AuthService, notificationService: NotificationService) {
         self.authService = authService
+        self.notificationService = notificationService
     }
     
     // MARK: - Public Methods
@@ -54,6 +57,9 @@ class AuthViewModel: ObservableObject {
         do {
             try await authService.signIn(email: email, password: password)
             // Success - AuthService will update isAuthenticated
+            
+            // Register for notifications after successful login
+            await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
@@ -86,10 +92,13 @@ class AuthViewModel: ObservableObject {
         do {
             _ = try await authService.signUp(email: email, password: password, displayName: displayName)
             // Success - AuthService will update isAuthenticated
+            
+            // Register for notifications after successful signup
+            await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
-
+        
         isLoading = false
     }
 
@@ -102,11 +111,34 @@ class AuthViewModel: ObservableObject {
         do {
             try await authService.signInWithGoogle()
             // Success - AuthService will update isAuthenticated
+            
+            // Register for notifications after successful Google sign-in
+            await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
-
+        
         isLoading = false
+    }
+    
+    /// Sign out current user
+    func signOut() async {
+        // Remove FCM token before logout
+        if let userID = authService.currentUser?.uid {
+            do {
+                try await notificationService.removeToken(userID: userID)
+            } catch {
+                print("❌ Failed to remove FCM token: \(error)")
+            }
+        }
+        
+        // Sign out from auth service
+        do {
+            try authService.signOut()
+        } catch {
+            print("❌ Failed to sign out: \(error)")
+            // Don't show error to user - sign out should always succeed
+        }
     }
     
     /// Clear error state
@@ -116,6 +148,24 @@ class AuthViewModel: ObservableObject {
     }
     
     // MARK: - Private Methods
+    
+    /// Register for push notifications after successful authentication
+    private func registerForNotifications() async {
+        // Request notification permission
+        let granted = await notificationService.requestPermission()
+        
+        if granted, let userID = authService.currentUser?.uid {
+            do {
+                try await notificationService.registerForNotifications(userID: userID)
+                print("✅ Successfully registered for push notifications")
+            } catch {
+                print("❌ Failed to register for notifications: \(error)")
+                // Don't show error to user - notifications are optional
+            }
+        } else {
+            print("📱 Notification permission denied - app continues without notifications")
+        }
+    }
     
     /// Shows error alert with message
     /// - Parameter message: Error message to display

@@ -70,6 +70,14 @@ MessageAI/
 - State management with @Published and @EnvironmentObject
 - Comprehensive test suite (unit, UI, integration, performance)
 
+#### ✅ PR #13: Push Notifications (APNs & FCM)
+- Apple Push Notification service integration
+- Firebase Cloud Messaging setup
+- Device token registration and management
+- Foreground, background, and terminated state handling
+- Deep link navigation from notification taps
+- Comprehensive test suite and setup documentation
+
 ## Tech Stack
 
 - **Language**: Swift 5.9+
@@ -106,6 +114,25 @@ open MessageAI/MessageAI.xcodeproj
 3. Ensure `GoogleService-Info.plist` is present in the project
 
 4. Build and run (Cmd+R)
+
+### Push Notifications Setup
+
+⚠️ **Important**: Push notifications require additional manual configuration:
+
+1. **Enable Push Notifications in Xcode**:
+   - Select MessageAI target → Signing & Capabilities
+   - Add "Push Notifications" capability
+   - Enable "Background Modes" → "Remote notifications"
+
+2. **Configure Firebase Console**:
+   - Generate APNs authentication key in Apple Developer Portal
+   - Upload key to Firebase Console → Project Settings → Cloud Messaging
+   - See detailed guide: `MessageAI/docs/notification-setup-guide.md`
+
+3. **Test on Physical Device**:
+   - Notifications don't work in iOS Simulator
+   - Use Firebase Console to send test notifications
+   - Verify foreground, background, and terminated states
 
 ## Development Workflow
 

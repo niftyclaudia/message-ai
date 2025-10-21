@@ -14,6 +14,7 @@
 		E45982282EA748DE00628BB0 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E45982272EA748DE00628BB0 /* FirebaseStorage */; };
 		E4D5E30B2EA76D20005FDC1D /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = E4D5E30A2EA76D20005FDC1D /* GoogleSignIn */; };
 		E4D5E30D2EA76D20005FDC1D /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E4D5E30C2EA76D20005FDC1D /* GoogleSignInSwift */; };
+		E4D5ED982EA84944005FDC1D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = E4D5ED972EA84944005FDC1D /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4D5ED982EA84944005FDC1D /* FirebaseMessaging in Frameworks */,
 				E4D5E30B2EA76D20005FDC1D /* GoogleSignIn in Frameworks */,
 				E45981172EA7246E00628BB0 /* FirebaseCore in Frameworks */,
 				E45982282EA748DE00628BB0 /* FirebaseStorage in Frameworks */,
@@ -157,6 +159,7 @@
 				E45982272EA748DE00628BB0 /* FirebaseStorage */,
 				E4D5E30A2EA76D20005FDC1D /* GoogleSignIn */,
 				E4D5E30C2EA76D20005FDC1D /* GoogleSignInSwift */,
+				E4D5ED972EA84944005FDC1D /* FirebaseMessaging */,
 			);
 			productName = MessageAI;
 			productReference = E40294492EA6D28100620649 /* MessageAI.app */;
@@ -444,6 +447,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MessageAI/MessageAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4CLVCQ7N3P;
@@ -473,6 +477,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MessageAI/MessageAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4CLVCQ7N3P;
@@ -664,6 +669,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E4D5E3092EA76D20005FDC1D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		E4D5ED972EA84944005FDC1D /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E45981122EA723CE00628BB0 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
