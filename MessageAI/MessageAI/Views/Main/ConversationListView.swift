@@ -17,6 +17,11 @@ struct ConversationListView: View {
     @StateObject private var testDataService = TestDataService()
     let currentUserID: String
     
+    // MARK: - Navigation State
+    
+    /// Chat ID to navigate to from notification tap
+    @State private var selectedChatID: String?
+    
     // MARK: - Body
     
     var body: some View {
@@ -60,6 +65,19 @@ struct ConversationListView: View {
                 Text(errorMessage)
             }
         }
+        .onAppear {
+            // Check for pending notification navigation
+            checkForNotificationNavigation()
+        }
+        .background(
+            // Hidden navigation for notification deep linking
+            NavigationLink(
+                destination: notificationDestination,
+                isActive: .constant(selectedChatID != nil)
+            ) {
+                EmptyView()
+            }
+        )
     }
     
     // MARK: - Private Views
@@ -114,6 +132,41 @@ struct ConversationListView: View {
         }
     }
     
+    // MARK: - Notification Navigation
+    
+    /// Check for pending notification navigation
+    private func checkForNotificationNavigation() {
+        // TODO: This would be called from MessageAIApp when notification is tapped
+        // For now, this is a placeholder for the navigation logic
+    }
+    
+    /// Navigation destination for notification deep linking
+    private var notificationDestination: some View {
+        Group {
+            if let chatID = selectedChatID,
+               let chat = viewModel.chats.first(where: { $0.id == chatID }) {
+                ChatView(
+                    chat: chat,
+                    currentUserID: currentUserID,
+                    otherUser: viewModel.getOtherUser(chat: chat)
+                )
+            } else {
+                // Fallback to conversation list if chat not found
+                ConversationListView(currentUserID: currentUserID)
+            }
+        }
+    }
+    
+    /// Navigate to specific chat from notification
+    /// - Parameter chatID: Chat ID to navigate to
+    func navigateToChat(chatID: String) {
+        selectedChatID = chatID
+    }
+    
+    /// Clear notification navigation
+    func clearNotificationNavigation() {
+        selectedChatID = nil
+    }
 }
 
 // MARK: - Preview
