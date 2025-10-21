@@ -41,6 +41,7 @@ struct ChatView: View {
             OfflineIndicatorView(
                 isOffline: viewModel.isOffline,
                 queuedMessageCount: viewModel.queuedMessageCount,
+                connectionType: viewModel.connectionType,
                 onRetry: {
                     viewModel.syncQueuedMessages()
                 }

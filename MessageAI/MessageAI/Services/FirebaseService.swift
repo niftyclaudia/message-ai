@@ -45,8 +45,9 @@ class FirebaseService {
         // Configure Firestore with offline persistence using new API
         let settings = FirestoreSettings()
         
-        // Use new cacheSettings API (replaces deprecated isPersistenceEnabled and cacheSizeBytes)
-        settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: FirestoreCacheSizeUnlimited))
+        // Use new cacheSettings API with 50MB limit as per PRD requirements
+        let cacheSizeBytes = 50 * 1024 * 1024 // 50MB
+        settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: cacheSizeBytes))
         
         let db = Firestore.firestore()
         db.settings = settings

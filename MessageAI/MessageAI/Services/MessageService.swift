@@ -18,6 +18,12 @@ class MessageService {
     private let firestore: Firestore
     private let userDefaults = UserDefaults.standard
     private let queueKey = "queued_messages"
+    private let maxRetryCount = 3
+    private let maxQueueSize = 100
+    
+    // NetworkMonitor needs to be accessed on main actor
+    @MainActor
+    private lazy var networkMonitor = NetworkMonitor()
     
     // MARK: - Initialization
     
@@ -42,7 +48,7 @@ class MessageService {
         let timestamp = Date()
         
         // Create optimistic message for immediate UI display
-        let optimisticMessage = OptimisticMessage(
+        let _ = OptimisticMessage(
             id: messageID,
             chatID: chatID,
             text: text,
@@ -141,6 +147,12 @@ class MessageService {
     func queueMessage(chatID: String, text: String) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
+        }
+        
+        // Check queue size limit
+        let currentQueue = getQueuedMessages()
+        if currentQueue.count >= maxQueueSize {
+            throw MessageServiceError.offlineQueueFull
         }
         
         let messageID = UUID().uuidString
@@ -464,6 +476,83 @@ class MessageService {
         var queuedMessages = getQueuedMessages()
         queuedMessages.removeAll { $0.id == id }
         saveQueuedMessages(queuedMessages)
+    }
+    
+    // MARK: - Offline Persistence Methods
+    
+    /// Checks if the device is currently online
+    /// - Returns: True if online, false if offline
+    @MainActor
+    func isOnline() -> Bool {
+        return networkMonitor.isConnected
+    }
+    
+    /// Gets the current network connection type
+    /// - Returns: ConnectionType enum value
+    @MainActor
+    func getConnectionType() -> ConnectionType {
+        return networkMonitor.connectionType
+    }
+    
+    /// Starts automatic sync when network becomes available
+    func startAutoSync() {
+        // This would be called by the ChatViewModel when network status changes
+        Task { @MainActor in
+            if isOnline() {
+                try? await syncQueuedMessages()
+            }
+        }
+    }
+    
+    /// Clears all queued messages (for testing or user action)
+    func clearAllQueuedMessages() {
+        saveQueuedMessages([])
+    }
+    
+    /// Gets the count of queued messages
+    /// - Returns: Number of queued messages
+    func getQueuedMessageCount() -> Int {
+        return getQueuedMessages().count
+    }
+    
+    /// Checks if there are any failed messages that can be retried
+    /// - Returns: True if there are retryable messages
+    func hasRetryableMessages() -> Bool {
+        let queuedMessages = getQueuedMessages()
+        return queuedMessages.contains { $0.retryCount < maxRetryCount }
+    }
+    
+    /// Retries all failed messages with exponential backoff
+    func retryAllFailedMessages() async throws {
+        let queuedMessages = getQueuedMessages()
+        let retryableMessages = queuedMessages.filter { $0.retryCount < maxRetryCount }
+        
+        for queuedMessage in retryableMessages {
+            do {
+                let message = queuedMessage.toMessage()
+                
+                try firestore.collection("chats")
+                    .document(queuedMessage.chatID)
+                    .collection(Message.collectionName)
+                    .document(queuedMessage.id)
+                    .setData(from: message)
+                
+                // Remove from queue after successful sync
+                removeQueuedMessage(id: queuedMessage.id)
+                
+            } catch {
+                // Update retry count with exponential backoff
+                var updatedMessage = queuedMessage
+                updatedMessage.retryCount += 1
+                updatedMessage.lastAttempt = Date()
+                
+                // Remove old and add updated
+                removeQueuedMessage(id: queuedMessage.id)
+                var updatedQueue = getQueuedMessages()
+                updatedQueue.append(updatedMessage)
+                saveQueuedMessages(updatedQueue)
+            }
+        }
     }
 }
 

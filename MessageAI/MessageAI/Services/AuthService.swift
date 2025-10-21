@@ -10,6 +10,29 @@ import FirebaseAuth
 import Combine
 import GoogleSignIn
 
+// MARK: - Timeout Helper
+
+/// Adds timeout functionality to async operations
+func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    return try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask {
+            try await operation()
+        }
+        
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw AuthError.googleSignInTimeout
+        }
+        
+        guard let result = try await group.next() else {
+            throw AuthError.googleSignInTimeout
+        }
+        
+        group.cancelAll()
+        return result
+    }
+}
+
 /// Service for managing user authentication
 /// - Note: Observable for SwiftUI state binding
 class AuthService: ObservableObject {
@@ -124,8 +147,10 @@ class AuthService: ObservableObject {
         }
 
         do {
-            // Start Google Sign-In flow
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            // Start Google Sign-In flow with timeout
+            let result = try await withTimeout(seconds: 30) {
+                try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            }
             let user = result.user
 
             // Get ID token and access token
