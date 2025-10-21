@@ -19,6 +19,22 @@ enum Constants {
         static let messages = "messages"
     }
     
+    // MARK: - Firebase Storage
+    
+    /// Firebase Storage paths
+    enum Storage {
+        static let profilePhotosPath = "profile_photos"
+    }
+    
+    // MARK: - Photo Management
+    
+    /// Photo size and compression constants
+    enum Photo {
+        static let maxPhotoSizeBytes = 10_000_000  // 10MB upload limit
+        static let targetPhotoSizeBytes = 2_000_000  // 2MB target after compression
+        static let profilePhotoSize: CGFloat = 400  // 400x400 for storage
+    }
+    
     // MARK: - Validation
     
     /// Field validation constants
