@@ -129,6 +129,19 @@ class ConversationListViewModel: ObservableObject {
         return formatter.string(from: date)
     }
     
+    /// Deletes a chat from the user's chat list
+    /// - Parameter chatID: The ID of the chat to delete
+    func deleteChat(chatID: String) async {
+        do {
+            try await chatService.deleteChat(chatID: chatID)
+            // Remove from local array
+            chats.removeAll { $0.id == chatID }
+        } catch {
+            errorMessage = "Failed to delete chat: \(error.localizedDescription)"
+            print("❌ Failed to delete chat \(chatID): \(error)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     /// Loads user data for all chats
