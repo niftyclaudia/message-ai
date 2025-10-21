@@ -23,13 +23,8 @@ struct MainTabView: View {
     
     var body: some View {
         TabView {
-            // Placeholder for Chat List (PR #4)
-            NavigationStack {
-                EmptyStateView(
-                    icon: "bubble.left.and.bubble.right",
-                    message: "Chat list coming soon"
-                )
-                .navigationTitle("Chats")
+            // Chat List (PR #4)
+            ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
@@ -47,7 +42,6 @@ struct MainTabView: View {
                 } message: {
                     Text("Are you sure you want to sign out?")
                 }
-            }
             .tabItem {
                 Label("Chats", systemImage: "bubble.left.and.bubble.right")
             }
