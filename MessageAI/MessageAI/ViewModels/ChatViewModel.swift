@@ -53,7 +53,7 @@ class ChatViewModel: ObservableObject {
         
         // Monitor network status
         Task { @MainActor in
-            await monitorNetworkStatus()
+            monitorNetworkStatus()
         }
     }
     
@@ -184,7 +184,9 @@ class ChatViewModel: ObservableObject {
                 if isOffline {
                     // Queue message for offline delivery
                     _ = try await messageService.queueMessage(chatID: chat.id, text: text)
-                    updateQueuedMessageCount()
+                    await MainActor.run {
+                        updateQueuedMessageCount()
+                    }
                 } else {
                     // Create optimistic message for immediate UI display
                     let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
@@ -208,9 +210,11 @@ class ChatViewModel: ObservableObject {
                         }
                         
                         // Simulate delivered status after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                self.optimisticMessages[index].status = .delivered
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                            Task { @MainActor in
+                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+                                    self?.optimisticMessages[index].status = .delivered
+                                }
                             }
                         }
                         
@@ -245,27 +249,35 @@ class ChatViewModel: ObservableObject {
                         }
                         
                         // Simulate status updates
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                self.optimisticMessages[index].status = .sent
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                            Task { @MainActor in
+                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
+                                    self?.optimisticMessages[index].status = .sent
+                                }
                             }
                         }
                         
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            if let index = self.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                self.optimisticMessages[index].status = .delivered
-                                self.optimisticMessages[index].isOptimistic = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                            Task { @MainActor in
+                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
+                                    self?.optimisticMessages[index].status = .delivered
+                                    self?.optimisticMessages[index].isOptimistic = false
+                                }
                             }
                         }
                     }
                 }
                 
-                isSending = false
-                isOptimisticUpdate = false
+                await MainActor.run {
+                    isSending = false
+                    isOptimisticUpdate = false
+                }
             } catch {
-                isSending = false
-                isOptimisticUpdate = false
-                errorMessage = "Failed to send message: \(error.localizedDescription)"
+                await MainActor.run {
+                    isSending = false
+                    isOptimisticUpdate = false
+                    errorMessage = "Failed to send message: \(error.localizedDescription)"
+                }
             }
         }
     }
@@ -292,7 +304,9 @@ class ChatViewModel: ObservableObject {
                 } else {
                     // Fallback to regular retry
                     try await messageService.retryFailedMessage(messageID: messageID)
-                    updateQueuedMessageCount()
+                    await MainActor.run {
+                        updateQueuedMessageCount()
+                    }
                 }
             } catch {
                 // Mark as failed
@@ -301,7 +315,9 @@ class ChatViewModel: ObservableObject {
                         optimisticMessages[index].status = .failed
                     }
                 }
-                errorMessage = "Failed to retry message: \(error.localizedDescription)"
+                await MainActor.run {
+                    errorMessage = "Failed to retry message: \(error.localizedDescription)"
+                }
             }
         }
     }
@@ -333,9 +349,13 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await messageService.syncQueuedMessages()
-                updateQueuedMessageCount()
+                await MainActor.run {
+                    updateQueuedMessageCount()
+                }
             } catch {
-                errorMessage = "Failed to sync messages: \(error.localizedDescription)"
+                await MainActor.run {
+                    errorMessage = "Failed to sync messages: \(error.localizedDescription)"
+                }
             }
         }
     }
@@ -367,13 +387,17 @@ class ChatViewModel: ObservableObject {
     
     /// Retries all failed messages
     func retryAllFailedMessages() {
-        isRetrying = true
+        Task { @MainActor in
+            isRetrying = true
+        }
         
         Task {
             do {
                 try await messageService.retryAllFailedMessages()
-                updateQueuedMessageCount()
-                updateRetryableMessages()
+                await MainActor.run {
+                    updateQueuedMessageCount()
+                    updateRetryableMessages()
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "Failed to retry messages: \(error.localizedDescription)"
@@ -389,8 +413,10 @@ class ChatViewModel: ObservableObject {
     /// Clears all queued messages
     func clearAllQueuedMessages() {
         messageService.clearAllQueuedMessages()
-        updateQueuedMessageCount()
-        updateRetryableMessages()
+        Task { @MainActor in
+            updateQueuedMessageCount()
+            updateRetryableMessages()
+        }
     }
     
     /// Gets the current connection type

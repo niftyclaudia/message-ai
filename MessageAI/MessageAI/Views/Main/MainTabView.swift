@@ -19,20 +19,35 @@ struct MainTabView: View {
     
     @State private var showLogoutAlert: Bool = false
     @State private var showMockTesting: Bool = false
+    @State private var showingCreateChat: Bool = false
+    @State private var createdChat: Chat?
+    @State private var navigateToChat: Bool = false
     
     // MARK: - Body
     
     var body: some View {
         TabView {
             // Chat List (PR #4)
-            ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+            NavigationStack {
+                ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
+                    .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
                         Button {
                             showLogoutAlert = true
                         } label: {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                         }
+                    }
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            print("🔄 Plus button tapped - showingCreateChat: \(showingCreateChat)")
+                            showingCreateChat = true
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .medium))
+                        }
+                        .foregroundColor(AppTheme.primaryColor)
                     }
                 }
                 .alert("Sign Out", isPresented: $showLogoutAlert) {
@@ -43,6 +58,20 @@ struct MainTabView: View {
                 } message: {
                     Text("Are you sure you want to sign out?")
                 }
+                .navigationDestination(isPresented: $navigateToChat) {
+                    if let chat = createdChat {
+                        ChatView(chat: chat, currentUserID: authService.currentUser?.uid ?? "")
+                            .onAppear {
+                                print("🔄 MainTabView: Navigating to ChatView with chat: \(chat.id)")
+                            }
+                    } else {
+                        EmptyView()
+                            .onAppear {
+                                print("❌ MainTabView: No chat available for navigation")
+                            }
+                    }
+                }
+            }
             .tabItem {
                 Label("Chats", systemImage: "bubble.left.and.bubble.right")
             }
@@ -70,6 +99,15 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showMockTesting) {
             MockTestingView(isPresented: $showMockTesting)
+        }
+        .sheet(isPresented: $showingCreateChat) {
+            CreateNewChatView { chat in
+                // Handle chat creation completion
+                print("🔄 MainTabView: Chat creation callback received - chat: \(chat.id)")
+                createdChat = chat
+                navigateToChat = true
+                print("🔄 MainTabView: Navigation state set - navigateToChat: \(navigateToChat)")
+            }
         }
     }
     

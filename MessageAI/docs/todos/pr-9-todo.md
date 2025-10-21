@@ -20,10 +20,10 @@
 
 ## 1. Setup
 
-- [ ] Create branch `feat/pr-9-create-new-chat-flow` from develop
-- [ ] Read PRD thoroughly
-- [ ] Read `MessageAI/agents/shared-standards.md` for patterns
-- [ ] Confirm environment and test runner work
+- [x] Create branch `feat/pr-9-create-new-chat-flow` from develop
+- [x] Read PRD thoroughly
+- [x] Read `MessageAI/agents/shared-standards.md` for patterns
+- [x] Confirm environment and test runner work
 
 ---
 
@@ -31,26 +31,26 @@
 
 Implement deterministic service contracts from PRD.
 
-- [ ] Implement `createChat(members: [String], isGroup: Bool) async throws -> String`
+- [x] Implement `createChat(members: [String], isGroup: Bool) async throws -> String`
   - Test Gate: Unit test passes for valid/invalid cases
-- [ ] Implement `checkForExistingChat(members: [String]) async throws -> String?`
+- [x] Implement `checkForExistingChat(members: [String]) async throws -> String?`
   - Test Gate: Unit test passes for duplicate detection
-- [ ] Implement `fetchContacts() async throws -> [User]`
+- [x] Implement `fetchContacts() async throws -> [User]`
   - Test Gate: Unit test passes for contact retrieval
-- [ ] Implement `searchContacts(query: String) async throws -> [User]`
+- [x] Implement `searchContacts(query: String) async throws -> [User]`
   - Test Gate: Unit test passes for search functionality
-- [ ] Add validation logic for member selection
+- [x] Add validation logic for member selection
   - Test Gate: Edge cases handled correctly (empty members, invalid users)
 
 ---
 
 ## 3. Data Model & Rules
 
-- [ ] Update Chat model with `createdAt: Timestamp` and `createdBy: String` fields
-- [ ] Update Firestore schema documentation
-- [ ] Add Firebase security rules for chat creation
+- [x] Update Chat model with `createdAt: Timestamp` and `createdBy: String` fields
+- [x] Update Firestore schema documentation
+- [x] Add Firebase security rules for chat creation
   - Test Gate: Reads/writes succeed with rules applied
-- [ ] Implement duplicate chat prevention logic
+- [x] Implement duplicate chat prevention logic
   - Test Gate: Cannot create multiple chats with same members
 
 ---
@@ -59,17 +59,17 @@ Implement deterministic service contracts from PRD.
 
 Create/modify SwiftUI views per PRD Section 10.
 
-- [ ] Create `Views/Main/CreateNewChatView.swift`
+- [x] Create `Views/Main/CreateNewChatView.swift`
   - Test Gate: SwiftUI Preview renders; zero console errors
-- [ ] Create `Views/Components/ContactSelectionView.swift`
+- [x] Create `Views/Components/ContactSelectionView.swift`
   - Test Gate: SwiftUI Preview renders; zero console errors
-- [ ] Create `Views/Components/ChatCreationButton.swift`
+- [x] Create `Views/Components/ChatCreationButton.swift`
   - Test Gate: SwiftUI Preview renders; zero console errors
-- [ ] Create `ViewModels/CreateChatViewModel.swift`
+- [x] Create `ViewModels/CreateChatViewModel.swift`
   - Test Gate: Interaction updates state correctly
-- [ ] Add loading/error/empty states to all views
+- [x] Add loading/error/empty states to all views
   - Test Gate: All states render correctly
-- [ ] Wire up state management (@State, @StateObject, etc.)
+- [x] Wire up state management (@State, @StateObject, etc.)
   - Test Gate: Contact selection updates UI correctly
 
 ---
@@ -78,13 +78,13 @@ Create/modify SwiftUI views per PRD Section 10.
 
 Reference requirements from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Firebase service integration for chat creation
+- [x] Firebase service integration for chat creation
   - Test Gate: Auth/Firestore configured properly
-- [ ] Real-time listeners for new chat appearance
+- [x] Real-time listeners for new chat appearance
   - Test Gate: Data syncs across devices <100ms
-- [ ] Offline persistence for chat creation
+- [x] Offline persistence for chat creation
   - Test Gate: App restarts work offline with cached data
-- [ ] Integration with existing ConversationListScreen
+- [x] Integration with existing ConversationListScreen
   - Test Gate: New chats appear in conversation list immediately
 
 ---
@@ -93,22 +93,22 @@ Reference requirements from `MessageAI/agents/shared-standards.md`.
 
 Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agents/test-template.md`.
 
-- [ ] Unit Tests (Swift Testing)
+- [x] Unit Tests (Swift Testing)
   - Path: `MessageAITests/CreateChatViewModelTests.swift`
   - Test Gate: Service logic validated, edge cases covered
   
-- [ ] UI Tests (XCUITest)
+- [x] UI Tests (XCUITest)
   - Path: `MessageAIUITests/CreateNewChatUITests.swift`
   - Test Gate: User flows succeed, navigation works
   
-- [ ] Service Tests (Swift Testing)
+- [x] Service Tests (Swift Testing)
   - Path: `MessageAITests/Services/ChatServiceTests.swift`
   - Test Gate: Firebase operations tested
   
-- [ ] Multi-device sync test
+- [x] Multi-device sync test
   - Test Gate: Use pattern from shared-standards.md
   
-- [ ] Visual states verification
+- [x] Visual states verification
   - Test Gate: Empty, loading, error, success render correctly
 
 ---
@@ -117,13 +117,13 @@ Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agent
 
 Verify targets from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Contact list loads in <2 seconds
+- [x] Contact list loads in <2 seconds
   - Test Gate: Cold start to interactive measured
-- [ ] Chat creation completes in <2 seconds
+- [x] Chat creation completes in <2 seconds
   - Test Gate: Firebase calls measured
-- [ ] Smooth 60fps scrolling through 100+ contacts
+- [x] Smooth 60fps scrolling through 100+ contacts
   - Test Gate: Use LazyVStack, verify with instruments
-- [ ] Real-time sync <100ms for new chat appearance
+- [x] Real-time sync <100ms for new chat appearance
   - Test Gate: Multi-device sync verified
 
 ---
@@ -131,21 +131,21 @@ Verify targets from `MessageAI/agents/shared-standards.md`.
 ## 8. Acceptance Gates
 
 Check every gate from PRD Section 12:
-- [ ] All happy path gates pass (1-on-1 and group chat creation)
-- [ ] All edge case gates pass (no selection, network errors, offline)
-- [ ] All multi-user gates pass (real-time sync, concurrent creation)
-- [ ] All performance gates pass (contact loading, creation speed, scrolling)
+- [x] All happy path gates pass (1-on-1 and group chat creation)
+- [x] All edge case gates pass (no selection, network errors, offline)
+- [x] All multi-user gates pass (real-time sync, concurrent creation)
+- [x] All performance gates pass (contact loading, creation speed, scrolling)
 
 ---
 
 ## 9. Documentation & PR
 
-- [ ] Add inline code comments for complex logic
-- [ ] Update README if needed
-- [ ] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
-- [ ] Verify with user before creating PR
+- [x] Add inline code comments for complex logic
+- [x] Update README if needed
+- [x] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
+- [x] Verify with user before creating PR
 - [ ] Open PR targeting develop branch
-- [ ] Link PRD and TODO in PR description
+- [x] Link PRD and TODO in PR description
 
 ---
 
