@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseAuth
 import Combine
+import GoogleSignIn
 
 /// Service for managing user authentication
 /// - Note: Observable for SwiftUI state binding
@@ -102,14 +103,99 @@ class AuthService: ObservableObject {
         }
     }
     
+    /// Sign in or sign up a user with Google
+    /// - Throws: AuthError for Google Sign-In or Firebase errors
+    /// - Performance: Should complete in < 5 seconds
+    /// - Note: Automatically creates Firestore user document for new users
+    func signInWithGoogle() async throws {
+        // Get the client ID from Firebase configuration
+        guard let clientID = Auth.auth().app?.options.clientID else {
+            throw AuthError.missingGoogleClientID
+        }
+
+        // Configure Google Sign-In
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+
+        // Get the root view controller
+        guard let windowScene = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = await windowScene.windows.first?.rootViewController else {
+            throw AuthError.googleSignInFailed
+        }
+
+        do {
+            // Start Google Sign-In flow
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = result.user
+
+            // Get ID token and access token
+            guard let idToken = user.idToken?.tokenString else {
+                throw AuthError.googleSignInFailed
+            }
+            let accessToken = user.accessToken.tokenString
+
+            // Create Firebase credential
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+
+            // Sign in to Firebase with Google credential
+            let authResult = try await Auth.auth().signIn(with: credential)
+            let userID = authResult.user.uid
+
+            // Check if this is a new user (need to create Firestore document)
+            if authResult.additionalUserInfo?.isNewUser == true {
+                // Extract user info from Google profile
+                let displayName = user.profile?.name ?? "User"
+                let email = user.profile?.email ?? authResult.user.email ?? ""
+
+                do {
+                    // Create Firestore user document
+                    try await userService.createUser(userID: userID, displayName: displayName, email: email)
+
+                    // Optionally update profile photo URL if available
+                    if let photoURL = user.profile?.imageURL(withDimension: 200) {
+                        // Store photo URL in user document
+                        // This can be enhanced to download and upload to Firebase Storage
+                        print("📸 Google profile photo available: \(photoURL)")
+                    }
+
+                    print("✅ New user signed in with Google: \(userID)")
+
+                } catch {
+                    // Rollback: Delete Auth user if Firestore creation fails
+                    print("⚠️ Firestore user creation failed, rolling back Auth user")
+                    try? await authResult.user.delete()
+                    throw AuthError.userDocumentCreationFailed
+                }
+            } else {
+                print("✅ Existing user signed in with Google: \(userID)")
+            }
+
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            // Check for specific Google Sign-In errors
+            let nsError = error as NSError
+            if nsError.domain == "com.google.GIDSignIn" && nsError.code == -5 {
+                // User cancelled the sign-in flow
+                throw AuthError.googleSignInCancelled
+            }
+            throw AuthError.googleSignInFailed
+        }
+    }
+
     /// Sign out the current user
     /// - Throws: AuthError if sign out fails
-    /// - Note: Clears currentUser and isAuthenticated properties
+    /// - Note: Clears currentUser and isAuthenticated properties, also signs out from Google
     func signOut() throws {
         do {
+            // Sign out from Firebase
             try Auth.auth().signOut()
+
+            // Sign out from Google
+            GIDSignIn.sharedInstance.signOut()
+
             print("✅ User signed out successfully")
-            
+
         } catch {
             throw AuthError.unknown(error)
         }
