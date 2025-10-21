@@ -66,6 +66,7 @@ struct MessageRowView: View {
                             ReadReceiptView(
                                 message: message,
                                 chat: chat,
+                                chatMembers: chat.members,
                                 currentUserID: currentUserID
                             )
                         } else {
@@ -98,6 +99,7 @@ struct MessageRowView: View {
                         ReadReceiptView(
                             message: message,
                             chat: chat,
+                            chatMembers: chat.members,
                             currentUserID: currentUserID
                         )
                     } else {
@@ -118,6 +120,7 @@ struct MessageRowView: View {
                     
                     ReadReceiptView(
                         message: message,
+                        chat: chat,
                         chatMembers: groupMembers,
                         currentUserID: currentUserID
                     )

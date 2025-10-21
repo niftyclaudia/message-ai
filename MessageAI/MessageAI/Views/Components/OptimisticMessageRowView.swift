@@ -94,6 +94,7 @@ struct OptimisticMessageRowView: View {
                             ReadReceiptView(
                                 message: message,
                                 chat: chat,
+                                chatMembers: chat.members,
                                 currentUserID: currentUserID
                             )
                         } else {
@@ -126,6 +127,7 @@ struct OptimisticMessageRowView: View {
                         ReadReceiptView(
                             message: message,
                             chat: chat,
+                            chatMembers: chat.members,
                             currentUserID: currentUserID
                         )
                     } else {
