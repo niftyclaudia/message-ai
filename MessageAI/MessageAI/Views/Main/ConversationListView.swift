@@ -90,18 +90,11 @@ struct ConversationListView: View {
                                 await viewModel.deleteChat(chatID: chat.id)
                             }
                         }
-                        .tint(.red)
-                    }
-                    
-                    // Divider between rows
-                    if chat.id != viewModel.chats.last?.id {
-                        Divider()
-                            .padding(.leading, 68) // Align with text
                     }
                 }
             }
+            .background(Color(.systemBackground))
         }
-        .background(Color(.systemBackground))
     }
     
     /// Empty state when no conversations exist
