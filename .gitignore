@@ -73,3 +73,29 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+## Push Notifications & Security
+# APNs authentication keys (never commit these!)
+*.p8
+*.pem
+APNs_*.p8
+AuthKey_*.p8
+MessageAI_APNs_Key.p8
+
+# Firebase service account keys
+firebase-adminsdk-*.json
+service-account-key.json
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+
+# iOS provisioning profiles
+*.mobileprovision
+*.provisionprofile
+
+# Certificates
+*.cer
+*.p12
+*.pfx
