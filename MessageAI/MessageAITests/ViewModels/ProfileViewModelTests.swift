@@ -12,10 +12,12 @@ import XCTest
 final class ProfileViewModelTests: XCTestCase {
     
     var sut: ProfileViewModel!
+    var mockAuthService: AuthService!
     
     override func setUpWithError() throws {
         try super.setUpWithError()
         sut = ProfileViewModel()
+        mockAuthService = AuthService()
     }
     
     override func tearDownWithError() throws {
@@ -29,7 +31,7 @@ final class ProfileViewModelTests: XCTestCase {
     /// Gate: user @Published populated
     func testLoadProfile_ValidUser_LoadsData() async throws {
         // When: Loading profile
-        await sut.loadProfile()
+        await sut.loadProfile(authService: mockAuthService)
         
         // Then: User should be populated or error should be set
         XCTAssertTrue(sut.user != nil || sut.errorMessage != nil, "Should have user or error")
@@ -43,7 +45,7 @@ final class ProfileViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoading, "Should not be loading initially")
         
         // When: Start loading (check during load would require more complex async testing)
-        await sut.loadProfile()
+        await sut.loadProfile(authService: mockAuthService)
         
         // Then: Should finish loading
         XCTAssertFalse(sut.isLoading, "Should not be loading after completion")
