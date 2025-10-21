@@ -18,11 +18,11 @@
 
 ## 1. Setup
 
-- [ ] Create branch `feat/pr-11-presence-indicators` from develop
-- [ ] Read PRD thoroughly
-- [ ] Read `MessageAI/agents/shared-standards.md` for patterns
-- [ ] Confirm Firebase Realtime Database is configured
-- [ ] Verify test runner works with new service tests
+- [x] Create branch `feat/pr-11-presence-indicators` from develop
+- [x] Read PRD thoroughly
+- [x] Read `MessageAI/agents/shared-standards.md` for patterns
+- [x] Confirm Firebase Realtime Database is configured
+- [x] Verify test runner works with new service tests
 
 ---
 
@@ -30,32 +30,32 @@
 
 Implement deterministic service contracts from PRD.
 
-- [ ] Create `Services/PresenceService.swift`
+- [x] Create `Services/PresenceService.swift`
   - Test Gate: Service compiles and basic structure is in place
-- [ ] Implement `setUserOnline(userID: String) async throws`
+- [x] Implement `setUserOnline(userID: String) async throws`
   - Test Gate: Unit test passes for valid userID, handles authentication errors
-- [ ] Implement `setUserOffline(userID: String) async throws`
+- [x] Implement `setUserOffline(userID: String) async throws`
   - Test Gate: Unit test passes for valid userID, handles network errors
-- [ ] Implement `observeUserPresence(userID: String, completion: @escaping (PresenceStatus) -> Void) -> ListenerRegistration`
+- [x] Implement `observeUserPresence(userID: String, completion: @escaping (PresenceStatus) -> Void) -> ListenerRegistration`
   - Test Gate: Unit test verifies listener registration and callback execution
-- [ ] Implement `observeMultipleUsersPresence(userIDs: [String], completion: @escaping ([String: PresenceStatus]) -> Void) -> ListenerRegistration`
+- [x] Implement `observeMultipleUsersPresence(userIDs: [String], completion: @escaping ([String: PresenceStatus]) -> Void) -> ListenerRegistration`
   - Test Gate: Unit test verifies multiple user observation
-- [ ] Implement `cleanupPresenceData(userID: String) async throws`
+- [x] Implement `cleanupPresenceData(userID: String) async throws`
   - Test Gate: Unit test verifies cleanup removes presence data
-- [ ] Add error handling and retry logic
+- [x] Add error handling and retry logic
   - Test Gate: Network failures handled gracefully, retry attempts work
 
 ---
 
 ## 3. Data Model & Rules
 
-- [ ] Create `Models/PresenceStatus.swift` with status enum and device info
+- [x] Create `Models/PresenceStatus.swift` with status enum and device info
   - Test Gate: Model compiles and can be serialized/deserialized
-- [ ] Define Firebase Realtime Database structure in comments
+- [x] Define Firebase Realtime Database structure in comments
   - Test Gate: Structure documented and validated
-- [ ] Add Firebase Realtime Database security rules
+- [x] Add Firebase Realtime Database security rules
   - Test Gate: Rules deployed, authenticated users can read/write their own presence
-- [ ] Create Firebase Realtime Database indexes if needed
+- [x] Create Firebase Realtime Database indexes if needed
   - Test Gate: Queries perform efficiently
 
 ---
@@ -64,17 +64,17 @@ Implement deterministic service contracts from PRD.
 
 Create/modify SwiftUI views per PRD Section 10.
 
-- [ ] Create `Components/PresenceIndicator.swift`
+- [x] Create `Components/PresenceIndicator.swift`
   - Test Gate: SwiftUI Preview renders online/offline states correctly
-- [ ] Modify `Views/Components/UserRowView.swift` to include presence indicator
+- [x] Modify `Views/Components/UserRowView.swift` to include presence indicator
   - Test Gate: User rows show presence status, updates in real-time
-- [ ] Modify `Views/Components/ConversationRowView.swift` to include presence indicator
+- [x] Modify `Views/Components/ConversationRowView.swift` to include presence indicator
   - Test Gate: Conversation rows show presence status for other participants
-- [ ] Update `ViewModels/ContactListViewModel.swift` to integrate presence data
+- [x] Update `ViewModels/ContactListViewModel.swift` to integrate presence data
   - Test Gate: Contact list shows presence status, updates when users come online/offline
-- [ ] Update `ViewModels/ConversationListViewModel.swift` to integrate presence data
+- [x] Update `ViewModels/ConversationListViewModel.swift` to integrate presence data
   - Test Gate: Conversation list shows presence status for participants
-- [ ] Add loading/error/empty states for presence indicators
+- [x] Add loading/error/empty states for presence indicators
   - Test Gate: All states render correctly, smooth transitions
 
 ---
@@ -83,15 +83,15 @@ Create/modify SwiftUI views per PRD Section 10.
 
 Reference requirements from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Firebase Realtime Database integration
+- [x] Firebase Realtime Database integration
   - Test Gate: Connection established, onDisconnect hooks configured
-- [ ] Real-time presence listeners working
+- [x] Real-time presence listeners working
   - Test Gate: Presence updates sync across devices <100ms
-- [ ] App lifecycle handling (foreground/background/terminated)
+- [x] App lifecycle handling (foreground/background/terminated)
   - Test Gate: Presence status updates correctly on app state changes
-- [ ] Network disconnection handling
+- [x] Network disconnection handling
   - Test Gate: App gracefully handles network failures, shows offline status
-- [ ] onDisconnect hook implementation
+- [x] onDisconnect hook implementation
   - Test Gate: User goes offline when app terminates or network disconnects
 
 ---
@@ -100,23 +100,23 @@ Reference requirements from `MessageAI/agents/shared-standards.md`.
 
 Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agents/test-template.md`.
 
-- [ ] Unit Tests (Swift Testing)
+- [x] Unit Tests (Swift Testing)
   - Path: `MessageAITests/Services/PresenceServiceTests.swift`
   - Test Gate: All service methods tested, edge cases covered, error handling verified
   
-- [ ] UI Tests (XCTest)
+- [x] UI Tests (XCTest)
   - Path: `MessageAIUITests/PresenceIndicatorUITests.swift`
   - Test Gate: Presence indicators display correctly, user interactions work
   
-- [ ] Multi-device sync test
+- [x] Multi-device sync test
   - Path: `MessageAITests/Integration/PresenceSyncTests.swift`
   - Test Gate: Use pattern from shared-standards.md for 3+ device testing
   
-- [ ] App lifecycle tests
+- [x] App lifecycle tests
   - Path: `MessageAITests/Integration/PresenceLifecycleTests.swift`
   - Test Gate: Foreground/background/terminated states handled correctly
   
-- [ ] Visual states verification
+- [x] Visual states verification
   - Test Gate: Online, offline, connecting, error states render correctly
 
 ---
@@ -125,13 +125,13 @@ Follow patterns from `MessageAI/agents/shared-standards.md` and `MessageAI/agent
 
 Verify targets from `MessageAI/agents/shared-standards.md`.
 
-- [ ] App load time < 2-3 seconds with presence initialization
+- [x] App load time < 2-3 seconds with presence initialization
   - Test Gate: Cold start to interactive measured, presence service initializes quickly
-- [ ] Presence update latency < 100ms
+- [x] Presence update latency < 100ms
   - Test Gate: Firebase Realtime Database calls measured, meets target
-- [ ] Smooth 60fps with 100+ presence indicators
+- [x] Smooth 60fps with 100+ presence indicators
   - Test Gate: Use LazyVStack, verify with instruments, no UI blocking
-- [ ] Memory usage optimization
+- [x] Memory usage optimization
   - Test Gate: Presence listeners don't cause memory leaks, proper cleanup
 
 ---
@@ -139,22 +139,22 @@ Verify targets from `MessageAI/agents/shared-standards.md`.
 ## 8. Acceptance Gates
 
 Check every gate from PRD Section 12:
-- [ ] All happy path gates pass (user comes online/offline, status updates <100ms)
-- [ ] All edge case gates pass (network disconnection, app termination)
-- [ ] All multi-user gates pass (real-time sync <100ms across 3+ devices)
-- [ ] All performance gates pass (app load <2-3s, smooth 60fps, <100ms latency)
+- [x] All happy path gates pass (user comes online/offline, status updates <100ms)
+- [x] All edge case gates pass (network disconnection, app termination)
+- [x] All multi-user gates pass (real-time sync <100ms across 3+ devices)
+- [x] All performance gates pass (app load <2-3s, smooth 60fps, <100ms latency)
 
 ---
 
 ## 9. Documentation & PR
 
-- [ ] Add inline code comments for complex presence logic
-- [ ] Document Firebase Realtime Database structure
-- [ ] Update README with presence system overview
-- [ ] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
-- [ ] Verify with user before creating PR
-- [ ] Open PR targeting develop branch
-- [ ] Link PRD and TODO in PR description
+- [x] Add inline code comments for complex presence logic
+- [x] Document Firebase Realtime Database structure
+- [x] Update README with presence system overview
+- [x] Create PR description (use format from MessageAI/agents/coder-agent-template.md)
+- [x] Verify with user before creating PR
+- [x] Open PR targeting develop branch
+- [x] Link PRD and TODO in PR description
 
 ---
 
