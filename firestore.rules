@@ -60,10 +60,23 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // Messages collection rules (for future PRs)
-    match /messages/{messageID} {
-      // Placeholder for PR #6+
-      allow read, write: if false;
+    // Messages collection rules (PR #6)
+    match /chats/{chatID}/messages/{messageID} {
+      // Users can read messages from chats they are members of
+      allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members;
+      
+      // Users can create messages in chats they are members of
+      allow create: if isAuthenticated() 
+        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members
+        && request.auth.uid == resource.data.senderID;
+      
+      // Users can update their own messages (for status updates)
+      allow update: if isAuthenticated() 
+        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members
+        && request.auth.uid == resource.data.senderID;
+      
+      // No one can delete messages (admin only, not implemented here)
+      allow delete: if false;
     }
   }
 }

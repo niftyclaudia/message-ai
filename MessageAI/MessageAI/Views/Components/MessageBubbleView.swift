@@ -74,6 +74,9 @@ struct MessageBubbleView: View {
         case .failed:
             Image(systemName: "exclamationmark.triangle")
                 .foregroundColor(.red)
+        case .queued:
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundColor(.orange)
         }
     }
     
@@ -91,6 +94,8 @@ struct MessageBubbleView: View {
             return "Read"
         case .failed:
             return "Failed"
+        case .queued:
+            return "Queued"
         }
     }
 }

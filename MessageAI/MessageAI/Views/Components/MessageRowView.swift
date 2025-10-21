@@ -63,22 +63,46 @@ struct MessageRowView: View {
                 status: message.status
             )
             
-            // Timestamp
+            // Timestamp and status
             if shouldShowTimestamp {
                 HStack {
                     if isFromCurrentUser {
                         Spacer()
-                    }
-                    
-                    Text(timestamp)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                    
-                    if !isFromCurrentUser {
+                        
+                        // Status indicator for current user's messages
+                        MessageStatusView(
+                            status: message.status,
+                            onRetry: message.status == .failed ? {
+                                // Retry logic would be handled by the view model
+                                print("Retry message: \(message.id)")
+                            } : nil
+                        )
+                        
+                        Text(timestamp)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(timestamp)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
                         Spacer()
                     }
                 }
+                .padding(.horizontal, 12)
+            } else if isFromCurrentUser {
+                // Show status even without timestamp
+                HStack {
+                    Spacer()
+                    
+                    MessageStatusView(
+                        status: message.status,
+                        onRetry: message.status == .failed ? {
+                            print("Retry message: \(message.id)")
+                        } : nil
+                    )
+                }
+                .padding(.horizontal, 12)
             }
         }
         .padding(.vertical, 2)

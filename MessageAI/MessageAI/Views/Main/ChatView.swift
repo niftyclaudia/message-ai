@@ -16,6 +16,7 @@ struct ChatView: View {
     let chat: Chat
     @StateObject private var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var messageText: String = ""
     
     // MARK: - Mock Testing Properties
     @State private var showMockPanel = false
@@ -40,6 +41,29 @@ struct ChatView: View {
             
             // Messages area
             messagesArea
+            
+            // Offline indicator
+            OfflineIndicatorView(
+                isOffline: viewModel.isOffline,
+                queuedMessageCount: viewModel.queuedMessageCount,
+                onRetry: {
+                    viewModel.syncQueuedMessages()
+                }
+            )
+            
+            // Message input
+            MessageInputView(
+                messageText: $messageText,
+                isSending: $viewModel.isSending,
+                isOffline: $viewModel.isOffline,
+                onSend: {
+                    viewModel.sendMessage(text: messageText)
+                    messageText = ""
+                }
+            )
+            .onTapGesture {
+                // This helps ensure the text field can be tapped
+            }
             
             // Mock Testing Panel
             if showMockPanel {
@@ -278,6 +302,42 @@ struct ChatView: View {
                     .buttonStyle(.bordered)
                     .font(.caption)
                 }
+                
+                // New PR-6 Real-time Messaging Tests
+                VStack(spacing: 8) {
+                    Text("🚀 PR-6 Real-time Tests")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .fontWeight(.semibold)
+                    
+                    HStack {
+                        Button("📤 Test Send Message") {
+                            testRealMessageSend()
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.caption)
+                        
+                        Button("📥 Test Receive Message") {
+                            testRealMessageReceive()
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.caption)
+                    }
+                    
+                    HStack {
+                        Button("🔄 Test Status Updates") {
+                            testStatusUpdates()
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.caption)
+                        
+                        Button("📱 Test Offline Queue") {
+                            testOfflineQueue()
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.caption)
+                    }
+                }
             }
             
             // Mock Message Status
@@ -319,7 +379,9 @@ struct ChatView: View {
             timestamp: Date(),
             readBy: isFromCurrentUser ? [viewModel.currentUserID] : [],
             status: isFromCurrentUser ? .sending : .delivered,
-            senderName: isFromCurrentUser ? nil : "Other User"
+            senderName: isFromCurrentUser ? nil : "Other User",
+            isOffline: false,
+            retryCount: 0
         )
         
         mockMessages.append(message)
@@ -362,7 +424,9 @@ struct ChatView: View {
             timestamp: Date(),
             readBy: [viewModel.currentUserID],
             status: .failed,
-            senderName: nil
+            senderName: nil,
+            isOffline: false,
+            retryCount: 1
         )
         
         mockMessages.append(message)
@@ -377,6 +441,60 @@ struct ChatView: View {
         viewModel.messages.removeAll { message in
             message.id.hasPrefix("mock_")
         }
+    }
+    
+    // MARK: - PR-6 Real-time Messaging Test Functions
+    
+    private func testRealMessageSend() {
+        // Test the actual message sending functionality
+        let testMessage = "Test real-time send: \(Date().timeIntervalSince1970)"
+        viewModel.sendMessage(text: testMessage)
+    }
+    
+    private func testRealMessageReceive() {
+        // Simulate receiving a real-time message
+        let testMessage = Message(
+            id: "realtime_\(Date().timeIntervalSince1970)",
+            chatID: chat.id,
+            senderID: "other_user",
+            text: "Real-time test message received!",
+            timestamp: Date(),
+            readBy: [],
+            status: .delivered,
+            senderName: "Test User",
+            isOffline: false,
+            retryCount: 0
+        )
+        
+        viewModel.messages.append(testMessage)
+    }
+    
+    private func testStatusUpdates() {
+        // Test message status updates
+        if let lastMessage = viewModel.messages.last {
+            // Simulate status progression: sending -> sent -> delivered
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if let index = self.viewModel.messages.firstIndex(where: { $0.id == lastMessage.id }) {
+                    self.viewModel.messages[index].status = .sent
+                }
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                if let index = self.viewModel.messages.firstIndex(where: { $0.id == lastMessage.id }) {
+                    self.viewModel.messages[index].status = .delivered
+                }
+            }
+        }
+    }
+    
+    private func testOfflineQueue() {
+        // Test offline message queuing
+        viewModel.isOffline = true
+        let testMessage = "Offline test message: \(Date().timeIntervalSince1970)"
+        viewModel.sendMessage(text: testMessage)
+        
+        // Show queued message count
+        viewModel.updateQueuedMessageCount()
     }
     
     // MARK: - Helper Properties

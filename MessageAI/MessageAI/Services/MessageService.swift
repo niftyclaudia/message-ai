@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 /// Service for managing message operations and real-time updates
 /// - Note: Handles Firestore queries for message display and status updates
@@ -15,6 +16,8 @@ class MessageService {
     // MARK: - Properties
     
     private let firestore: Firestore
+    private let userDefaults = UserDefaults.standard
+    private let queueKey = "queued_messages"
     
     // MARK: - Initialization
     
@@ -23,6 +26,193 @@ class MessageService {
     }
     
     // MARK: - Public Methods
+    
+    /// Sends a message to Firestore with real-time delivery
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - text: The message text
+    /// - Returns: Message ID
+    /// - Throws: MessageServiceError for various failure scenarios
+    func sendMessage(chatID: String, text: String) async throws -> String {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw MessageServiceError.permissionDenied
+        }
+        
+        let messageID = UUID().uuidString
+        let timestamp = Date()
+        
+        let message = Message(
+            id: messageID,
+            chatID: chatID,
+            senderID: currentUser.uid,
+            text: text,
+            timestamp: timestamp,
+            readBy: [currentUser.uid],
+            status: .sending,
+            senderName: nil,
+            isOffline: false,
+            retryCount: 0
+        )
+        
+        do {
+            // Save to Firestore
+            try firestore.collection("chats")
+                .document(chatID)
+                .collection(Message.collectionName)
+                .document(messageID)
+                .setData(from: message)
+            
+            // Update status to sent
+            try await updateMessageStatus(messageID: messageID, status: .sent)
+            
+            return messageID
+        } catch {
+            // If send fails, mark as failed
+            try? await updateMessageStatus(messageID: messageID, status: .failed)
+            throw MessageServiceError.networkError(error)
+        }
+    }
+    
+    /// Queues a message for offline delivery
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - text: The message text
+    /// - Returns: Message ID
+    /// - Throws: MessageServiceError for various failure scenarios
+    func queueMessage(chatID: String, text: String) async throws -> String {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw MessageServiceError.permissionDenied
+        }
+        
+        let messageID = UUID().uuidString
+        let timestamp = Date()
+        
+        let queuedMessage = QueuedMessage(
+            id: messageID,
+            chatID: chatID,
+            text: text,
+            timestamp: timestamp,
+            senderID: currentUser.uid
+        )
+        
+        // Save to local storage
+        var queuedMessages = getQueuedMessages()
+        queuedMessages.append(queuedMessage)
+        saveQueuedMessages(queuedMessages)
+        
+        return messageID
+    }
+    
+    /// Syncs queued messages to Firestore
+    /// - Throws: MessageServiceError for various failure scenarios
+    func syncQueuedMessages() async throws {
+        let queuedMessages = getQueuedMessages()
+        
+        for queuedMessage in queuedMessages {
+            do {
+                let message = queuedMessage.toMessage()
+                
+                try firestore.collection("chats")
+                    .document(queuedMessage.chatID)
+                    .collection(Message.collectionName)
+                    .document(queuedMessage.id)
+                    .setData(from: message)
+                
+                // Remove from queue after successful sync
+                removeQueuedMessage(id: queuedMessage.id)
+                
+            } catch {
+                // Update retry count
+                var updatedMessage = queuedMessage
+                updatedMessage.retryCount += 1
+                updatedMessage.lastAttempt = Date()
+                
+                // Remove old and add updated
+                removeQueuedMessage(id: queuedMessage.id)
+                var updatedQueue = getQueuedMessages()
+                updatedQueue.append(updatedMessage)
+                saveQueuedMessages(updatedQueue)
+                
+                if updatedMessage.retryCount >= 3 {
+                    // Remove after max retries
+                    removeQueuedMessage(id: queuedMessage.id)
+                }
+            }
+        }
+    }
+    
+    /// Gets all queued messages
+    /// - Returns: Array of queued messages
+    func getQueuedMessages() -> [QueuedMessage] {
+        guard let data = userDefaults.data(forKey: queueKey),
+              let messages = try? JSONDecoder().decode([QueuedMessage].self, from: data) else {
+            return []
+        }
+        return messages
+    }
+    
+    /// Updates message status in Firestore
+    /// - Parameters:
+    ///   - messageID: The message's ID
+    ///   - status: The new status
+    /// - Throws: MessageServiceError for various failure scenarios
+    func updateMessageStatus(messageID: String, status: MessageStatus) async throws {
+        // Note: This is a simplified implementation
+        // In a real app, you'd need to know the chatID to construct the path
+        let query = firestore.collectionGroup(Message.collectionName)
+            .whereField("id", isEqualTo: messageID)
+            .limit(to: 1)
+        
+        let snapshot = try await query.getDocuments()
+        
+        guard let document = snapshot.documents.first else {
+            throw MessageServiceError.messageNotFound
+        }
+        
+        try await document.reference.updateData(["status": status.rawValue])
+    }
+    
+    /// Marks a message as delivered
+    /// - Parameter messageID: The message's ID
+    /// - Throws: MessageServiceError for various failure scenarios
+    func markMessageAsDelivered(messageID: String) async throws {
+        try await updateMessageStatus(messageID: messageID, status: .delivered)
+    }
+    
+    /// Retries a failed message
+    /// - Parameter messageID: The message's ID
+    /// - Throws: MessageServiceError for various failure scenarios
+    func retryFailedMessage(messageID: String) async throws {
+        // Find the message in queued messages
+        let queuedMessages = getQueuedMessages()
+        guard let queuedMessage = queuedMessages.first(where: { $0.id == messageID }) else {
+            throw MessageServiceError.messageNotFound
+        }
+        
+        // Remove from queue and try to send again
+        removeQueuedMessage(id: messageID)
+        
+        do {
+            _ = try await sendMessage(chatID: queuedMessage.chatID, text: queuedMessage.text)
+        } catch {
+            // If still fails, re-queue with updated retry count
+            var updatedMessage = queuedMessage
+            updatedMessage.retryCount += 1
+            updatedMessage.lastAttempt = Date()
+            
+            var updatedQueue = getQueuedMessages()
+            updatedQueue.append(updatedMessage)
+            saveQueuedMessages(updatedQueue)
+            
+            throw error
+        }
+    }
+    
+    /// Deletes a failed message
+    /// - Parameter messageID: The message's ID
+    func deleteFailedMessage(messageID: String) {
+        removeQueuedMessage(id: messageID)
+    }
     
     /// Fetches messages for a specific chat with pagination
     /// - Parameters:
@@ -162,6 +352,27 @@ class MessageService {
             throw MessageServiceError.networkError(error)
         }
     }
+    
+    // MARK: - Private Methods
+    
+    /// Saves queued messages to local storage
+    /// - Parameter messages: Array of queued messages
+    private func saveQueuedMessages(_ messages: [QueuedMessage]) {
+        do {
+            let data = try JSONEncoder().encode(messages)
+            userDefaults.set(data, forKey: queueKey)
+        } catch {
+            print("⚠️ Failed to save queued messages: \(error)")
+        }
+    }
+    
+    /// Removes a queued message by ID
+    /// - Parameter id: The message ID to remove
+    private func removeQueuedMessage(id: String) {
+        var queuedMessages = getQueuedMessages()
+        queuedMessages.removeAll { $0.id == id }
+        saveQueuedMessages(queuedMessages)
+    }
 }
 
 // MARK: - MessageServiceError
@@ -171,6 +382,8 @@ enum MessageServiceError: LocalizedError {
     case messageNotFound
     case permissionDenied
     case networkError(Error)
+    case offlineQueueFull
+    case retryLimitExceeded
     case unknown(Error)
     
     var errorDescription: String? {
@@ -181,6 +394,10 @@ enum MessageServiceError: LocalizedError {
             return "Permission denied to access message"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .offlineQueueFull:
+            return "Offline message queue is full"
+        case .retryLimitExceeded:
+            return "Retry limit exceeded for message"
         case .unknown(let error):
             return "Unknown error: \(error.localizedDescription)"
         }
