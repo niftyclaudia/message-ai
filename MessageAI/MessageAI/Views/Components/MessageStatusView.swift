@@ -7,74 +7,72 @@
 
 import SwiftUI
 
-/// Message status view showing delivery status
-/// - Note: Displays sending, sent, delivered, read, failed, and queued states
+/// View that displays the delivery status of a message
+/// - Note: Shows different icons and colors based on message status
 struct MessageStatusView: View {
     
     // MARK: - Properties
     
     let status: MessageStatus
-    let onRetry: (() -> Void)?
+    let isOptimistic: Bool
+    let retryCount: Int
     
     // MARK: - Body
     
     var body: some View {
         HStack(spacing: 4) {
             statusIcon
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(statusColor)
             
-            if let onRetry = onRetry, status == .failed {
-                retryButton(onRetry: onRetry)
+            if isOptimistic {
+                Text("Sending...")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(.secondary)
+            } else if retryCount > 0 {
+                Text("Retry \(retryCount)")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(.secondary)
             }
         }
     }
     
-    // MARK: - Status Icon
+    // MARK: - Computed Properties
     
     private var statusIcon: some View {
         Group {
             switch status {
             case .sending:
-                ProgressView()
-                    .scaleEffect(0.6)
-                    .tint(.blue)
-                
+                Image(systemName: "clock")
             case .sent:
                 Image(systemName: "checkmark")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                
             case .delivered:
                 Image(systemName: "checkmark.circle")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                
             case .read:
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                
             case .failed:
-                Image(systemName: "exclamationmark.circle")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                
+                Image(systemName: "exclamationmark.triangle")
             case .queued:
-                Image(systemName: "clock")
-                    .font(.caption)
-                    .foregroundColor(.orange)
+                Image(systemName: "clock.arrow.circlepath")
             }
         }
     }
     
-    // MARK: - Retry Button
-    
-    private func retryButton(onRetry: @escaping () -> Void) -> some View {
-        Button(action: onRetry) {
-            Image(systemName: "arrow.clockwise")
-                .font(.caption)
-                .foregroundColor(.blue)
+    private var statusColor: Color {
+        switch status {
+        case .sending:
+            return .orange
+        case .sent:
+            return .blue
+        case .delivered:
+            return .green
+        case .read:
+            return .green
+        case .failed:
+            return .red
+        case .queued:
+            return .purple
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -82,19 +80,64 @@ struct MessageStatusView: View {
 
 #Preview {
     VStack(spacing: 16) {
-        ForEach(MessageStatus.allCases, id: \.self) { status in
-            HStack {
-                Text(status.rawValue.capitalized)
-                    .font(.caption)
-                
-                Spacer()
-                
-                MessageStatusView(
-                    status: status,
-                    onRetry: status == .failed ? {} : nil
-                )
-            }
-            .padding(.horizontal)
+        HStack {
+            Text("Sending")
+            Spacer()
+            MessageStatusView(
+                status: .sending,
+                isOptimistic: true,
+                retryCount: 0
+            )
+        }
+        
+        HStack {
+            Text("Sent")
+            Spacer()
+            MessageStatusView(
+                status: .sent,
+                isOptimistic: false,
+                retryCount: 0
+            )
+        }
+        
+        HStack {
+            Text("Delivered")
+            Spacer()
+            MessageStatusView(
+                status: .delivered,
+                isOptimistic: false,
+                retryCount: 0
+            )
+        }
+        
+        HStack {
+            Text("Read")
+            Spacer()
+            MessageStatusView(
+                status: .read,
+                isOptimistic: false,
+                retryCount: 0
+            )
+        }
+        
+        HStack {
+            Text("Failed")
+            Spacer()
+            MessageStatusView(
+                status: .failed,
+                isOptimistic: false,
+                retryCount: 2
+            )
+        }
+        
+        HStack {
+            Text("Queued")
+            Spacer()
+            MessageStatusView(
+                status: .queued,
+                isOptimistic: false,
+                retryCount: 0
+            )
         }
     }
     .padding()
