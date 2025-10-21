@@ -16,7 +16,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 1
+**Phase:** 1 COMPLETE
 
 ---
 
@@ -28,7 +28,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 1
+**Phase:** 1 COMPLETE
 
 ---
 
@@ -40,7 +40,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 1
+**Phase:** 1 COMPLETE
 
 ---
 
@@ -52,7 +52,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 1
+**Phase:** 1 COMPLETE
 
 ---
 
@@ -66,7 +66,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 2
+**Phase:** 2 COMPLETE
 
 ---
 
@@ -78,7 +78,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 2
+**Phase:** 2 COMPLETE
 
 ---
 
@@ -90,7 +90,7 @@
 
 **Complexity:** Complex
 
-**Phase:** 2
+**Phase:** 2 COMPLETE
 
 ---
 
@@ -102,7 +102,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 2
+**Phase:** 2 COMPLETE
 
 ---
 
@@ -114,7 +114,7 @@
 
 **Complexity:** Complex
 
-**Phase:** 2
+**Phase:** 2 COMPLETE
 
 ---
 
@@ -128,7 +128,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 3
+**Phase:** 3 COMPLETE
 
 ---
 
@@ -140,7 +140,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 3
+**Phase:** 3 COMPLETE
 
 ---
 
@@ -152,7 +152,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 3
+**Phase:** 3 COMPLETE
 
 ---
 
@@ -166,7 +166,7 @@
 
 **Complexity:** Medium
 
-**Phase:** 4
+**Phase:** 4 IN PROGRESS
 
 ---
 
