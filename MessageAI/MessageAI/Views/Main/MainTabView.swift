@@ -51,6 +51,19 @@ struct MainTabView: View {
             .tabItem {
                 Label("Chats", systemImage: "bubble.left.and.bubble.right")
             }
+            
+            // Contacts tab (PR #3)
+            ContactListView()
+                .tabItem {
+                    Label("Contacts", systemImage: "person.2")
+                }
+            
+            // Profile tab (PR #3)
+            ProfileView()
+                .environmentObject(authService)
+                .tabItem {
+                    Label("Profile", systemImage: "person.circle")
+                }
         }
     }
     

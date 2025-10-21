@@ -26,6 +26,8 @@ class UserService {
     
     // MARK: - Public Methods
     
+    // MARK: User Creation & Fetching
+    
     /// Creates a new user document in Firestore
     /// - Parameters:
     ///   - userID: Firebase Auth UID
@@ -115,6 +117,119 @@ class UserService {
             
         } catch {
             throw mapFirestoreError(error)
+        }
+    }
+    
+    // MARK: Profile Management
+    
+    /// Updates user's display name
+    /// - Parameters:
+    ///   - userID: Firebase Auth UID
+    ///   - displayName: New display name (1-50 characters)
+    /// - Throws: UserServiceError for validation or Firestore errors
+    /// - Performance: Should complete in < 2 seconds
+    func updateDisplayName(userID: String, displayName: String) async throws {
+        try validateDisplayName(displayName)
+        try await updateUser(userID: userID, displayName: displayName)
+    }
+    
+    /// Updates user's profile photo URL
+    /// - Parameters:
+    ///   - userID: Firebase Auth UID
+    ///   - photoURL: New profile photo URL from Firebase Storage
+    /// - Throws: UserServiceError for Firestore errors
+    /// - Performance: Should complete in < 2 seconds
+    func updateProfilePhoto(userID: String, photoURL: String) async throws {
+        try await updateUser(userID: userID, profilePhotoURL: photoURL)
+    }
+    
+    /// Fetches current user's profile
+    /// - Parameter authService: AuthService to get current user ID
+    /// - Returns: Current user's User object
+    /// - Throws: UserServiceError.notFound if user doesn't exist
+    func fetchCurrentUserProfile(authService: AuthService) async throws -> User {
+        guard let currentUserID = authService.currentUser?.uid else {
+            throw UserServiceError.notFound
+        }
+        return try await fetchUser(userID: currentUserID)
+    }
+    
+    // MARK: Contact Discovery
+    
+    /// Fetches all users from Firestore
+    /// - Parameter currentUserID: Current user ID to exclude from results
+    /// - Returns: Array of User objects (excluding current user)
+    /// - Throws: UserServiceError for Firestore errors
+    /// - Performance: Should complete in < 1 second
+    func fetchAllUsers(excludingUserID currentUserID: String) async throws -> [User] {
+        do {
+            let snapshot = try await usersCollection.getDocuments()
+            
+            let users = snapshot.documents.compactMap { document -> User? in
+                // Exclude current user
+                guard document.documentID != currentUserID else { return nil }
+                
+                let data = document.data()
+                return try? decodeUser(from: data, id: document.documentID)
+            }
+            
+            print("✅ Fetched \(users.count) users")
+            return users
+            
+        } catch {
+            throw mapFirestoreError(error)
+        }
+    }
+    
+    /// Searches users by display name or email (case-insensitive)
+    /// - Parameters:
+    ///   - query: Search query string
+    ///   - currentUserID: Current user ID to exclude from results
+    /// - Returns: Array of matching User objects
+    /// - Throws: UserServiceError.searchQueryTooShort if query is empty
+    /// - Note: Client-side filtering for now, server-side search in future
+    func searchUsers(query: String, excludingUserID currentUserID: String) async throws -> [User] {
+        guard !query.isEmpty else {
+            throw UserServiceError.searchQueryTooShort
+        }
+        
+        // Fetch all users first
+        let allUsers = try await fetchAllUsers(excludingUserID: currentUserID)
+        
+        // Filter by query (case-insensitive)
+        let lowercaseQuery = query.lowercased()
+        let matchingUsers = allUsers.filter { user in
+            user.displayName.lowercased().contains(lowercaseQuery) ||
+            user.email.lowercased().contains(lowercaseQuery)
+        }
+        
+        print("✅ Found \(matchingUsers.count) users matching '\(query)'")
+        return matchingUsers
+    }
+    
+    /// Sets up real-time listener for all users
+    /// - Parameters:
+    ///   - currentUserID: Current user ID to exclude from results
+    ///   - completion: Closure called with updated user list
+    /// - Returns: ListenerRegistration to remove listener when done
+    func observeUsers(excludingUserID currentUserID: String, completion: @escaping ([User]) -> Void) -> ListenerRegistration {
+        return usersCollection.addSnapshotListener { snapshot, error in
+            guard let snapshot = snapshot, error == nil else {
+                print("❌ User observation error: \(error?.localizedDescription ?? "Unknown")")
+                completion([])
+                return
+            }
+            
+            let users = snapshot.documents.compactMap { document -> User? in
+                // Exclude current user
+                guard document.documentID != currentUserID else { return nil }
+                
+                let data = document.data()
+                return try? self.decodeUser(from: data, id: document.documentID)
+            }
+            
+            print("✅ Real-time update: \(users.count) users")
+            completion(users)
         }
     }
     

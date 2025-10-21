@@ -33,6 +33,20 @@ struct User: Codable, Identifiable, Equatable {
     /// Firestore collection name
     static let collectionName = "users"
     
+    // MARK: - Computed Properties
+    
+    /// Extracts initials from display name (e.g., "John Doe" → "JD")
+    var initials: String {
+        displayName.extractInitials()
+    }
+    
+    /// Formats creation date as "Member since Jan 2025"
+    var memberSinceFormatted: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        return "Member since \(formatter.string(from: createdAt))"
+    }
+    
     // MARK: - Codable Keys
     
     enum CodingKeys: String, CodingKey {

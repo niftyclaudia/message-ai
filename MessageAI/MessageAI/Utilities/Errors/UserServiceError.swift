@@ -10,6 +10,9 @@ import Foundation
 /// Errors that can occur during user service operations
 enum UserServiceError: LocalizedError, Equatable {
     case invalidDisplayName
+    case displayNameTooShort
+    case displayNameTooLong
+    case searchQueryTooShort
     case notFound
     case permissionDenied
     case networkError
@@ -20,6 +23,12 @@ enum UserServiceError: LocalizedError, Equatable {
     static func == (lhs: UserServiceError, rhs: UserServiceError) -> Bool {
         switch (lhs, rhs) {
         case (.invalidDisplayName, .invalidDisplayName):
+            return true
+        case (.displayNameTooShort, .displayNameTooShort):
+            return true
+        case (.displayNameTooLong, .displayNameTooLong):
+            return true
+        case (.searchQueryTooShort, .searchQueryTooShort):
             return true
         case (.notFound, .notFound):
             return true
@@ -40,6 +49,12 @@ enum UserServiceError: LocalizedError, Equatable {
         switch self {
         case .invalidDisplayName:
             return "Display name must be between 1 and 50 characters."
+        case .displayNameTooShort:
+            return "Display name is too short. Must be at least 1 character."
+        case .displayNameTooLong:
+            return "Display name is too long. Maximum 50 characters."
+        case .searchQueryTooShort:
+            return "Search query is too short. Please enter at least 1 character."
         case .notFound:
             return "User not found."
         case .permissionDenied:
@@ -56,6 +71,12 @@ enum UserServiceError: LocalizedError, Equatable {
         switch self {
         case .invalidDisplayName:
             return "Choose a display name between 1 and 50 characters."
+        case .displayNameTooShort:
+            return "Enter a display name with at least 1 character."
+        case .displayNameTooLong:
+            return "Shorten your display name to 50 characters or less."
+        case .searchQueryTooShort:
+            return "Enter more characters to search for users."
         case .notFound:
             return "This user may have been deleted or doesn't exist."
         case .permissionDenied:

@@ -44,6 +44,18 @@
 
 ---
 
+### PR #3.5: Google Sign-In Authentication
+
+**Brief:** Implement Google Sign-In as an authentication option alongside email/password. This PR extends the AuthService to support Google OAuth provider, adds a "Sign in with Google" button to authentication screens, and handles the complete OAuth flow including credential exchange, user profile mapping, and account linking. Provides a seamless social login experience that reduces signup friction and automatically populates user profile data (name, email, photo) from Google accounts.
+
+**Dependencies:** PR #1, PR #2, PR #3
+
+**Complexity:** Medium
+
+**Phase:** 1
+
+---
+
 ## Phase 2: 1-on-1 Chat
 
 ### PR #4: Conversation List Screen
@@ -208,18 +220,19 @@
 
 ## Implementation Summary
 
-**Total PRs:** 16  
-**Phase 1 (Core Foundation):** 3 PRs  
+**Total PRs:** 17  
+**Phase 1 (Core Foundation):** 4 PRs  
 **Phase 2 (1-on-1 Chat):** 5 PRs  
 **Phase 3 (Group Chats & Presence):** 3 PRs  
 **Phase 4 (Polish & Notifications):** 5 PRs  
 
 **Complexity Distribution:**
-- Medium: 11 PRs  
+- Medium: 12 PRs  
 - Complex: 5 PRs
 
 **Key Dependencies:**
 - PR #1 (Firebase Setup) is foundational for all features
+- PR #3.5 (Google Sign-In) reduces signup friction and improves user onboarding
 - PR #6 (Real-Time Messaging) is the core messaging foundation
 - PR #7 (Optimistic UI) enables smooth user experience
 - PR #8 (Offline Support) is critical for user experience
