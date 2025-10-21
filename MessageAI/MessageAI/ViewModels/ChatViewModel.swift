@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseDatabase
 import SwiftUI
 
 /// ViewModel for managing chat view state and message operations
@@ -30,6 +31,8 @@ class ChatViewModel: ObservableObject {
     @Published var isRetrying: Bool = false
     @Published var hasRetryableMessages: Bool = false
     @Published var readReceipts: [String: [String: Date]] = [:] // messageID -> [userID: readAt]
+    @Published var groupMemberPresence: [String: PresenceStatus] = [:]
+    @Published var groupMembers: [String] = []
     
     // MARK: - Computed Properties
     
@@ -47,6 +50,8 @@ class ChatViewModel: ObservableObject {
     private var readReceiptListener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
     let optimisticService = OptimisticUpdateService()
+    private let presenceService = PresenceService()
+    private var presenceHandles: [String: DatabaseHandle] = [:]
     
     // MARK: - Initialization
     
@@ -87,6 +92,12 @@ class ChatViewModel: ObservableObject {
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
             isLoading = false
         }
+    }
+    
+    /// Sets the current chat for the view model
+    /// - Parameter chat: The chat to set
+    func setChat(_ chat: Chat) {
+        self.chat = chat
     }
     
     /// Sets up real-time listener for messages in a chat
@@ -494,6 +505,71 @@ class ChatViewModel: ObservableObject {
     /// Gets the current connection type
     func getConnectionType() -> ConnectionType {
         return messageService.getConnectionType()
+    }
+    
+    // MARK: - Group Chat Methods
+    
+    /// Sets up group member presence monitoring
+    /// - Parameter chat: The chat to monitor
+    func setupGroupMemberPresence(chat: Chat) {
+        guard chat.isGroupChat else { return }
+        
+        // Store group members
+        groupMembers = chat.members
+        
+        // Clean up existing observers
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        
+        // Set up presence observers for all group members
+        presenceHandles = presenceService.observeMultipleUsersPresence(userIDs: chat.members) { [weak self] presenceDict in
+            Task { @MainActor in
+                self?.groupMemberPresence = presenceDict
+            }
+        }
+    }
+    
+    /// Stops monitoring group member presence
+    func stopGroupMemberPresence() {
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        groupMemberPresence.removeAll()
+        groupMembers.removeAll()
+    }
+    
+    /// Gets the presence status for a specific group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Presence status or offline if not found
+    func getGroupMemberPresence(userID: String) -> PresenceStatus {
+        return groupMemberPresence[userID] ?? .offline
+    }
+    
+    /// Gets read receipt information for a message in group chat
+    /// - Parameter message: The message to check
+    /// - Returns: Read receipt information
+    func getGroupReadReceiptInfo(message: Message) -> (readCount: Int, totalMembers: Int, readMembers: [String], unreadMembers: [String]) {
+        let readMembers = message.readBy.filter { $0 != currentUserID }
+        let unreadMembers = groupMembers.filter { !message.readBy.contains($0) && $0 != currentUserID }
+        
+        return (
+            readCount: message.readBy.count,
+            totalMembers: groupMembers.count,
+            readMembers: readMembers,
+            unreadMembers: unreadMembers
+        )
+    }
+    
+    /// Gets the display name for a group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Display name for the user
+    func getGroupMemberDisplayName(userID: String) -> String {
+        if userID == currentUserID {
+            return "You"
+        } else {
+            // In a real app, you'd fetch this from a user service
+            // For now, return a simplified display name
+            return "User \(userID.prefix(4))"
+        }
     }
     
 }

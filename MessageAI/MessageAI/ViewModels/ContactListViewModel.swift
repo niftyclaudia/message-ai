@@ -52,6 +52,7 @@ class ContactListViewModel: ObservableObject {
     // MARK: - Deinitialization
     
     deinit {
+        // Clean up Firestore listener
         listener?.remove()
         // Presence cleanup handled automatically
     }

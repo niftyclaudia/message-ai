@@ -66,48 +66,29 @@ struct ConversationListView: View {
     
     /// List of conversations using LazyVStack for performance
     private var conversationList: some View {
-        VStack(spacing: 0) {
-            // Test button header
-            Button("🧪 Test Chat View") {
-                let testChat = Chat(
-                    id: "test-chat-pr5",
-                    members: [currentUserID, "user-2"],
-                    lastMessage: "Test message",
-                    lastMessageTimestamp: Date(),
-                    lastMessageSenderID: "user-2",
-                    isGroupChat: false,
-                    createdAt: Date(),
-                    createdBy: currentUserID
-                )
-                viewModel.chats = [testChat]
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
-            
-            // Scrollable chat list
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(viewModel.chats) { chat in
-                        NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID)) {
-                            ConversationRowView(
-                                chat: chat,
-                                otherUser: viewModel.getOtherUser(chat: chat),
-                                currentUserID: currentUserID,
-                                timestamp: viewModel.formatTimestamp(date: chat.lastMessageTimestamp),
-                                presenceStatus: {
-                                    if let otherUser = viewModel.getOtherUser(chat: chat) {
-                                        return viewModel.userPresence[otherUser.id]
-                                    }
-                                    return nil
-                                }()
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        // Divider between rows
-                        if chat.id != viewModel.chats.last?.id {
-                            Divider()
-                                .padding(.leading, 68)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(viewModel.chats) { chat in
+                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID, otherUser: viewModel.getOtherUser(chat: chat))) {
+                        ConversationRowView(
+                            chat: chat,
+                            otherUser: viewModel.getOtherUser(chat: chat),
+                            currentUserID: currentUserID,
+                            timestamp: viewModel.formatTimestamp(date: chat.lastMessageTimestamp),
+                            presenceStatus: {
+                                if let otherUser = viewModel.getOtherUser(chat: chat) {
+                                    return viewModel.userPresence[otherUser.id]
+                                }
+                                return nil
+                            }()
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                await viewModel.deleteChat(chatID: chat.id)
+                            }
                         }
                     }
                 }
@@ -123,26 +104,6 @@ struct ConversationListView: View {
                 icon: "bubble.left.and.bubble.right",
                 message: "No conversations yet"
             )
-            
-            // Test button for PR-5
-            Button("Test Chat View") {
-                // Create a test chat and navigate to it
-                let testChat = Chat(
-                    id: "test-chat-pr5",
-                    members: [currentUserID, "user-2"],
-                    lastMessage: "Test message",
-                    lastMessageTimestamp: Date(),
-                    lastMessageSenderID: "user-2",
-                    isGroupChat: false,
-                    createdAt: Date(),
-                    createdBy: currentUserID
-                )
-                
-                // Add to view model
-                viewModel.chats = [testChat]
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
     }
     
