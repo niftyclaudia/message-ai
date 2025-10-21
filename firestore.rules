@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userID) {
+      return isAuthenticated() && request.auth.uid == userID;
+    }
+    
+    function validUserData() {
+      let data = request.resource.data;
+      return data.id == request.auth.uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 50
+        && data.email is string
+        && data.email.matches('[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}');
+    }
+    
+    function immutableFields() {
+      let data = request.resource.data;
+      let existingData = resource.data;
+      return data.id == existingData.id
+        && data.email == existingData.email
+        && data.createdAt == existingData.createdAt;
+    }
+    
+    // Users collection rules
+    match /users/{userID} {
+      // Anyone authenticated can read any user profile
+      allow read: if isAuthenticated();
+      
+      // Only the user can create their own profile with valid data
+      allow create: if isOwner(userID) && validUserData();
+      
+      // Only the user can update their own profile, immutable fields must stay the same
+      allow update: if isOwner(userID) && immutableFields();
+      
+      // No one can delete user documents (admin only, not implemented here)
+      allow delete: if false;
+    }
+    
+    // Chats collection rules (for future PRs)
+    match /chats/{chatID} {
+      // Placeholder for PR #4+
+      allow read, write: if false;
+    }
+    
+    // Messages collection rules (for future PRs)
+    match /messages/{messageID} {
+      // Placeholder for PR #6+
+      allow read, write: if false;
+    }
+  }
+}
+
