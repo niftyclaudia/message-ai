@@ -11,6 +11,13 @@ import FirebaseCore
 @main
 struct MessageAIApp: App {
     
+    // MARK: - State Objects
+    
+    /// Authentication service - single source of truth for auth state
+    @StateObject private var authService = AuthService()
+    
+    // MARK: - Initialization
+    
     init() {
         // Configure Firebase on app launch
         do {
@@ -22,9 +29,12 @@ struct MessageAIApp: App {
         }
     }
     
+    // MARK: - Body
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(authService)
         }
     }
 }
