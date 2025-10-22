@@ -78,6 +78,14 @@ MessageAI/
 - Deep link navigation from notification taps
 - Comprehensive test suite and setup documentation
 
+#### ✅ PR #14: Cloud Functions for Push Notifications
+- Serverless backend for automatic notification triggers
+- Firestore onCreate trigger for new messages
+- Sender exclusion logic (no self-notifications)
+- FCM token management and cleanup
+- Error handling and structured logging
+- Performance optimized (<2s delivery target)
+
 ## Tech Stack
 
 - **Language**: Swift 5.9+
@@ -85,6 +93,8 @@ MessageAI/
 - **Backend**: Firebase
   - Firebase Authentication
   - Cloud Firestore
+  - Firebase Cloud Functions
+  - Firebase Cloud Messaging
   - Firebase Storage (future)
 - **Architecture**: MVVM
 - **State Management**: Combine (@Published, @StateObject, @EnvironmentObject)
@@ -133,6 +143,29 @@ open MessageAI/MessageAI.xcodeproj
    - Notifications don't work in iOS Simulator
    - Use Firebase Console to send test notifications
    - Verify foreground, background, and terminated states
+
+### Cloud Functions Setup
+
+The app includes Cloud Functions for automatic push notifications:
+
+1. **Deploy Functions**:
+   ```bash
+   cd functions
+   npm install
+   firebase deploy --only functions
+   ```
+
+2. **Monitor Function Logs**:
+   ```bash
+   firebase functions:log
+   ```
+
+3. **Local Development**:
+   ```bash
+   firebase emulators:start
+   ```
+
+See `functions/README.md` for detailed Cloud Functions documentation.
 
 ## Development Workflow
 

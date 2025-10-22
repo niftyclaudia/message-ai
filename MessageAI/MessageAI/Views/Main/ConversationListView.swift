@@ -112,6 +112,7 @@ struct ConversationListView: View {
                 }
                 .background(Color(.systemBackground))
             }
+        }
     }
     
     /// Empty state when no conversations exist
@@ -127,13 +128,13 @@ struct ConversationListView: View {
     // MARK: - Notification Navigation
     
     /// Check for pending notification navigation
-    private func checkForNotificationNavigation() {
+    func checkForNotificationNavigation() {
         // TODO: This would be called from MessageAIApp when notification is tapped
         // For now, this is a placeholder for the navigation logic
     }
     
     /// Navigation destination for notification deep linking
-    private var notificationDestination: some View {
+    var notificationDestination: some View {
         Group {
             if let chatID = selectedChatID,
                let chat = viewModel.chats.first(where: { $0.id == chatID }) {
