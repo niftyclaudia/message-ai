@@ -18,7 +18,6 @@ struct MainTabView: View {
     // MARK: - State
     
     @State private var showLogoutAlert: Bool = false
-    @State private var showMockTesting: Bool = false
     @State private var showingCreateChat: Bool = false
     @State private var createdChat: Chat?
     @State private var navigateToChat: Bool = false
@@ -86,17 +85,6 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Profile", systemImage: "person.circle")
                 }
-            
-            // Mock Testing tab (Debug only)
-            Button("🧪 Mock Testing") {
-                showMockTesting = true
-            }
-            .tabItem {
-                Label("Testing", systemImage: "wrench.and.screwdriver")
-            }
-        }
-        .sheet(isPresented: $showMockTesting) {
-            MockTestingView(isPresented: $showMockTesting)
         }
         .sheet(isPresented: $showingCreateChat) {
             CreateNewChatView { chat in

@@ -25,19 +25,64 @@
 
 ### P1 Bugs (High Priority)
 
-*None found yet*
+**BUG-001: Testing Button Visible in Navigation Bar** ✅ FIXED
+- **Severity**: P1 (High) - Production code shouldn't have test buttons
+- **Description**: Test/debug button visible in navigation bar
+- **Impact**: Unprofessional, confusing to users
+- **Status**: Fixed
+- **Fix Applied**: Removed Mock Testing tab and state from MainTabView.swift
+
+**BUG-002: Profile Photo Upload Not Working** ✅ FIXED
+- **Severity**: P1 (High) - Core feature broken
+- **Description**: User can select photo from picker, but photo doesn't update/save. Also, profile view doesn't refresh after editing.
+- **Root Cause #1**: PhotosPicker had broken binding (always returned nil, never set)
+- **Root Cause #2**: ProfileView doesn't reload when edit sheet dismisses
+- **Impact**: Users couldn't set profile photos, and changes don't appear until app restart
+- **Status**: Fixed
+- **Fix Applied**: 
+  - Replaced broken PhotosPicker with working ProfilePhotoPicker
+  - Added auto-refresh when edit sheet closes (onDisappear)
+  - Added Firebase project config fix and rules deployment
 
 ---
 
 ### P2 Bugs (Medium Priority - Document Only)
 
-*None found yet*
+**BUG-003: Information Icon Not Working in Messages**
+- **Severity**: P2 (Medium) - Navigation issue
+- **Description**: Information icon in message view doesn't navigate anywhere
+- **Expected**: Should show user profile/info
+- **Actual**: Nothing happens when tapped
+- **Status**: Open
+
+**BUG-004: Presence Indicators Missing on Chat List**
+- **Severity**: P2 (Medium) - UX issue
+- **Description**: Online/offline status dots show in messages but not on conversation list
+- **Expected**: Status dots should show in ConversationListView
+- **Actual**: Only visible inside chat view
+- **Status**: Open
 
 ---
 
 ### P3 Bugs (Low Priority - Defer)
 
-*None found yet*
+**FEATURE-001: Log Out Placement in Chat Screen**
+- **Type**: Feature Request / UX Enhancement
+- **Description**: Unclear - need clarification on what "log out and add chat placement" means
+- **Status**: Needs clarification
+
+---
+
+### Feature Requests (Post-MVP)
+
+These are valid feature requests but out of scope for MVP launch:
+
+1. **Delete/Add Contacts Feature** - Contact management
+2. **Organize People into Groups** - Advanced group management
+3. **Rename Groups and Chats** - Edit chat metadata
+4. **Custom Group Organization** - Advanced organizational features
+
+*These will be added to the backlog for post-launch iterations*
 
 ---
 
@@ -85,11 +130,12 @@
 
 ## Summary
 
-**Total Bugs Found**: 0  
-**P0 Bugs**: 0  
-**P1 Bugs**: 0  
-**P2 Bugs**: 0 (deferred)  
-**P3 Bugs**: 0 (deferred)
+**Total Bugs Found**: 6  
+**P0 Bugs**: 0 ✅  
+**P1 Bugs**: 2 (2 fixed) ✅  
+**P2 Bugs**: 2 (documented for future)  
+**P3 Bugs**: 1 (needs clarification)  
+**Feature Requests**: 4 (deferred to post-MVP)
 
-**Status**: Testing in progress...
+**Status**: P1 bugs fixed! Ready for more testing...
 
