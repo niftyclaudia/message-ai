@@ -17,9 +17,16 @@ class MessageService {
     
     private let firestore: Firestore
     private let userDefaults = UserDefaults.standard
-    private let queueKey = "queued_messages"
     private let maxRetryCount = 3
     private let maxQueueSize = 100
+    
+    // Make queue key user-specific to prevent cross-device/simulator conflicts
+    private var queueKey: String {
+        guard let userID = Auth.auth().currentUser?.uid else {
+            return "queued_messages"
+        }
+        return "queued_messages_\(userID)"
+    }
     
     // NetworkMonitor needs to be accessed on main actor
     @MainActor

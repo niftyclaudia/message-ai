@@ -9,6 +9,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseDatabase
 import SwiftUI
+import Combine
 
 /// ViewModel for managing chat view state and message operations
 /// - Note: Handles message loading, real-time updates, and status management
@@ -59,6 +60,7 @@ class ChatViewModel: ObservableObject {
     let optimisticService = OptimisticUpdateService()
     private let presenceService = PresenceService()
     private var presenceHandles: [String: DatabaseHandle] = [:]
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
@@ -67,9 +69,10 @@ class ChatViewModel: ObservableObject {
         self.messageService = messageService
         self.readReceiptService = readReceiptService ?? ReadReceiptService()
         
-        // Monitor network status
+        // Set initial network status
         Task { @MainActor in
             monitorNetworkStatus()
+            setupNetworkObserver()
         }
     }
     
@@ -275,9 +278,17 @@ class ChatViewModel: ObservableObject {
                         _ = try await messageService.sendMessage(chatID: chat.id, text: text)
                         
                     } catch {
-                        // Send failed - show error
-                        await MainActor.run {
-                            errorMessage = "Failed to send message: \(error.localizedDescription)"
+                        // Send failed - automatically queue it for retry
+                        do {
+                            _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                            await MainActor.run {
+                                updateQueuedMessageCount()
+                                errorMessage = "Message queued - will send when online"
+                            }
+                        } catch {
+                            await MainActor.run {
+                                errorMessage = "Failed to send message: \(error.localizedDescription)"
+                            }
                         }
                     }
                 }
@@ -368,6 +379,7 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    updateQueuedMessageCount() // Update even on failure
                     errorMessage = "Failed to sync messages: \(error.localizedDescription)"
                 }
             }
@@ -392,6 +404,34 @@ class ChatViewModel: ObservableObject {
         
         updateQueuedMessageCount()
         updateRetryableMessages()
+    }
+    
+    /// Sets up reactive network observer using Combine
+    private func setupNetworkObserver() {
+        // Observe network connection changes
+        networkMonitor.$isConnected
+            .sink { [weak self] isConnected in
+                Task { @MainActor in
+                    self?.isOffline = !isConnected
+                    
+                    // When coming back online, update count first, then sync
+                    self?.updateQueuedMessageCount()
+                    
+                    if isConnected && (self?.queuedMessageCount ?? 0) > 0 {
+                        self?.syncQueuedMessages()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Observe connection type changes
+        networkMonitor.$connectionType
+            .sink { [weak self] connectionType in
+                Task { @MainActor in
+                    self?.connectionType = connectionType
+                }
+            }
+            .store(in: &cancellables)
     }
     
     /// Updates the retryable messages state

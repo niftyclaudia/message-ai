@@ -6,8 +6,7 @@
     "presence": {
       "$userID": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid == $userID",
-        ".validate": "newData.hasChildren(['status', 'lastChanged'])"
+        ".write": "auth != null && auth.uid == $userID"
       }
     }
   }

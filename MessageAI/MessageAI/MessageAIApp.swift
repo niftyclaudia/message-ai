@@ -107,6 +107,7 @@ struct MessageAIApp: App {
             RootView()
                 .environmentObject(authService)
                 .environmentObject(notificationService)
+                .environmentObject(lifecycleManager)
                 .onAppear {
                     configureNotificationDelegates()
                 }

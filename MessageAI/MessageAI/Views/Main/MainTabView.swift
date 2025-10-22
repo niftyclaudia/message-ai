@@ -15,6 +15,10 @@ struct MainTabView: View {
     
     @EnvironmentObject private var authService: AuthService
     
+    // MARK: - Services
+    
+    private let presenceService = PresenceService()
+    
     // MARK: - State
     
     @State private var showLogoutAlert: Bool = false
@@ -91,6 +95,12 @@ struct MainTabView: View {
                 // Handle chat creation completion
                 createdChat = chat
                 navigateToChat = true
+            }
+        }
+        .task {
+            // Set current user online when main view appears
+            if let userID = authService.currentUser?.uid {
+                try? await presenceService.setUserOnline(userID: userID)
             }
         }
     }

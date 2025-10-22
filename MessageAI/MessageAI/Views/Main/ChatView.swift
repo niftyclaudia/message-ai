@@ -83,14 +83,12 @@ struct ChatView: View {
             // Mark all messages in chat as read when opening (PR-12)
             viewModel.markChatAsRead()
             
-            // Disabled group presence for MVP - causing permission errors
-            // if chat.isGroupChat {
-            //     viewModel.setupGroupMemberPresence(chat: chat)
-            // }
+            // Set up presence monitoring for all chats
+            viewModel.setupGroupMemberPresence(chat: chat)
         }
         .onDisappear {
             viewModel.stopObserving()
-            // viewModel.stopGroupMemberPresence()
+            viewModel.stopGroupMemberPresence()
         }
     }
     
@@ -153,44 +151,64 @@ struct ChatView: View {
     // MARK: - Messages List
     
     private var messagesList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
-                    let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
-                    
-                    // Use optimistic message row for optimistic messages
-                    if message.isOptimistic {
-                        OptimisticMessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel,
-                            onRetry: {
-                                viewModel.retryMessage(messageID: message.id)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
+                        let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
+                        
+                        // Use optimistic message row for optimistic messages
+                        if message.isOptimistic {
+                            OptimisticMessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel,
+                                onRetry: {
+                                    viewModel.retryMessage(messageID: message.id)
+                                }
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
-                            }
-                        }
-                    } else {
-                        MessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
+                        } else {
+                            MessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .onAppear {
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: viewModel.allMessages.count) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Scrolls to the bottom (latest message)
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        guard let lastMessage = viewModel.allMessages.last else { return }
+        withAnimation {
+            proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
     
