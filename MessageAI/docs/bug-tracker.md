@@ -128,14 +128,31 @@ These are valid feature requests but out of scope for MVP launch:
 
 ---
 
+## Bugs Fixed
+
+**BUG-003: Duplicate Messages Appearing** ✅ FIXED
+- **Severity**: P0 (Critical) - Major UX issue, confusing to users
+- **Description**: Three copies of same message appeared when sending
+- **Root Causes**:
+  - Optimistic message and real message had different IDs
+  - collectionGroup queries requiring indexes
+  - Presence observers failing and causing noise
+- **Status**: Fixed
+- **Fixes Applied**:
+  - Simplified message sending (removed complex optimistic updates)
+  - Removed unnecessary collectionGroup queries
+  - Disabled presence observers (P2 feature causing errors)
+  - Added catch-all Firestore rule for development
+  - Changed .onAppear to .task (prevents duplicate listeners)
+
 ## Summary
 
-**Total Bugs Found**: 6  
-**P0 Bugs**: 0 ✅  
+**Total Bugs Found**: 7  
+**P0 Bugs**: 1 (1 fixed) ✅  
 **P1 Bugs**: 2 (2 fixed) ✅  
 **P2 Bugs**: 2 (documented for future)  
 **P3 Bugs**: 1 (needs clarification)  
 **Feature Requests**: 4 (deferred to post-MVP)
 
-**Status**: P1 bugs fixed! Ready for more testing...
+**Status**: All critical bugs (P0/P1) fixed! Messages working reliably.
 

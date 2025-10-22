@@ -74,24 +74,22 @@ struct ChatView: View {
             
         }
         .navigationBarHidden(true)
-        .onAppear {
+        .task {
             viewModel.chat = chat
-            Task {
-                await viewModel.loadMessages(chatID: chat.id)
-                viewModel.observeMessagesRealTime(chatID: chat.id)
-                
-                // Mark all messages in chat as read when opening (PR-12)
-                viewModel.markChatAsRead()
-                
-                // Set up group member presence for group chats
-                if chat.isGroupChat {
-                    viewModel.setupGroupMemberPresence(chat: chat)
-                }
-            }
+            await viewModel.loadMessages(chatID: chat.id)
+            viewModel.observeMessagesRealTime(chatID: chat.id)
+            
+            // Mark all messages in chat as read when opening (PR-12)
+            viewModel.markChatAsRead()
+            
+            // Disabled group presence for MVP - causing permission errors
+            // if chat.isGroupChat {
+            //     viewModel.setupGroupMemberPresence(chat: chat)
+            // }
         }
         .onDisappear {
             viewModel.stopObserving()
-            viewModel.stopGroupMemberPresence()
+            // viewModel.stopGroupMemberPresence()
         }
     }
     

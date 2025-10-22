@@ -37,14 +37,14 @@ class MessageService {
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - text: The message text
+    ///   - messageID: Pre-generated message ID (for optimistic UI matching)
     /// - Returns: Message ID
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendMessageOptimistic(chatID: String, text: String) async throws -> String {
+    func sendMessageOptimistic(chatID: String, text: String, messageID: String) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
         
-        let messageID = UUID().uuidString
         let timestamp = Date()
         
         // Create optimistic message for immediate UI display
@@ -71,7 +71,7 @@ class MessageService {
                 senderName: nil,
                 isOffline: false,
                 retryCount: 0,
-                isOptimistic: true
+                isOptimistic: false  // Don't save optimistic flag to Firebase
             )
             
             // Save to Firestore with server timestamp
@@ -81,13 +81,8 @@ class MessageService {
                 .document(messageID)
                 .setData(from: message)
             
-            // Update status to sent
-            try await updateMessageStatus(messageID: messageID, status: .sent)
-            
             return messageID
         } catch {
-            // If send fails, mark as failed
-            try? await updateMessageStatus(messageID: messageID, status: .failed)
             throw MessageServiceError.networkError(error)
         }
     }
@@ -113,7 +108,7 @@ class MessageService {
             text: text,
             timestamp: timestamp,
             readBy: [currentUser.uid],
-            status: .sending,
+            status: .sent,  // Set to sent immediately - no need for separate update
             senderName: nil,
             isOffline: false,
             retryCount: 0
@@ -127,13 +122,8 @@ class MessageService {
                 .document(messageID)
                 .setData(from: message)
             
-            // Update status to sent
-            try await updateMessageStatus(messageID: messageID, status: .sent)
-            
             return messageID
         } catch {
-            // If send fails, mark as failed
-            try? await updateMessageStatus(messageID: messageID, status: .failed)
             throw MessageServiceError.networkError(error)
         }
     }
