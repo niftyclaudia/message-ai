@@ -55,9 +55,10 @@ npm install
 npm run build
 ```
 
-### Test
+### Test with Firebase Emulators
 ```bash
-npm test
+npm run serve
+# Then test by creating messages in Firestore UI
 ```
 
 ### Deploy
@@ -109,13 +110,12 @@ Key metrics to monitor:
 
 ## Testing
 
-The function includes comprehensive unit tests for:
-- Data extraction and validation
-- Chat data fetching
-- Recipient filtering (sender exclusion)
-- FCM token retrieval
-- Notification payload building
-- Error scenarios
+The function can be tested using Firebase Emulators:
+1. Run `npm run serve` to start the emulators
+2. Open the Firestore Emulator UI
+3. Create test messages in `chats/{chatID}/messages/`
+4. Verify notifications are triggered in the function logs
+5. Check that sender is excluded from recipients
 
 ## Security
 
