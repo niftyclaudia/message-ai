@@ -67,19 +67,29 @@ class PhotoService {
             }
         }
 
-        do {
-            // Wait for upload to complete
-            _ = uploadTask
-
-            // Get download URL
-            let downloadURL = try await storageRef.downloadURL()
-
-            print("✅ Photo uploaded: \(photoPath)")
-            return downloadURL.absoluteString
-
-        } catch {
-            print("❌ Photo upload failed: \(error.localizedDescription)")
-            throw PhotoServiceError.uploadFailed(error)
+        return try await withCheckedThrowingContinuation { continuation in
+            uploadTask.observe(.success) { _ in
+                Task {
+                    do {
+                        // Get download URL
+                        let downloadURL = try await storageRef.downloadURL()
+                        print("✅ Photo uploaded: \(photoPath)")
+                        continuation.resume(returning: downloadURL.absoluteString)
+                    } catch {
+                        print("❌ Failed to get download URL: \(error.localizedDescription)")
+                        continuation.resume(throwing: PhotoServiceError.uploadFailed(error))
+                    }
+                }
+            }
+            
+            uploadTask.observe(.failure) { snapshot in
+                if let error = snapshot.error {
+                    print("❌ Photo upload failed: \(error.localizedDescription)")
+                    continuation.resume(throwing: PhotoServiceError.uploadFailed(error))
+                } else {
+                    continuation.resume(throwing: PhotoServiceError.uploadFailed(NSError(domain: "PhotoService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown upload error"])))
+                }
+            }
         }
     }
     
