@@ -42,7 +42,16 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       
       // Allow authenticated users to update profiles (for development)
-      allow update: if isAuthenticated();
+      // Special rule: Allow users to update their own FCM token
+      allow update: if isAuthenticated() && (
+        // General update (development mode)
+        true
+        ||
+        // Specific FCM token update (production-ready)
+        (request.auth.uid == userID 
+         && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['fcmToken', 'lastTokenUpdate']))
+      );
       
       // No one can delete user documents (admin only, not implemented here)
       allow delete: if false;
@@ -63,7 +72,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // Messages collection rules (PR #6) - Development mode
+    // Messages collection rules (PR #6, PR #12) - Development mode
     match /chats/{chatID}/messages/{messageID} {
       // Allow authenticated users to read any message (for development)
       allow read: if isAuthenticated();
@@ -72,6 +81,7 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       
       // Allow authenticated users to update messages (for development)
+      // Includes read receipt updates (readBy, readAt fields)
       allow update: if isAuthenticated();
       
       // No one can delete messages (admin only, not implemented here)
@@ -112,7 +122,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // Messages collection rules (PR #6)
+    // Messages collection rules (PR #6, PR #12)
     match /chats/{chatID}/messages/{messageID} {
       // Users can read messages from chats they are members of
       allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members;
@@ -123,15 +133,15 @@ service cloud.firestore {
         && request.auth.uid == resource.data.senderID;
       
       // Users can update their own messages (for status updates)
-      // OR update readBy field of any message in chats they are members of
+      // OR update readBy/readAt fields of any message in chats they are members of (PR #12)
       allow update: if isAuthenticated() 
         && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatID)).data.members
         && (
           // Allow updating own messages (for status updates)
           request.auth.uid == resource.data.senderID
           ||
-          // Allow updating readBy field of any message (for read receipts)
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']))
+          // Allow updating readBy and readAt fields of any message (for read receipts)
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'readAt', 'status']))
         );
       
       // No one can delete messages (admin only, not implemented here)

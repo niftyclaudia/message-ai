@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseDatabase
 import SwiftUI
 
 /// ViewModel for managing chat view state and message operations
@@ -29,6 +30,9 @@ class ChatViewModel: ObservableObject {
     @Published var connectionType: ConnectionType = .wifi
     @Published var isRetrying: Bool = false
     @Published var hasRetryableMessages: Bool = false
+    @Published var groupMemberPresence: [String: PresenceStatus] = [:]
+    @Published var groupMembers: [String] = []
+    @Published var readReceipts: [String: [String: Date]] = [:] // messageID -> [userID: readAt]
     
     // MARK: - Computed Properties
     
@@ -41,15 +45,20 @@ class ChatViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private let messageService: MessageService
+    private let readReceiptService: ReadReceiptService
     private var listener: ListenerRegistration?
+    private var readReceiptListener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
     let optimisticService = OptimisticUpdateService()
+    private let presenceService = PresenceService()
+    private var presenceHandles: [String: DatabaseHandle] = [:]
     
     // MARK: - Initialization
     
-    init(currentUserID: String, messageService: MessageService = MessageService()) {
+    init(currentUserID: String, messageService: MessageService = MessageService(), readReceiptService: ReadReceiptService? = nil) {
         self.currentUserID = currentUserID
         self.messageService = messageService
+        self.readReceiptService = readReceiptService ?? ReadReceiptService()
         
         // Monitor network status
         Task { @MainActor in
@@ -58,9 +67,11 @@ class ChatViewModel: ObservableObject {
     }
     
     deinit {
-        // Clean up listener without main actor isolation
+        // Clean up listeners without main actor isolation
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
         // NetworkMonitor cleanup is handled in its own deinit
     }
     
@@ -83,6 +94,12 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    /// Sets the current chat for the view model
+    /// - Parameter chat: The chat to set
+    func setChat(_ chat: Chat) {
+        self.chat = chat
+    }
+    
     /// Sets up real-time listener for messages in a chat
     /// - Parameter chatID: The chat's ID
     func observeMessagesRealTime(chatID: String) {
@@ -94,24 +111,90 @@ class ChatViewModel: ObservableObject {
                 self?.messages = newMessages
             }
         }
+        
+        // Enable real-time listener for read receipts (PR-12)
+        readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
+            Task { @MainActor in
+                print("🔍 ReadReceipts Debug: Received read receipts update: \(receipts)")
+                self?.readReceipts = receipts
+                self?.updateMessageStatusesWithReadReceipts()
+            }
+        }
     }
     
     /// Stops observing messages and cleans up listener
     func stopObserving() {
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
     }
     
     /// Marks a message as read by the current user
     /// - Parameter messageID: The message's ID
     func markMessageAsRead(messageID: String) {
+        guard let chat = chat else { return }
+        
         Task {
             do {
-                try await messageService.markMessageAsRead(messageID: messageID, userID: currentUserID)
+                try await readReceiptService.markMessageAsRead(messageID: messageID, userID: currentUserID, chatID: chat.id)
+                print("✅ Marked message \(messageID) as read")
             } catch {
                 print("⚠️ Failed to mark message as read: \(error)")
             }
         }
+    }
+    
+    /// Marks all messages in the current chat as read
+    func markChatAsRead() {
+        guard let chat = chat else { return }
+        
+        Task {
+            do {
+                try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
+                print("✅ Marked all messages in chat \(chat.id) as read")
+            } catch {
+                print("⚠️ Failed to mark chat as read: \(error)")
+            }
+        }
+    }
+    
+    /// Updates message statuses based on read receipts
+    private func updateMessageStatusesWithReadReceipts() {
+        print("🔍 ReadReceipts Debug: Updating message statuses with \(readReceipts.count) read receipts")
+        
+        for i in 0..<messages.count {
+            let message = messages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                print("🔍 ReadReceipts Debug: Message \(message.id) has read receipts: \(readAt)")
+                // Message has been read by at least one user
+                if message.status != .read {
+                    print("🔍 ReadReceipts Debug: Updating message \(message.id) from \(message.status) to .read")
+                    messages[i].status = .read
+                }
+            } else {
+                print("🔍 ReadReceipts Debug: Message \(message.id) has no read receipts, status: \(message.status)")
+            }
+        }
+        
+        // Also update optimistic messages
+        for i in 0..<optimisticMessages.count {
+            let message = optimisticMessages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                print("🔍 ReadReceipts Debug: Optimistic message \(message.id) has read receipts: \(readAt)")
+                if message.status != .read {
+                    print("🔍 ReadReceipts Debug: Updating optimistic message \(message.id) from \(message.status) to .read")
+                    optimisticMessages[i].status = .read
+                }
+            }
+        }
+    }
+    
+    /// Gets read status for a message
+    /// - Parameter messageID: The message ID
+    /// - Returns: Dictionary of user IDs to read timestamps
+    func getReadStatus(messageID: String) -> [String: Date] {
+        return readReceipts[messageID] ?? [:]
     }
     
     /// Formats a timestamp into a user-friendly string
@@ -422,6 +505,71 @@ class ChatViewModel: ObservableObject {
     /// Gets the current connection type
     func getConnectionType() -> ConnectionType {
         return messageService.getConnectionType()
+    }
+    
+    // MARK: - Group Chat Methods
+    
+    /// Sets up group member presence monitoring
+    /// - Parameter chat: The chat to monitor
+    func setupGroupMemberPresence(chat: Chat) {
+        guard chat.isGroupChat else { return }
+        
+        // Store group members
+        groupMembers = chat.members
+        
+        // Clean up existing observers
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        
+        // Set up presence observers for all group members
+        presenceHandles = presenceService.observeMultipleUsersPresence(userIDs: chat.members) { [weak self] presenceDict in
+            Task { @MainActor in
+                self?.groupMemberPresence = presenceDict
+            }
+        }
+    }
+    
+    /// Stops monitoring group member presence
+    func stopGroupMemberPresence() {
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        groupMemberPresence.removeAll()
+        groupMembers.removeAll()
+    }
+    
+    /// Gets the presence status for a specific group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Presence status or offline if not found
+    func getGroupMemberPresence(userID: String) -> PresenceStatus {
+        return groupMemberPresence[userID] ?? .offline
+    }
+    
+    /// Gets read receipt information for a message in group chat
+    /// - Parameter message: The message to check
+    /// - Returns: Read receipt information
+    func getGroupReadReceiptInfo(message: Message) -> (readCount: Int, totalMembers: Int, readMembers: [String], unreadMembers: [String]) {
+        let readMembers = message.readBy.filter { $0 != currentUserID }
+        let unreadMembers = groupMembers.filter { !message.readBy.contains($0) && $0 != currentUserID }
+        
+        return (
+            readCount: message.readBy.count,
+            totalMembers: groupMembers.count,
+            readMembers: readMembers,
+            unreadMembers: unreadMembers
+        )
+    }
+    
+    /// Gets the display name for a group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Display name for the user
+    func getGroupMemberDisplayName(userID: String) -> String {
+        if userID == currentUserID {
+            return "You"
+        } else {
+            // In a real app, you'd fetch this from a user service
+            // For now, return a simplified display name
+            return "User \(userID.prefix(4))"
+        }
     }
     
 }

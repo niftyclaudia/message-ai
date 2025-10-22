@@ -52,8 +52,13 @@ class ContactListViewModel: ObservableObject {
     // MARK: - Deinitialization
     
     deinit {
+        // Clean up Firestore listener
         listener?.remove()
-        stopObservingPresence()
+        
+        // Clean up presence observers - must be done synchronously in deinit
+        for (userID, handle) in presenceHandles {
+            presenceService.removeObserver(userID: userID, handle: handle)
+        }
     }
     
     // MARK: - Public Methods

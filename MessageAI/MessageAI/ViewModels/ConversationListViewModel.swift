@@ -217,9 +217,13 @@ class ConversationListViewModel: ObservableObject {
     // MARK: - Deinitialization
     
     deinit {
-        // Clean up listener without main actor isolation
+        // Clean up Firestore listener
         listener?.remove()
         listener = nil
-        stopObservingPresence()
+        
+        // Clean up presence observers - must be done synchronously in deinit
+        for (userID, handle) in presenceHandles {
+            presenceService.removeObserver(userID: userID, handle: handle)
+        }
     }
 }

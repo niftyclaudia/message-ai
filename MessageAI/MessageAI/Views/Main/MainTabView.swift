@@ -60,7 +60,7 @@ struct MainTabView: View {
                 }
                 .navigationDestination(isPresented: $navigateToChat) {
                     if let chat = createdChat {
-                        ChatView(chat: chat, currentUserID: authService.currentUser?.uid ?? "")
+                        ChatView(chat: chat, currentUserID: authService.currentUser?.uid ?? "", otherUser: nil)
                             .onAppear {
                                 print("🔄 MainTabView: Navigating to ChatView with chat: \(chat.id)")
                             }
@@ -78,6 +78,7 @@ struct MainTabView: View {
             
             // Contacts tab (PR #3)
             ContactListView()
+                .environmentObject(authService)
                 .tabItem {
                     Label("Contacts", systemImage: "person.2")
                 }

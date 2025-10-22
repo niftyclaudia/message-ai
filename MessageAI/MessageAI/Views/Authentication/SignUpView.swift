@@ -15,6 +15,7 @@ struct SignUpView: View {
     
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var notificationService: NotificationService
     
     // MARK: - State
     
@@ -36,10 +37,11 @@ struct SignUpView: View {
     
     // MARK: - Initialization
     
-    init(authService: AuthService? = nil) {
-        // Use provided authService or create temporary one for preview
-        let service = authService ?? AuthService()
-        _viewModel = StateObject(wrappedValue: AuthViewModel(authService: service))
+    init(authService: AuthService? = nil, notificationService: NotificationService? = nil) {
+        // Use provided services or create temporary ones for preview
+        let auth = authService ?? AuthService()
+        let notification = notificationService ?? NotificationService()
+        _viewModel = StateObject(wrappedValue: AuthViewModel(authService: auth, notificationService: notification))
     }
     
     // MARK: - Body

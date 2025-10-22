@@ -14,6 +14,7 @@ struct ChatView: View {
     // MARK: - Properties
     
     let chat: Chat
+    let otherUser: User?
     @StateObject private var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
@@ -21,8 +22,9 @@ struct ChatView: View {
     
     // MARK: - Initialization
     
-    init(chat: Chat, currentUserID: String) {
+    init(chat: Chat, currentUserID: String, otherUser: User? = nil) {
         self.chat = chat
+        self.otherUser = otherUser
         self._viewModel = StateObject(wrappedValue: ChatViewModel(currentUserID: currentUserID))
     }
     
@@ -77,10 +79,19 @@ struct ChatView: View {
             Task {
                 await viewModel.loadMessages(chatID: chat.id)
                 viewModel.observeMessagesRealTime(chatID: chat.id)
+                
+                // Mark all messages in chat as read when opening (PR-12)
+                viewModel.markChatAsRead()
+                
+                // Set up group member presence for group chats
+                if chat.isGroupChat {
+                    viewModel.setupGroupMemberPresence(chat: chat)
+                }
             }
         }
         .onDisappear {
             viewModel.stopObserving()
+            viewModel.stopGroupMemberPresence()
         }
     }
     
@@ -134,6 +145,7 @@ struct ChatView: View {
                 messagesList
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Messages List
@@ -265,9 +277,8 @@ struct ChatView: View {
         if chat.isGroupChat {
             return chat.groupName ?? "Group Chat"
         } else {
-            // For 1-on-1 chats, we'd need to get the other user's name
-            // This is a simplified implementation
-            return "Chat"
+            // For 1-on-1 chats, show the other user's name
+            return otherUser?.displayName ?? "Chat"
         }
     }
 }

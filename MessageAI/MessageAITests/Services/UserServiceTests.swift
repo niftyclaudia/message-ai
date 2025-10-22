@@ -33,10 +33,15 @@ final class UserServiceTests: XCTestCase {
     }
     
     override func tearDownWithError() throws {
-        // Clean up test user document
+        // Clean up test user document asynchronously
         if let userID = testUserID {
             let db = FirebaseService.shared.getFirestore()
-            try? db.collection(Constants.Collections.users).document(userID).delete()
+            // Note: Using completion handler for sync tearDown method
+            db.collection(Constants.Collections.users).document(userID).delete { error in
+                if let error = error {
+                    print("Warning: Failed to cleanup test user: \(error)")
+                }
+            }
         }
         
         userService = nil
@@ -333,7 +338,7 @@ final class UserServiceTests: XCTestCase {
         XCTAssertTrue(users.contains { $0.id == user2ID }, "Should include other users")
         
         // Cleanup
-        try? FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user2ID).delete()
+        FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user2ID).delete { _ in }
     }
     
     /// Test searchUsers with partial match returns matches
@@ -357,8 +362,8 @@ final class UserServiceTests: XCTestCase {
         XCTAssertFalse(results.contains { $0.id == user3ID }, "Should not match 'Alice'")
         
         // Cleanup
-        try? FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user2ID).delete()
-        try? FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user3ID).delete()
+        FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user2ID).delete { _ in }
+        FirebaseService.shared.getFirestore().collection(Constants.Collections.users).document(user3ID).delete { _ in }
     }
     
     /// Test searchUsers is case insensitive

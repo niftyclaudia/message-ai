@@ -17,6 +17,11 @@ struct ConversationListView: View {
     @StateObject private var testDataService = TestDataService()
     let currentUserID: String
     
+    // MARK: - Navigation State
+    
+    /// Chat ID to navigate to from notification tap
+    @State private var selectedChatID: String?
+    
     // MARK: - Body
     
     var body: some View {
@@ -31,29 +36,7 @@ struct ConversationListView: View {
             } else if viewModel.chats.isEmpty {
                 emptyStateView
             } else {
-                VStack {
-                    // Test button for PR-5 (always visible)
-                    Button("🧪 Test Chat View") {
-                        // Create a test chat and navigate to it
-                        let testChat = Chat(
-                            id: "test-chat-pr5",
-                            members: [currentUserID, "user-2"],
-                            lastMessage: "Test message",
-                            lastMessageTimestamp: Date(),
-                            lastMessageSenderID: "user-2",
-                            isGroupChat: false,
-                            createdAt: Date(),
-                            createdBy: currentUserID
-                        )
-                        
-                        // Add to view model
-                        viewModel.chats = [testChat]
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding()
-                    
-                    conversationList
-                }
+                conversationList
             }
         }
         .task {
@@ -82,6 +65,19 @@ struct ConversationListView: View {
                 Text(errorMessage)
             }
         }
+        .onAppear {
+            // Check for pending notification navigation
+            checkForNotificationNavigation()
+        }
+        .background(
+            // Hidden navigation for notification deep linking
+            NavigationLink(
+                destination: notificationDestination,
+                isActive: .constant(selectedChatID != nil)
+            ) {
+                EmptyView()
+            }
+        )
     }
     
     // MARK: - Private Views
@@ -91,7 +87,7 @@ struct ConversationListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.chats) { chat in
-                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID)) {
+                    NavigationLink(destination: ChatView(chat: chat, currentUserID: currentUserID, otherUser: viewModel.getOtherUser(chat: chat))) {
                         ConversationRowView(
                             chat: chat,
                             otherUser: viewModel.getOtherUser(chat: chat),
@@ -112,18 +108,10 @@ struct ConversationListView: View {
                                 await viewModel.deleteChat(chatID: chat.id)
                             }
                         }
-                        .tint(.red)
-                    }
-                    
-                    // Divider between rows
-                    if chat.id != viewModel.chats.last?.id {
-                        Divider()
-                            .padding(.leading, 68) // Align with text
                     }
                 }
+                .background(Color(.systemBackground))
             }
-        }
-        .background(Color(.systemBackground))
     }
     
     /// Empty state when no conversations exist
@@ -133,29 +121,44 @@ struct ConversationListView: View {
                 icon: "bubble.left.and.bubble.right",
                 message: "No conversations yet"
             )
-            
-            // Test button for PR-5
-            Button("Test Chat View") {
-                // Create a test chat and navigate to it
-                let testChat = Chat(
-                    id: "test-chat-pr5",
-                    members: [currentUserID, "user-2"],
-                    lastMessage: "Test message",
-                    lastMessageTimestamp: Date(),
-                    lastMessageSenderID: "user-2",
-                    isGroupChat: false,
-                    createdAt: Date(),
-                    createdBy: currentUserID
-                )
-                
-                // Add to view model
-                viewModel.chats = [testChat]
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
     }
     
+    // MARK: - Notification Navigation
+    
+    /// Check for pending notification navigation
+    private func checkForNotificationNavigation() {
+        // TODO: This would be called from MessageAIApp when notification is tapped
+        // For now, this is a placeholder for the navigation logic
+    }
+    
+    /// Navigation destination for notification deep linking
+    private var notificationDestination: some View {
+        Group {
+            if let chatID = selectedChatID,
+               let chat = viewModel.chats.first(where: { $0.id == chatID }) {
+                ChatView(
+                    chat: chat,
+                    currentUserID: currentUserID,
+                    otherUser: viewModel.getOtherUser(chat: chat)
+                )
+            } else {
+                // Fallback to conversation list if chat not found
+                ConversationListView(currentUserID: currentUserID)
+            }
+        }
+    }
+    
+    /// Navigate to specific chat from notification
+    /// - Parameter chatID: Chat ID to navigate to
+    func navigateToChat(chatID: String) {
+        selectedChatID = chatID
+    }
+    
+    /// Clear notification navigation
+    func clearNotificationNavigation() {
+        selectedChatID = nil
+    }
 }
 
 // MARK: - Preview
