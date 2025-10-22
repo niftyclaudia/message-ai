@@ -21,7 +21,6 @@ struct MainTabView: View {
     
     // MARK: - State
     
-    @State private var showLogoutAlert: Bool = false
     @State private var showingCreateChat: Bool = false
     @State private var createdChat: Chat?
     @State private var navigateToChat: Bool = false
@@ -34,14 +33,6 @@ struct MainTabView: View {
             NavigationStack {
                 ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
                     .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            showLogoutAlert = true
-                        } label: {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                        }
-                    }
-                    
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             showingCreateChat = true
@@ -51,14 +42,6 @@ struct MainTabView: View {
                         }
                         .foregroundColor(AppTheme.primaryColor)
                     }
-                }
-                .alert("Sign Out", isPresented: $showLogoutAlert) {
-                    Button("Cancel", role: .cancel) {}
-                    Button("Sign Out", role: .destructive) {
-                        handleLogout()
-                    }
-                } message: {
-                    Text("Are you sure you want to sign out?")
                 }
                 .navigationDestination(isPresented: $navigateToChat) {
                     if let chat = createdChat {
@@ -102,16 +85,6 @@ struct MainTabView: View {
             if let userID = authService.currentUser?.uid {
                 try? await presenceService.setUserOnline(userID: userID)
             }
-        }
-    }
-    
-    // MARK: - Private Methods
-    
-    /// Handles user logout
-    private func handleLogout() {
-        do {
-            try authService.signOut()
-        } catch {
         }
     }
 }
