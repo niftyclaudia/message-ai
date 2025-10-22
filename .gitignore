@@ -99,3 +99,13 @@ service-account-key.json
 *.cer
 *.p12
 *.pfx
+
+# Firebase
+firebase-debug.log*
+firestore-debug.log*
+.firebase/
+
+# Firebase Functions
+functions/node_modules/
+functions/lib/
+functions/.runtimeconfig.json
