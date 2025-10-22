@@ -385,7 +385,6 @@ struct OptimisticMessageStatusView: View {
             previousMessage: nil,
             viewModel: ChatViewModel(currentUserID: "user1"),
             onRetry: {
-                print("Retry message")
             }
         )
         

@@ -66,6 +66,12 @@ struct ProfileView: View {
             .sheet(isPresented: $showEditProfile) {
                 ProfileEditView()
                     .environmentObject(authService)
+                    .onDisappear {
+                        // Refresh profile when edit sheet is dismissed
+                        Task {
+                            await viewModel.loadProfile(authService: authService)
+                        }
+                    }
             }
             .task {
                 // Pass the environment's authService to the ViewModel
@@ -124,7 +130,6 @@ struct ProfileView: View {
         do {
             try authService.signOut()
         } catch {
-            print("❌ Logout error: \(error.localizedDescription)")
         }
     }
 }

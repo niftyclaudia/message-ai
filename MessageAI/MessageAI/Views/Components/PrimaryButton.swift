@@ -38,11 +38,9 @@ struct PrimaryButton: View {
 #Preview {
     VStack(spacing: AppTheme.mediumSpacing) {
         PrimaryButton(title: "Sign In", isLoading: false) {
-            print("Button tapped")
         }
         
         PrimaryButton(title: "Loading...", isLoading: true) {
-            print("Button tapped")
         }
     }
     .padding()

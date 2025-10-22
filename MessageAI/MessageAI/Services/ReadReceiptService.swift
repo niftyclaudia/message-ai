@@ -120,7 +120,6 @@ class ReadReceiptService: ObservableObject {
         
         let listener = messagesRef.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("❌ ReadReceiptService: Error observing read receipts: \(error.localizedDescription)")
                 return
             }
             

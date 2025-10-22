@@ -37,7 +37,6 @@ class NotificationService: NSObject, ObservableObject {
             )
             return granted
         } catch {
-            print("❌ Failed to request notification permission: \(error)")
             return false
         }
     }
@@ -87,7 +86,6 @@ class NotificationService: NSObject, ObservableObject {
                 "lastTokenUpdate": FieldValue.delete()
             ])
         } catch {
-            print("❌ Failed to remove FCM token: \(error)")
             throw NotificationError.firestoreUpdateFailed
         }
     }
@@ -130,7 +128,6 @@ class NotificationService: NSObject, ObservableObject {
                 "lastTokenUpdate": FieldValue.serverTimestamp()
             ])
         } catch {
-            print("❌ Failed to store FCM token: \(error)")
             throw NotificationError.firestoreUpdateFailed
         }
     }

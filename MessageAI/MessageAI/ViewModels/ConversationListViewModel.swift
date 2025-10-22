@@ -58,7 +58,6 @@ class ConversationListViewModel: ObservableObject {
             
         } catch {
             errorMessage = error.localizedDescription
-            print("⚠️ Failed to load chats: \(error)")
         }
         
         isLoading = false
@@ -113,7 +112,6 @@ class ConversationListViewModel: ObservableObject {
             presenceHandles[userID] = handle
         }
         
-        print("✅ Observing presence for \(userIDs.count) chat participants")
     }
     
     /// Stops observing presence for all users
@@ -181,7 +179,6 @@ class ConversationListViewModel: ObservableObject {
             chats.removeAll { $0.id == chatID }
         } catch {
             errorMessage = "Failed to delete chat: \(error.localizedDescription)"
-            print("❌ Failed to delete chat \(chatID): \(error)")
         }
     }
     
@@ -208,7 +205,6 @@ class ConversationListViewModel: ObservableObject {
                     let user = try await userService.fetchUser(userID: userID)
                     chatUsers[userID] = user
                 } catch {
-                    print("⚠️ Failed to load user \(userID): \(error)")
                 }
             }
         }

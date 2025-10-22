@@ -150,10 +150,8 @@ class CreateChatViewModel: ObservableObject {
     
     /// Creates a new chat with selected contacts
     func createChat() async {
-        print("🔄 CreateChatViewModel.createChat() called")
         
         guard let currentUserID = authService.currentUser?.uid else {
-            print("❌ User not authenticated")
             await MainActor.run {
                 self.errorMessage = "User not authenticated"
             }
@@ -161,14 +159,12 @@ class CreateChatViewModel: ObservableObject {
         }
         
         guard !selectedContacts.isEmpty else {
-            print("❌ No contacts selected")
             await MainActor.run {
                 self.errorMessage = "Please select at least one contact"
             }
             return
         }
         
-        print("✅ Starting chat creation with \(selectedContacts.count) contacts: \(selectedContacts)")
         
         await MainActor.run {
             self.isLoading = true
@@ -184,20 +180,17 @@ class CreateChatViewModel: ObservableObject {
             let isGroup = members.count > 2
             
             // Create the chat
-            print("🔄 Calling chatService.createChat with members: \(members)")
             let chatID = try await chatService.createChat(
                 members: members,
                 isGroup: isGroup,
                 createdBy: currentUserID
             )
             
-            print("✅ Chat created successfully with ID: \(chatID)")
             
             await MainActor.run {
                 self.createdChatID = chatID
                 self.isChatCreated = true
                 self.isLoading = false
-                print("✅ ViewModel state updated - isChatCreated: \(self.isChatCreated), createdChatID: \(self.createdChatID ?? "nil")")
             }
             
         } catch {

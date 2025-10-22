@@ -76,11 +76,9 @@ class ContactListViewModel: ObservableObject {
         do {
             allUsers = try await userService.fetchAllUsers(excludingUserID: currentUserID)
             filteredUsers = allUsers
-            print("✅ Loaded \(allUsers.count) users")
             
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to load users: \(error.localizedDescription)")
         }
         
         isLoading = false
@@ -98,7 +96,6 @@ class ContactListViewModel: ObservableObject {
             }
         }
         
-        print("✅ Filtered to \(filteredUsers.count) users for query: '\(searchQuery)'")
     }
     
     /// Sets up real-time listener for user updates
@@ -114,7 +111,6 @@ class ContactListViewModel: ObservableObject {
             Task { @MainActor in
                 self?.allUsers = users
                 self?.filterUsers()
-                print("✅ Real-time update: \(users.count) users")
             }
         }
     }
@@ -141,7 +137,6 @@ class ContactListViewModel: ObservableObject {
             presenceHandles[user.id] = handle
         }
         
-        print("✅ Observing presence for \(allUsers.count) users")
     }
     
     /// Stops observing presence for all users

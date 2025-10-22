@@ -80,9 +80,7 @@ class AppLifecycleManager: ObservableObject {
         Task {
             do {
                 try await presenceService.setUserOnline(userID: userID)
-                print("✅ User \(userID) presence set to online on login")
             } catch {
-                print("⚠️ Failed to set user online on login: \(error)")
             }
         }
     }
@@ -94,9 +92,7 @@ class AppLifecycleManager: ObservableObject {
         Task {
             do {
                 try await presenceService.setUserOffline(userID: userID)
-                print("✅ User \(userID) presence set to offline on logout")
             } catch {
-                print("⚠️ Failed to set user offline on logout: \(error)")
             }
         }
         
@@ -110,9 +106,7 @@ class AppLifecycleManager: ObservableObject {
         Task {
             do {
                 try await presenceService.setUserOnline(userID: userID)
-                print("✅ User \(userID) presence set to online (app became active)")
             } catch {
-                print("⚠️ Failed to set user online (app became active): \(error)")
             }
         }
     }
@@ -123,7 +117,6 @@ class AppLifecycleManager: ObservableObject {
         
         // Note: We keep user online for a short time (handled by Firebase onDisconnect)
         // The onDisconnect hook will set user offline after connection is lost
-        print("📱 App entered background - onDisconnect hook will handle offline status")
     }
     
     /// Handles app will terminate event
@@ -132,15 +125,12 @@ class AppLifecycleManager: ObservableObject {
         
         // Note: Firebase onDisconnect hooks will automatically set user offline
         // when the connection is terminated
-        print("📱 App will terminate - onDisconnect hook will handle offline status")
         
         // Attempt to set offline immediately (best effort)
         Task {
             do {
                 try await presenceService.setUserOffline(userID: userID)
-                print("✅ User \(userID) presence set to offline (app terminating)")
             } catch {
-                print("⚠️ Failed to set user offline (app terminating): \(error)")
             }
         }
     }

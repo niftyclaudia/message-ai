@@ -18,6 +18,7 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
+    @State private var showChatInfo: Bool = false
     
     
     // MARK: - Initialization
@@ -74,20 +75,16 @@ struct ChatView: View {
             
         }
         .navigationBarHidden(true)
-        .onAppear {
+        .task {
             viewModel.chat = chat
-            Task {
-                await viewModel.loadMessages(chatID: chat.id)
-                viewModel.observeMessagesRealTime(chatID: chat.id)
-                
-                // Mark all messages in chat as read when opening (PR-12)
-                viewModel.markChatAsRead()
-                
-                // Set up group member presence for group chats
-                if chat.isGroupChat {
-                    viewModel.setupGroupMemberPresence(chat: chat)
-                }
-            }
+            await viewModel.loadMessages(chatID: chat.id)
+            viewModel.observeMessagesRealTime(chatID: chat.id)
+            
+            // Mark all messages in chat as read when opening (PR-12)
+            viewModel.markChatAsRead()
+            
+            // Set up presence monitoring for all chats
+            viewModel.setupGroupMemberPresence(chat: chat)
         }
         .onDisappear {
             viewModel.stopObserving()
@@ -119,7 +116,7 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: {}) {
+            Button(action: { showChatInfo = true }) {
                 Image(systemName: "info.circle")
                     .font(.title2)
                     .foregroundColor(.blue)
@@ -129,6 +126,9 @@ struct ChatView: View {
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+        .sheet(isPresented: $showChatInfo) {
+            ChatInfoView(chat: chat, otherUser: otherUser)
+        }
     }
     
     // MARK: - Messages Area
@@ -151,44 +151,64 @@ struct ChatView: View {
     // MARK: - Messages List
     
     private var messagesList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
-                    let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
-                    
-                    // Use optimistic message row for optimistic messages
-                    if message.isOptimistic {
-                        OptimisticMessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel,
-                            onRetry: {
-                                viewModel.retryMessage(messageID: message.id)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
+                        let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
+                        
+                        // Use optimistic message row for optimistic messages
+                        if message.isOptimistic {
+                            OptimisticMessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel,
+                                onRetry: {
+                                    viewModel.retryMessage(messageID: message.id)
+                                }
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
-                            }
-                        }
-                    } else {
-                        MessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
+                        } else {
+                            MessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .onAppear {
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: viewModel.allMessages.count) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Scrolls to the bottom (latest message)
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        guard let lastMessage = viewModel.allMessages.last else { return }
+        withAnimation {
+            proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
     

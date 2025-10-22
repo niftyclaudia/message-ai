@@ -9,6 +9,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseDatabase
 import SwiftUI
+import Combine
 
 /// ViewModel for managing chat view state and message operations
 /// - Note: Handles message loading, real-time updates, and status management
@@ -38,7 +39,14 @@ class ChatViewModel: ObservableObject {
     
     /// Combined messages including optimistic updates
     var allMessages: [Message] {
-        let combined = messages + optimisticMessages
+        // Combine real and optimistic messages
+        var combined = messages
+        
+        // Only add optimistic messages that aren't already in real messages
+        let realMessageIDs = Set(messages.map { $0.id })
+        let uniqueOptimistic = optimisticMessages.filter { !realMessageIDs.contains($0.id) }
+        combined.append(contentsOf: uniqueOptimistic)
+        
         return messageService.sortMessagesByServerTimestamp(combined)
     }
     
@@ -52,6 +60,7 @@ class ChatViewModel: ObservableObject {
     let optimisticService = OptimisticUpdateService()
     private let presenceService = PresenceService()
     private var presenceHandles: [String: DatabaseHandle] = [:]
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
@@ -60,9 +69,10 @@ class ChatViewModel: ObservableObject {
         self.messageService = messageService
         self.readReceiptService = readReceiptService ?? ReadReceiptService()
         
-        // Monitor network status
+        // Set initial network status
         Task { @MainActor in
             monitorNetworkStatus()
+            setupNetworkObserver()
         }
     }
     
@@ -88,7 +98,6 @@ class ChatViewModel: ObservableObject {
             messages = fetchedMessages
             isLoading = false
         } catch {
-            print("⚠️ Failed to load messages: \(error.localizedDescription)")
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
             isLoading = false
         }
@@ -109,13 +118,15 @@ class ChatViewModel: ObservableObject {
         listener = messageService.observeMessages(chatID: chatID) { [weak self] newMessages in
             Task { @MainActor in
                 self?.messages = newMessages
+                
+                // Remove optimistic messages that now exist in real messages
+                self?.removeConfirmedOptimisticMessages(realMessages: newMessages)
             }
         }
         
         // Enable real-time listener for read receipts (PR-12)
         readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
             Task { @MainActor in
-                print("🔍 ReadReceipts Debug: Received read receipts update: \(receipts)")
                 self?.readReceipts = receipts
                 self?.updateMessageStatusesWithReadReceipts()
             }
@@ -138,9 +149,7 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await readReceiptService.markMessageAsRead(messageID: messageID, userID: currentUserID, chatID: chat.id)
-                print("✅ Marked message \(messageID) as read")
             } catch {
-                print("⚠️ Failed to mark message as read: \(error)")
             }
         }
     }
@@ -152,28 +161,22 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
-                print("✅ Marked all messages in chat \(chat.id) as read")
             } catch {
-                print("⚠️ Failed to mark chat as read: \(error)")
             }
         }
     }
     
     /// Updates message statuses based on read receipts
     private func updateMessageStatusesWithReadReceipts() {
-        print("🔍 ReadReceipts Debug: Updating message statuses with \(readReceipts.count) read receipts")
         
         for i in 0..<messages.count {
             let message = messages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has read receipts: \(readAt)")
                 // Message has been read by at least one user
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating message \(message.id) from \(message.status) to .read")
                     messages[i].status = .read
                 }
             } else {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has no read receipts, status: \(message.status)")
             }
         }
         
@@ -181,9 +184,7 @@ class ChatViewModel: ObservableObject {
         for i in 0..<optimisticMessages.count {
             let message = optimisticMessages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Optimistic message \(message.id) has read receipts: \(readAt)")
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating optimistic message \(message.id) from \(message.status) to .read")
                     optimisticMessages[i].status = .read
                 }
             }
@@ -271,81 +272,22 @@ class ChatViewModel: ObservableObject {
                         updateQueuedMessageCount()
                     }
                 } else {
-                    // Create optimistic message for immediate UI display
-                    let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
-                    
-                    // Add to optimistic messages for immediate display
-                    await MainActor.run {
-                        optimisticMessages.append(optimisticMessage)
-                        isOptimisticUpdate = true
-                    }
-                    
-                    // Try to send with optimistic updates
+                    // Send message directly without optimistic updates for now
+                    // This prevents duplicate message bugs
                     do {
-                        let messageID = try await messageService.sendMessageOptimistic(chatID: chat.id, text: text)
-                        
-                        // Update optimistic message status
-                        await MainActor.run {
-                            if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                optimisticMessages[index].status = .sent
-                                optimisticMessages[index].isOptimistic = false
-                            }
-                        }
-                        
-                        // Simulate delivered status after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                    self?.optimisticMessages[index].status = .delivered
-                                }
-                            }
-                        }
+                        _ = try await messageService.sendMessage(chatID: chat.id, text: text)
                         
                     } catch {
-                        // Handle optimistic update failure
-                        await MainActor.run {
-                            if let index = optimisticMessages.firstIndex(where: { $0.text == text }) {
-                                optimisticMessages[index].status = .failed
-                                optimisticMessages[index].retryCount += 1
+                        // Send failed - automatically queue it for retry
+                        do {
+                            _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                            await MainActor.run {
+                                updateQueuedMessageCount()
+                                errorMessage = "Message queued - will send when online"
                             }
-                        }
-                        
-                        // For PR-7 testing, create mock message when Firebase fails
-                        let mockMessage = Message(
-                            id: UUID().uuidString,
-                            chatID: chat.id,
-                            senderID: currentUserID,
-                            text: text,
-                            timestamp: Date(),
-                            serverTimestamp: nil,
-                            readBy: [currentUserID],
-                            status: .sending,
-                            senderName: nil,
-                            isOffline: false,
-                            retryCount: 0,
-                            isOptimistic: true
-                        )
-                        
-                        // Add to optimistic messages
-                        await MainActor.run {
-                            optimisticMessages.append(mockMessage)
-                        }
-                        
-                        // Simulate status updates
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                    self?.optimisticMessages[index].status = .sent
-                                }
-                            }
-                        }
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                    self?.optimisticMessages[index].status = .delivered
-                                    self?.optimisticMessages[index].isOptimistic = false
-                                }
+                        } catch {
+                            await MainActor.run {
+                                errorMessage = "Failed to send message: \(error.localizedDescription)"
                             }
                         }
                     }
@@ -377,8 +319,8 @@ class ChatViewModel: ObservableObject {
                         optimisticMessages[index].retryCount += 1
                     }
                     
-                    // Try to resend
-                    let _ = try await messageService.sendMessageOptimistic(chatID: chat?.id ?? "", text: optimisticMessages[index].text)
+                    // Try to resend (use same ID)
+                    let _ = try await messageService.sendMessageOptimistic(chatID: chat?.id ?? "", text: optimisticMessages[index].text, messageID: messageID)
                     
                     await MainActor.run {
                         optimisticMessages[index].status = .sent
@@ -410,9 +352,9 @@ class ChatViewModel: ObservableObject {
     ///   - chatID: The chat ID
     ///   - text: The message text
     /// - Returns: Optimistic message
-    private func createOptimisticMessage(chatID: String, text: String) -> Message {
+    private func createOptimisticMessage(chatID: String, text: String, messageID: String) -> Message {
         return Message(
-            id: UUID().uuidString,
+            id: messageID,
             chatID: chatID,
             senderID: currentUserID,
             text: text,
@@ -437,6 +379,7 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    updateQueuedMessageCount() // Update even on failure
                     errorMessage = "Failed to sync messages: \(error.localizedDescription)"
                 }
             }
@@ -461,6 +404,34 @@ class ChatViewModel: ObservableObject {
         
         updateQueuedMessageCount()
         updateRetryableMessages()
+    }
+    
+    /// Sets up reactive network observer using Combine
+    private func setupNetworkObserver() {
+        // Observe network connection changes
+        networkMonitor.$isConnected
+            .sink { [weak self] isConnected in
+                Task { @MainActor in
+                    self?.isOffline = !isConnected
+                    
+                    // When coming back online, update count first, then sync
+                    self?.updateQueuedMessageCount()
+                    
+                    if isConnected && (self?.queuedMessageCount ?? 0) > 0 {
+                        self?.syncQueuedMessages()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Observe connection type changes
+        networkMonitor.$connectionType
+            .sink { [weak self] connectionType in
+                Task { @MainActor in
+                    self?.connectionType = connectionType
+                }
+            }
+            .store(in: &cancellables)
     }
     
     /// Updates the retryable messages state
@@ -569,6 +540,38 @@ class ChatViewModel: ObservableObject {
             // In a real app, you'd fetch this from a user service
             // For now, return a simplified display name
             return "User \(userID.prefix(4))"
+        }
+    }
+    
+    /// Removes optimistic messages that now exist in real messages
+    /// - Parameter realMessages: Messages received from Firebase
+    private func removeConfirmedOptimisticMessages(realMessages: [Message]) {
+        let realMessageIDs = Set(realMessages.map { $0.id })
+        let realMessageTexts = Set(realMessages.map { $0.text })
+        
+        // Remove optimistic messages that match by ID OR by text+sender
+        optimisticMessages.removeAll { optimisticMsg in
+            // Match by ID (preferred)
+            if realMessageIDs.contains(optimisticMsg.id) {
+                return true
+            }
+            // Also match by text if sent by current user (backup for race conditions)
+            if optimisticMsg.senderID == currentUserID && realMessageTexts.contains(optimisticMsg.text) {
+                // Check if there's a real message with same text sent recently (within 5 seconds)
+                if let realMsg = realMessages.first(where: { 
+                    $0.text == optimisticMsg.text && 
+                    $0.senderID == currentUserID &&
+                    abs($0.timestamp.timeIntervalSince(optimisticMsg.timestamp)) < 5
+                }) {
+                    return true
+                }
+            }
+            return false
+        }
+        
+        // If no optimistic messages left, clear the flag
+        if optimisticMessages.isEmpty {
+            isOptimisticUpdate = false
         }
     }
     

@@ -17,9 +17,16 @@ class MessageService {
     
     private let firestore: Firestore
     private let userDefaults = UserDefaults.standard
-    private let queueKey = "queued_messages"
     private let maxRetryCount = 3
     private let maxQueueSize = 100
+    
+    // Make queue key user-specific to prevent cross-device/simulator conflicts
+    private var queueKey: String {
+        guard let userID = Auth.auth().currentUser?.uid else {
+            return "queued_messages"
+        }
+        return "queued_messages_\(userID)"
+    }
     
     // NetworkMonitor needs to be accessed on main actor
     @MainActor
@@ -37,14 +44,14 @@ class MessageService {
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - text: The message text
+    ///   - messageID: Pre-generated message ID (for optimistic UI matching)
     /// - Returns: Message ID
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendMessageOptimistic(chatID: String, text: String) async throws -> String {
+    func sendMessageOptimistic(chatID: String, text: String, messageID: String) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
         
-        let messageID = UUID().uuidString
         let timestamp = Date()
         
         // Create optimistic message for immediate UI display
@@ -71,7 +78,7 @@ class MessageService {
                 senderName: nil,
                 isOffline: false,
                 retryCount: 0,
-                isOptimistic: true
+                isOptimistic: false  // Don't save optimistic flag to Firebase
             )
             
             // Save to Firestore with server timestamp
@@ -81,13 +88,8 @@ class MessageService {
                 .document(messageID)
                 .setData(from: message)
             
-            // Update status to sent
-            try await updateMessageStatus(messageID: messageID, status: .sent)
-            
             return messageID
         } catch {
-            // If send fails, mark as failed
-            try? await updateMessageStatus(messageID: messageID, status: .failed)
             throw MessageServiceError.networkError(error)
         }
     }
@@ -113,7 +115,7 @@ class MessageService {
             text: text,
             timestamp: timestamp,
             readBy: [currentUser.uid],
-            status: .sending,
+            status: .sent,  // Set to sent immediately - no need for separate update
             senderName: nil,
             isOffline: false,
             retryCount: 0
@@ -127,13 +129,8 @@ class MessageService {
                 .document(messageID)
                 .setData(from: message)
             
-            // Update status to sent
-            try await updateMessageStatus(messageID: messageID, status: .sent)
-            
             return messageID
         } catch {
-            // If send fails, mark as failed
-            try? await updateMessageStatus(messageID: messageID, status: .failed)
             throw MessageServiceError.networkError(error)
         }
     }
@@ -341,7 +338,6 @@ class MessageService {
                     message.id = document.documentID
                     messages.append(message)
                 } catch {
-                    print("⚠️ Failed to decode message document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -365,13 +361,11 @@ class MessageService {
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("⚠️ Message listener error: \(error)")
                 completion([])
                 return
             }
             
             guard let snapshot = snapshot else {
-                print("⚠️ Message listener: no snapshot")
                 completion([])
                 return
             }
@@ -383,7 +377,6 @@ class MessageService {
                     message.id = document.documentID
                     messages.append(message)
                 } catch {
-                    print("⚠️ Failed to decode message document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -466,7 +459,7 @@ class MessageService {
             let data = try JSONEncoder().encode(messages)
             userDefaults.set(data, forKey: queueKey)
         } catch {
-            print("⚠️ Failed to save queued messages: \(error)")
+            // Silently fail - queued messages will be lost but not critical
         }
     }
     

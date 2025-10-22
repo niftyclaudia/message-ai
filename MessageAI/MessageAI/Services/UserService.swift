@@ -51,7 +51,6 @@ class UserService {
         
         do {
             try await usersCollection.document(userID).setData(userData)
-            print("✅ User document created: \(userID)")
             
         } catch {
             throw mapFirestoreError(error)
@@ -75,7 +74,6 @@ class UserService {
             let data = document.data() ?? [:]
             let user = try decodeUser(from: data, id: userID)
             
-            print("✅ User fetched: \(userID)")
             return user
             
         } catch let error as UserServiceError {
@@ -113,7 +111,6 @@ class UserService {
         
         do {
             try await usersCollection.document(userID).updateData(updateData)
-            print("✅ User updated: \(userID)")
             
         } catch {
             throw mapFirestoreError(error)
@@ -173,7 +170,6 @@ class UserService {
                 return try? decodeUser(from: data, id: document.documentID)
             }
             
-            print("✅ Fetched \(users.count) users")
             return users
             
         } catch {
@@ -203,7 +199,6 @@ class UserService {
             user.email.lowercased().contains(lowercaseQuery)
         }
         
-        print("✅ Found \(matchingUsers.count) users matching '\(query)'")
         return matchingUsers
     }
     
@@ -215,7 +210,6 @@ class UserService {
     func observeUsers(excludingUserID currentUserID: String, completion: @escaping ([User]) -> Void) -> ListenerRegistration {
         return usersCollection.addSnapshotListener { snapshot, error in
             guard let snapshot = snapshot, error == nil else {
-                print("❌ User observation error: \(error?.localizedDescription ?? "Unknown")")
                 completion([])
                 return
             }
@@ -228,7 +222,6 @@ class UserService {
                 return try? self.decodeUser(from: data, id: document.documentID)
             }
             
-            print("✅ Real-time update: \(users.count) users")
             completion(users)
         }
     }

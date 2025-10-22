@@ -137,7 +137,7 @@ struct ProfileEditView: View {
                 }
             }
             .sheet(isPresented: $showPhotoPickerSheet) {
-                photoPickerView
+                ProfilePhotoPicker(selectedImage: $selectedImage)
             }
             .alert("Error", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {}
@@ -169,30 +169,14 @@ struct ProfileEditView: View {
         .offset(x: -6, y: -6)
     }
     
-    /// Photo picker view
-    private var photoPickerView: some View {
-        PhotosPicker(
-            selection: Binding(
-                get: { nil },
-                set: { _ in }
-            ),
-            matching: .images
-        ) {
-            Text("Select Photo")
-        }
-        .photosPickerStyle(.inline)
-        .photosPickerDisabledCapabilities(.selectionActions)
-        .onChange(of: showPhotoPickerSheet) { oldValue, newValue in
-            if !newValue {
-                // Photo picker was dismissed
-            }
-        }
-    }
     
     // MARK: - Private Methods
     
     /// Saves profile changes
     private func saveProfile() async {
+        // Prevent double-saves
+        guard !viewModel.isLoading else { return }
+        
         do {
             // Upload photo if selected
             if let image = selectedImage {
@@ -204,12 +188,19 @@ struct ProfileEditView: View {
                 try await viewModel.updateProfile(displayName: displayName, authService: authService)
             }
             
+            // Wait a moment for Firebase to propagate the changes
+            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            
             // Dismiss on success
-            dismiss()
+            await MainActor.run {
+                dismiss()
+            }
             
         } catch {
-            errorMessage = error.localizedDescription
-            showErrorAlert = true
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showErrorAlert = true
+            }
         }
     }
 }

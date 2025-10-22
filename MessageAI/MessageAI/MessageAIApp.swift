@@ -48,15 +48,13 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Messagin
     
     /// Handle FCM token refresh
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        print("📱 FCM token refreshed: \(fcmToken ?? "nil")")
-        
         // Update token in Firestore if user is authenticated
         if let userID = authService.currentUser?.uid {
             Task {
                 do {
                     try await notificationService.updateToken(userID: userID)
                 } catch {
-                    print("❌ Failed to update FCM token: \(error)")
+                    // Token update failed - will retry on next launch
                 }
             }
         }
@@ -67,11 +65,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Messagin
     /// Navigate to specific chat from notification
     /// - Parameter chatID: Chat ID to navigate to
     private func navigateToChat(chatID: String) {
-        print("📱 Notification tap - navigate to chat: \(chatID)")
-        
         // TODO: Implement navigation to specific chat
         // This would require passing the chatID to the root view
-        // For now, we'll log the navigation intent
         // The actual navigation will be handled by the ConversationListView
     }
 }
@@ -100,9 +95,8 @@ struct MessageAIApp: App {
         do {
             try FirebaseService.shared.configure()
         } catch {
-            print("❌ Firebase configuration error: \(error.localizedDescription)")
-            // In production, might want to show user-facing error
-            // For now, app can still launch but Firebase features won't work
+            // Firebase configuration failed - app features won't work
+            // Consider implementing proper error handling/user notification
         }
     }
     
@@ -113,6 +107,7 @@ struct MessageAIApp: App {
             RootView()
                 .environmentObject(authService)
                 .environmentObject(notificationService)
+                .environmentObject(lifecycleManager)
                 .onAppear {
                     configureNotificationDelegates()
                 }

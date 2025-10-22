@@ -35,7 +35,6 @@ class FirebaseService {
     func configure() throws {
         // Idempotent - safe to call multiple times
         if isConfigured {
-            print("✅ Firebase already configured")
             return
         }
         
@@ -55,7 +54,6 @@ class FirebaseService {
         firestoreInstance = db
         isConfigured = true
         
-        print("✅ Firebase configured successfully with offline persistence")
     }
     
     /// Returns the configured Firestore instance

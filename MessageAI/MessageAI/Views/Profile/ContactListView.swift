@@ -55,7 +55,6 @@ struct ContactListView: View {
                     do {
                         try await testDataService.createTestChatData(currentUserID: currentUserID)
                     } catch {
-                        print("⚠️ Failed to create test data: \(error)")
                     }
                 }
                 

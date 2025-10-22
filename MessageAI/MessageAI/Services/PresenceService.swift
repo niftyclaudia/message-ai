@@ -65,13 +65,11 @@ class PresenceService {
         do {
             try await presenceRef.setValue(onlineStatus.toFirebaseDict())
             
-            print("✅ User \(userID) set to online with onDisconnect hook")
             
             // Reset retry attempts on success
             retryAttempts = 0
             
         } catch {
-            print("⚠️ Failed to set user online: \(error)")
             try await handleRetry(operation: { [weak self] in try await self?.setUserOnline(userID: userID) }, error: error)
         }
     }
@@ -96,13 +94,11 @@ class PresenceService {
         do {
             try await presenceRef.setValue(offlineStatus.toFirebaseDict())
             
-            print("✅ User \(userID) set to offline")
             
             // Reset retry attempts on success
             retryAttempts = 0
             
         } catch {
-            print("⚠️ Failed to set user offline: \(error)")
             try await handleRetry(operation: { [weak self] in try await self?.setUserOffline(userID: userID) }, error: error)
         }
     }
@@ -170,10 +166,8 @@ class PresenceService {
         do {
             try await presenceRef.removeValue()
             
-            print("✅ Presence data cleaned up for user \(userID)")
             
         } catch {
-            print("⚠️ Failed to cleanup presence data: \(error)")
             throw PresenceServiceError.networkError(error)
         }
     }
