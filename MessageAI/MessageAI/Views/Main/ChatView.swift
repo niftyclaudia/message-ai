@@ -18,6 +18,7 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
+    @State private var showChatInfo: Bool = false
     
     
     // MARK: - Initialization
@@ -117,7 +118,7 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: {}) {
+            Button(action: { showChatInfo = true }) {
                 Image(systemName: "info.circle")
                     .font(.title2)
                     .foregroundColor(.blue)
@@ -127,6 +128,9 @@ struct ChatView: View {
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+        .sheet(isPresented: $showChatInfo) {
+            ChatInfoView(chat: chat, otherUser: otherUser)
+        }
     }
     
     // MARK: - Messages Area

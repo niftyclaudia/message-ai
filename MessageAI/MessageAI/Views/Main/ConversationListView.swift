@@ -49,12 +49,11 @@ struct ConversationListView: View {
             // Load chats from Firestore
             await viewModel.loadChats(userID: currentUserID)
             viewModel.observeChatsRealTime(userID: currentUserID)
-            // Disabled presence for MVP - causing permission errors
-            // viewModel.observePresence()
+            viewModel.observePresence()
         }
         .onDisappear {
             viewModel.stopObserving()
-            // viewModel.stopObservingPresence()
+            viewModel.stopObservingPresence()
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK") {
