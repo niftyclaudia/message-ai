@@ -42,7 +42,6 @@ class ChatService {
                     chat.id = document.documentID
                     chats.append(chat)
                 } catch {
-                    print("⚠️ Failed to decode chat document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -66,13 +65,11 @@ class ChatService {
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("⚠️ Chat listener error: \(error)")
                 completion([])
                 return
             }
             
             guard let snapshot = snapshot else {
-                print("⚠️ Chat listener: no snapshot")
                 completion([])
                 return
             }
@@ -84,7 +81,6 @@ class ChatService {
                     chat.id = document.documentID
                     chats.append(chat)
                 } catch {
-                    print("⚠️ Failed to decode chat document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -128,7 +124,6 @@ class ChatService {
     /// - Throws: ChatServiceError for various failure scenarios
     /// - Performance: Should complete in < 2 seconds (see shared-standards.md)
     func createChat(members: [String], isGroup: Bool, createdBy: String) async throws -> String {
-        print("🔄 ChatService.createChat called with members: \(members), isGroup: \(isGroup), createdBy: \(createdBy)")
         // Validate members array
         guard members.count >= 2 else {
             throw ChatServiceError.invalidMembers("Chat must have at least 2 members")
@@ -140,12 +135,9 @@ class ChatService {
         }
         
         // Check for existing chat with same members
-        print("🔄 Checking for existing chat with same members...")
         if let existingChatID = try await checkForExistingChat(members: members) {
-            print("✅ Found existing chat: \(existingChatID)")
             return existingChatID
         }
-        print("✅ No existing chat found, creating new one...")
         
         do {
             // Create new chat document
@@ -167,7 +159,6 @@ class ChatService {
             ]
             
             try await chatRef.setData(chatData)
-            print("✅ Chat created successfully in Firestore: \(chatID)")
             return chatID
             
         } catch {
@@ -220,12 +211,10 @@ class ChatService {
                     user.id = document.documentID
                     return user
                 } catch {
-                    print("⚠️ Failed to decode user document \(document.documentID): \(error)")
                     return nil
                 }
             }
             
-            print("✅ Fetched \(users.count) contacts")
             return users
             
         } catch {
@@ -254,7 +243,6 @@ class ChatService {
             user.email.lowercased().contains(lowercaseQuery)
         }
         
-        print("✅ Found \(matchingContacts.count) contacts matching '\(query)'")
         return matchingContacts
     }
     
@@ -264,7 +252,6 @@ class ChatService {
     func deleteChat(chatID: String) async throws {
         do {
             try await firestore.collection(Chat.collectionName).document(chatID).delete()
-            print("✅ Chat deleted successfully: \(chatID)")
         } catch {
             throw ChatServiceError.networkError(error)
         }

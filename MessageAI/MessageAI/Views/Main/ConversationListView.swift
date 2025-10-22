@@ -44,7 +44,6 @@ struct ConversationListView: View {
             do {
                 try await testDataService.createTestChatData(currentUserID: currentUserID)
             } catch {
-                print("⚠️ Failed to create test data: \(error)")
             }
             
             // Load chats from Firestore

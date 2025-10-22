@@ -133,7 +133,6 @@ class OptimisticUpdateService: ObservableObject {
             let data = try JSONEncoder().encode(optimisticMessages)
             userDefaults.set(data, forKey: optimisticMessagesKey)
         } catch {
-            print("⚠️ Failed to save optimistic messages: \(error)")
         }
     }
 }

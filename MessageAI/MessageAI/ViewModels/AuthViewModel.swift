@@ -128,7 +128,6 @@ class AuthViewModel: ObservableObject {
             do {
                 try await notificationService.removeToken(userID: userID)
             } catch {
-                print("❌ Failed to remove FCM token: \(error)")
             }
         }
         
@@ -136,7 +135,6 @@ class AuthViewModel: ObservableObject {
         do {
             try authService.signOut()
         } catch {
-            print("❌ Failed to sign out: \(error)")
             // Don't show error to user - sign out should always succeed
         }
     }
@@ -157,13 +155,10 @@ class AuthViewModel: ObservableObject {
         if granted, let userID = authService.currentUser?.uid {
             do {
                 try await notificationService.registerForNotifications(userID: userID)
-                print("✅ Successfully registered for push notifications")
             } catch {
-                print("❌ Failed to register for notifications: \(error)")
                 // Don't show error to user - notifications are optional
             }
         } else {
-            print("📱 Notification permission denied - app continues without notifications")
         }
     }
     

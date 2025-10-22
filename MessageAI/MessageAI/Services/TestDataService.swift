@@ -29,8 +29,6 @@ class TestDataService: ObservableObject {
     /// - Parameter currentUserID: The current user's ID
     /// - Throws: Error if creation fails
     func createTestChatData(currentUserID: String) async throws {
-        print("🧪 Creating test chat data for user: \(currentUserID)")
-        
         // Create test users first
         try await createTestUsers()
         
@@ -39,8 +37,6 @@ class TestDataService: ObservableObject {
         
         // Create test messages
         try await createTestMessages(currentUserID: currentUserID)
-        
-        print("✅ Test data created successfully")
     }
     
     /// Creates test users in Firestore
@@ -86,9 +82,7 @@ class TestDataService: ObservableObject {
                 try firestore.collection("users")
                     .document(user.id)
                     .setData(from: user)
-                print("✅ Created test user: \(user.displayName)")
             } catch {
-                print("⚠️ Failed to create test user \(user.displayName): \(error)")
                 // Continue with other users
             }
         }
@@ -139,9 +133,7 @@ class TestDataService: ObservableObject {
                 try firestore.collection("chats")
                     .document(chat.id)
                     .setData(from: chat)
-                print("✅ Created test chat: \(chat.id)")
             } catch {
-                print("⚠️ Failed to create test chat \(chat.id): \(error)")
                 // Continue with other chats
             }
         }
@@ -272,9 +264,7 @@ class TestDataService: ObservableObject {
                     .collection("messages")
                     .document(message.id)
                     .setData(from: message)
-                print("✅ Created test message: \(message.id)")
             } catch {
-                print("⚠️ Failed to create test message \(message.id): \(error)")
                 // Continue with other messages
             }
         }
@@ -284,8 +274,6 @@ class TestDataService: ObservableObject {
     /// - Warning: This will delete all data in the database
     /// - Throws: Error if deletion fails
     func clearAllTestData() async throws {
-        print("🧹 Clearing all test data...")
-        
         // Delete all messages
         let messagesQuery = firestore.collectionGroup("messages")
         let messagesSnapshot = try await messagesQuery.getDocuments()
@@ -308,7 +296,5 @@ class TestDataService: ObservableObject {
                 try await document.reference.delete()
             }
         }
-        
-        print("✅ All test data cleared")
     }
 }

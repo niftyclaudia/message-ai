@@ -124,7 +124,6 @@ struct ProfileView: View {
         do {
             try authService.signOut()
         } catch {
-            print("❌ Logout error: \(error.localizedDescription)")
         }
     }
 }

@@ -88,7 +88,6 @@ class ChatViewModel: ObservableObject {
             messages = fetchedMessages
             isLoading = false
         } catch {
-            print("⚠️ Failed to load messages: \(error.localizedDescription)")
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
             isLoading = false
         }
@@ -115,7 +114,6 @@ class ChatViewModel: ObservableObject {
         // Enable real-time listener for read receipts (PR-12)
         readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
             Task { @MainActor in
-                print("🔍 ReadReceipts Debug: Received read receipts update: \(receipts)")
                 self?.readReceipts = receipts
                 self?.updateMessageStatusesWithReadReceipts()
             }
@@ -138,9 +136,7 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await readReceiptService.markMessageAsRead(messageID: messageID, userID: currentUserID, chatID: chat.id)
-                print("✅ Marked message \(messageID) as read")
             } catch {
-                print("⚠️ Failed to mark message as read: \(error)")
             }
         }
     }
@@ -152,28 +148,22 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
-                print("✅ Marked all messages in chat \(chat.id) as read")
             } catch {
-                print("⚠️ Failed to mark chat as read: \(error)")
             }
         }
     }
     
     /// Updates message statuses based on read receipts
     private func updateMessageStatusesWithReadReceipts() {
-        print("🔍 ReadReceipts Debug: Updating message statuses with \(readReceipts.count) read receipts")
         
         for i in 0..<messages.count {
             let message = messages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has read receipts: \(readAt)")
                 // Message has been read by at least one user
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating message \(message.id) from \(message.status) to .read")
                     messages[i].status = .read
                 }
             } else {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has no read receipts, status: \(message.status)")
             }
         }
         
@@ -181,9 +171,7 @@ class ChatViewModel: ObservableObject {
         for i in 0..<optimisticMessages.count {
             let message = optimisticMessages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Optimistic message \(message.id) has read receipts: \(readAt)")
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating optimistic message \(message.id) from \(message.status) to .read")
                     optimisticMessages[i].status = .read
                 }
             }

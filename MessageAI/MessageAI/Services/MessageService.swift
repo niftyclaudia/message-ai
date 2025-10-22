@@ -341,7 +341,6 @@ class MessageService {
                     message.id = document.documentID
                     messages.append(message)
                 } catch {
-                    print("⚠️ Failed to decode message document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -365,13 +364,11 @@ class MessageService {
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("⚠️ Message listener error: \(error)")
                 completion([])
                 return
             }
             
             guard let snapshot = snapshot else {
-                print("⚠️ Message listener: no snapshot")
                 completion([])
                 return
             }
@@ -383,7 +380,6 @@ class MessageService {
                     message.id = document.documentID
                     messages.append(message)
                 } catch {
-                    print("⚠️ Failed to decode message document \(document.documentID): \(error)")
                     // Continue with other documents
                 }
             }
@@ -466,7 +462,7 @@ class MessageService {
             let data = try JSONEncoder().encode(messages)
             userDefaults.set(data, forKey: queueKey)
         } catch {
-            print("⚠️ Failed to save queued messages: \(error)")
+            // Silently fail - queued messages will be lost but not critical
         }
     }
     

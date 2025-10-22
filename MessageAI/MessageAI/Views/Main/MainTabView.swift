@@ -41,7 +41,6 @@ struct MainTabView: View {
                     
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
-                            print("🔄 Plus button tapped - showingCreateChat: \(showingCreateChat)")
                             showingCreateChat = true
                         }) {
                             Image(systemName: "plus")
@@ -62,12 +61,10 @@ struct MainTabView: View {
                     if let chat = createdChat {
                         ChatView(chat: chat, currentUserID: authService.currentUser?.uid ?? "", otherUser: nil)
                             .onAppear {
-                                print("🔄 MainTabView: Navigating to ChatView with chat: \(chat.id)")
                             }
                     } else {
                         EmptyView()
                             .onAppear {
-                                print("❌ MainTabView: No chat available for navigation")
                             }
                     }
                 }
@@ -104,10 +101,8 @@ struct MainTabView: View {
         .sheet(isPresented: $showingCreateChat) {
             CreateNewChatView { chat in
                 // Handle chat creation completion
-                print("🔄 MainTabView: Chat creation callback received - chat: \(chat.id)")
                 createdChat = chat
                 navigateToChat = true
-                print("🔄 MainTabView: Navigation state set - navigateToChat: \(navigateToChat)")
             }
         }
     }
@@ -119,7 +114,6 @@ struct MainTabView: View {
         do {
             try authService.signOut()
         } catch {
-            print("❌ Logout error: \(error.localizedDescription)")
         }
     }
 }
