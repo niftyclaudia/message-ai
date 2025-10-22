@@ -72,7 +72,7 @@ class PresenceService {
             
         } catch {
             print("⚠️ Failed to set user online: \(error)")
-            try await handleRetry(operation: { try await self.setUserOnline(userID: userID) }, error: error)
+            try await handleRetry(operation: { [weak self] in try await self?.setUserOnline(userID: userID) }, error: error)
         }
     }
     
@@ -103,7 +103,7 @@ class PresenceService {
             
         } catch {
             print("⚠️ Failed to set user offline: \(error)")
-            try await handleRetry(operation: { try await self.setUserOffline(userID: userID) }, error: error)
+            try await handleRetry(operation: { [weak self] in try await self?.setUserOffline(userID: userID) }, error: error)
         }
     }
     
