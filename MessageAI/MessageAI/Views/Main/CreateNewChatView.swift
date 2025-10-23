@@ -74,7 +74,6 @@ struct CreateNewChatView: View {
                 }
             }
             .onChange(of: viewModel.isChatCreated) { _, isCreated in
-                print("🔄 CreateNewChatView: isChatCreated changed to \(isCreated)")
                 if isCreated {
                     Task {
                         await fetchCreatedChat()
@@ -88,24 +87,18 @@ struct CreateNewChatView: View {
     
     /// Fetches the created chat and navigates to it
     private func fetchCreatedChat() async {
-        print("🔄 CreateNewChatView: fetchCreatedChat() called")
         guard let chat = await viewModel.fetchCreatedChat() else {
-            print("❌ CreateNewChatView: Failed to fetch created chat")
             return
         }
         
-        print("✅ CreateNewChatView: Chat fetched successfully")
         await MainActor.run {
             self.createdChat = chat
-            print("✅ CreateNewChatView: Chat set - createdChat: \(self.createdChat?.id ?? "nil")")
             
             // Use callback if provided, otherwise try navigation
             if let onChatCreated = self.onChatCreated {
-                print("✅ CreateNewChatView: Using callback to handle chat creation")
                 onChatCreated(chat)
                 dismiss()
             } else {
-                print("✅ CreateNewChatView: No callback provided, trying navigation")
                 self.navigateToChat = true
             }
         }
@@ -207,7 +200,6 @@ struct CreateNewChatView: View {
                 selectedCount: viewModel.selectedCount,
                 isGroupChat: viewModel.isGroupChat,
                 onTap: {
-                    print("🔄 CreateNewChatView: Start Chat button tapped")
                     Task {
                         await viewModel.createChat()
                     }

@@ -88,12 +88,10 @@ class AuthService: ObservableObject {
             // Create Firestore user document
             do {
                 try await userService.createUser(userID: userID, displayName: displayName, email: email)
-                print("✅ User signed up successfully: \(userID)")
                 return userID
                 
             } catch {
                 // Rollback: Delete Auth user if Firestore creation fails
-                print("⚠️ Firestore user creation failed, rolling back Auth user")
                 try? await authResult.user.delete()
                 throw AuthError.userDocumentCreationFailed
             }
@@ -118,8 +116,7 @@ class AuthService: ObservableObject {
         }
         
         do {
-            let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
-            print("✅ User signed in successfully: \(authResult.user.uid)")
+            _ = try await Auth.auth().signIn(withEmail: email, password: password)
             
         } catch {
             throw mapAuthError(error)
@@ -177,22 +174,16 @@ class AuthService: ObservableObject {
                     try await userService.createUser(userID: userID, displayName: displayName, email: email)
 
                     // Optionally update profile photo URL if available
-                    if let photoURL = user.profile?.imageURL(withDimension: 200) {
-                        // Store photo URL in user document
+                    if let _ = user.profile?.imageURL(withDimension: 200) {
+                        // TODO: Store photo URL in user document
                         // This can be enhanced to download and upload to Firebase Storage
-                        print("📸 Google profile photo available: \(photoURL)")
                     }
-
-                    print("✅ New user signed in with Google: \(userID)")
 
                 } catch {
                     // Rollback: Delete Auth user if Firestore creation fails
-                    print("⚠️ Firestore user creation failed, rolling back Auth user")
                     try? await authResult.user.delete()
                     throw AuthError.userDocumentCreationFailed
                 }
-            } else {
-                print("✅ Existing user signed in with Google: \(userID)")
             }
 
         } catch let error as AuthError {
@@ -219,8 +210,6 @@ class AuthService: ObservableObject {
             // Sign out from Google
             GIDSignIn.sharedInstance.signOut()
 
-            print("✅ User signed out successfully")
-
         } catch {
             throw AuthError.unknown(error)
         }
@@ -233,12 +222,6 @@ class AuthService: ObservableObject {
             DispatchQueue.main.async {
                 self?.currentUser = user
                 self?.isAuthenticated = user != nil
-                
-                if let user = user {
-                    print("🔄 Auth state changed: User \(user.uid) authenticated")
-                } else {
-                    print("🔄 Auth state changed: No user authenticated")
-                }
             }
         }
     }

@@ -42,6 +42,9 @@ struct Message: Codable, Identifiable {
     /// Array of user IDs who have read this message
     var readBy: [String]
     
+    /// Map of user IDs to timestamps when they read the message
+    var readAt: [String: Date]
+    
     /// Current status of the message (sending, sent, delivered, read, failed)
     var status: MessageStatus
     
@@ -70,6 +73,7 @@ struct Message: Codable, Identifiable {
         case timestamp
         case serverTimestamp
         case readBy
+        case readAt
         case status
         case senderName
         case isOffline
@@ -79,7 +83,7 @@ struct Message: Codable, Identifiable {
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
@@ -87,6 +91,7 @@ struct Message: Codable, Identifiable {
         self.timestamp = timestamp
         self.serverTimestamp = serverTimestamp
         self.readBy = readBy
+        self.readAt = readAt
         self.status = status
         self.senderName = senderName
         self.isOffline = isOffline
@@ -110,6 +115,13 @@ struct Message: Codable, Identifiable {
         isOffline = try container.decodeIfPresent(Bool.self, forKey: .isOffline) ?? false
         retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
         isOptimistic = try container.decodeIfPresent(Bool.self, forKey: .isOptimistic) ?? false
+        
+        // Handle readAt dictionary with Timestamp conversion
+        if let readAtTimestamps = try? container.decodeIfPresent([String: Timestamp].self, forKey: .readAt) {
+            self.readAt = readAtTimestamps.mapValues { $0.dateValue() }
+        } else {
+            self.readAt = try container.decodeIfPresent([String: Date].self, forKey: .readAt) ?? [:]
+        }
         
         // Handle Firestore Timestamp conversion for client timestamp
         if let timestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
@@ -135,6 +147,11 @@ struct Message: Codable, Identifiable {
         try container.encode(senderID, forKey: .senderID)
         try container.encode(text, forKey: .text)
         try container.encode(readBy, forKey: .readBy)
+        
+        // Convert readAt dates to Firestore Timestamps
+        let readAtTimestamps = readAt.mapValues { Timestamp(date: $0) }
+        try container.encode(readAtTimestamps, forKey: .readAt)
+        
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(senderName, forKey: .senderName)
         try container.encode(isOffline, forKey: .isOffline)

@@ -13,6 +13,8 @@ struct ContactListView: View {
     // MARK: - State Objects
     
     @StateObject private var viewModel = ContactListViewModel()
+    @StateObject private var testDataService = TestDataService()
+    @EnvironmentObject private var authService: AuthService
     
     // MARK: - State
     
@@ -48,6 +50,14 @@ struct ContactListView: View {
                 viewModel.searchQuery = newValue
             }
             .task {
+                // Create test data in Firestore for development
+                if let currentUserID = authService.currentUser?.uid {
+                    do {
+                        try await testDataService.createTestChatData(currentUserID: currentUserID)
+                    } catch {
+                    }
+                }
+                
                 await viewModel.loadUsers()
                 viewModel.observeUsersRealTime()
                 viewModel.observePresence()
@@ -74,7 +84,7 @@ struct ContactListView: View {
                     
                     if user.id != viewModel.filteredUsers.last?.id {
                         Divider()
-                            .padding(.leading, 72) // Indent to align with text
+                            .padding(.leading, 72)
                     }
                 }
             }

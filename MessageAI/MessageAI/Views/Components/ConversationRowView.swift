@@ -21,9 +21,12 @@ struct ConversationRowView: View {
     
     // MARK: - Private Computed Properties
     
-    /// Display name for the other user or "Unknown User"
+    /// Display name for the other user, group name, or "Unknown User"
     private var displayName: String {
-        otherUser?.displayName ?? "Unknown User"
+        if chat.isGroupChat {
+            return chat.groupName ?? "Group Chat"
+        }
+        return otherUser?.displayName ?? "Unknown User"
     }
     
     /// Profile photo URL for the other user
@@ -68,6 +71,13 @@ struct ConversationRowView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
+                    // Group indicator
+                    if chat.isGroupChat {
+                        Image(systemName: "person.3.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Spacer()
                     
                     Text(timestamp)
@@ -75,12 +85,22 @@ struct ConversationRowView: View {
                         .foregroundColor(.secondary)
                 }
                 
-                // Message preview
-                Text(messagePreview)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                // Message preview with member count for groups
+                HStack(spacing: 4) {
+                    Text(messagePreview)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    if chat.isGroupChat {
+                        Text("• \(chat.members.count) members")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                }
             }
         }
         .padding(.horizontal, 16)

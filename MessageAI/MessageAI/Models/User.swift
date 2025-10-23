@@ -30,6 +30,12 @@ struct User: Codable, Identifiable, Equatable {
     /// Last activity timestamp - updated on user actions
     var lastActiveAt: Date
     
+    /// Firebase Cloud Messaging device token for push notifications
+    var fcmToken: String?
+    
+    /// Timestamp when FCM token was last updated
+    var lastTokenUpdate: Date?
+    
     /// Firestore collection name
     static let collectionName = "users"
     
@@ -56,17 +62,21 @@ struct User: Codable, Identifiable, Equatable {
         case profilePhotoURL
         case createdAt
         case lastActiveAt
+        case fcmToken
+        case lastTokenUpdate
     }
     
     // MARK: - Initialization
     
-    init(id: String, displayName: String, email: String, profilePhotoURL: String? = nil, createdAt: Date, lastActiveAt: Date) {
+    init(id: String, displayName: String, email: String, profilePhotoURL: String? = nil, createdAt: Date, lastActiveAt: Date, fcmToken: String? = nil, lastTokenUpdate: Date? = nil) {
         self.id = id
         self.displayName = displayName
         self.email = email
         self.profilePhotoURL = profilePhotoURL
         self.createdAt = createdAt
         self.lastActiveAt = lastActiveAt
+        self.fcmToken = fcmToken
+        self.lastTokenUpdate = lastTokenUpdate
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -91,6 +101,15 @@ struct User: Codable, Identifiable, Equatable {
             lastActiveAt = timestamp.dateValue()
         } else {
             lastActiveAt = try container.decode(Date.self, forKey: .lastActiveAt)
+        }
+        
+        // Handle optional FCM token fields
+        fcmToken = try container.decodeIfPresent(String.self, forKey: .fcmToken)
+        
+        if let timestamp = try? container.decode(Timestamp.self, forKey: .lastTokenUpdate) {
+            lastTokenUpdate = timestamp.dateValue()
+        } else {
+            lastTokenUpdate = try container.decodeIfPresent(Date.self, forKey: .lastTokenUpdate)
         }
     }
 }

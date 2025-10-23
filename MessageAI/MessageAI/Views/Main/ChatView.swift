@@ -14,15 +14,20 @@ struct ChatView: View {
     // MARK: - Properties
     
     let chat: Chat
+    let otherUser: User?
     @StateObject private var viewModel: ChatViewModel
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
+    @State private var showChatInfo: Bool = false
+    @State private var currentUserName: String = ""
     
     
     // MARK: - Initialization
     
-    init(chat: Chat, currentUserID: String) {
+    init(chat: Chat, currentUserID: String, otherUser: User? = nil) {
         self.chat = chat
+        self.otherUser = otherUser
         self._viewModel = StateObject(wrappedValue: ChatViewModel(currentUserID: currentUserID))
     }
     
@@ -36,6 +41,11 @@ struct ChatView: View {
             
             // Messages area
             messagesArea
+            
+            // Typing indicator
+            if !viewModel.typingUsers.isEmpty {
+                TypingIndicatorView(typingUsers: viewModel.typingUsers)
+            }
             
             // Offline indicator
             OfflineIndicatorView(
@@ -62,25 +72,55 @@ struct ChatView: View {
                 isSending: $viewModel.isSending,
                 isOffline: $viewModel.isOffline,
                 onSend: {
+                    viewModel.userStoppedTyping() // Clear typing indicator before sending
                     viewModel.sendMessage(text: messageText)
                     messageText = ""
                 }
             )
+            .onChange(of: messageText) { oldValue, newValue in
+                // Trigger typing indicator when user types
+                if !newValue.isEmpty && oldValue != newValue {
+                    viewModel.userStartedTyping(userName: currentUserName)
+                } else if newValue.isEmpty {
+                    viewModel.userStoppedTyping()
+                }
+            }
             .onTapGesture {
                 // This helps ensure the text field can be tapped
             }
             
         }
         .navigationBarHidden(true)
-        .onAppear {
+        .task {
             viewModel.chat = chat
-            Task {
-                await viewModel.loadMessages(chatID: chat.id)
-                viewModel.observeMessagesRealTime(chatID: chat.id)
+            await viewModel.loadMessages(chatID: chat.id)
+            viewModel.observeMessagesRealTime(chatID: chat.id)
+            
+            // Mark all messages in chat as read when opening (PR-12)
+            viewModel.markChatAsRead()
+            
+            // Set up presence monitoring for all chats
+            viewModel.setupGroupMemberPresence(chat: chat)
+            
+            // Set up typing indicators
+            viewModel.observeTyping(chatID: chat.id)
+            
+            // Fetch current user's display name
+            if let userID = authService.currentUser?.uid {
+                do {
+                    let userService = UserService()
+                    let user = try await userService.fetchUser(userID: userID)
+                    currentUserName = user.displayName
+                } catch {
+                    // Fallback to email or default
+                    currentUserName = authService.currentUser?.email ?? "User"
+                }
             }
         }
         .onDisappear {
             viewModel.stopObserving()
+            viewModel.stopGroupMemberPresence()
+            viewModel.userStoppedTyping() // Clear typing status when leaving chat
         }
     }
     
@@ -108,7 +148,7 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: {}) {
+            Button(action: { showChatInfo = true }) {
                 Image(systemName: "info.circle")
                     .font(.title2)
                     .foregroundColor(.blue)
@@ -118,6 +158,9 @@ struct ChatView: View {
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+        .sheet(isPresented: $showChatInfo) {
+            ChatInfoView(chat: chat, otherUser: otherUser)
+        }
     }
     
     // MARK: - Messages Area
@@ -134,49 +177,70 @@ struct ChatView: View {
                 messagesList
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Messages List
     
     private var messagesList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
-                    let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
-                    
-                    // Use optimistic message row for optimistic messages
-                    if message.isOptimistic {
-                        OptimisticMessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel,
-                            onRetry: {
-                                viewModel.retryMessage(messageID: message.id)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
+                        let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
+                        
+                        // Use optimistic message row for optimistic messages
+                        if message.isOptimistic {
+                            OptimisticMessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel,
+                                onRetry: {
+                                    viewModel.retryMessage(messageID: message.id)
+                                }
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
-                            }
-                        }
-                    } else {
-                        MessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
+                        } else {
+                            MessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel
+                            )
+                            .id(message.id)
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .onAppear {
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: viewModel.allMessages.count) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Scrolls to the bottom (latest message)
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        guard let lastMessage = viewModel.allMessages.last else { return }
+        withAnimation {
+            proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
     
@@ -265,9 +329,8 @@ struct ChatView: View {
         if chat.isGroupChat {
             return chat.groupName ?? "Group Chat"
         } else {
-            // For 1-on-1 chats, we'd need to get the other user's name
-            // This is a simplified implementation
-            return "Chat"
+            // For 1-on-1 chats, show the other user's name
+            return otherUser?.displayName ?? "Chat"
         }
     }
 }

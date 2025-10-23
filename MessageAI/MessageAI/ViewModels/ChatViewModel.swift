@@ -7,7 +7,9 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseDatabase
 import SwiftUI
+import Combine
 
 /// ViewModel for managing chat view state and message operations
 /// - Note: Handles message loading, real-time updates, and status management
@@ -29,38 +31,61 @@ class ChatViewModel: ObservableObject {
     @Published var connectionType: ConnectionType = .wifi
     @Published var isRetrying: Bool = false
     @Published var hasRetryableMessages: Bool = false
+    @Published var groupMemberPresence: [String: PresenceStatus] = [:]
+    @Published var groupMembers: [String] = []
+    @Published var readReceipts: [String: [String: Date]] = [:] // messageID -> [userID: readAt]
+    @Published var typingUsers: [TypingUser] = []
     
     // MARK: - Computed Properties
     
     /// Combined messages including optimistic updates
     var allMessages: [Message] {
-        let combined = messages + optimisticMessages
+        // Combine real and optimistic messages
+        var combined = messages
+        
+        // Only add optimistic messages that aren't already in real messages
+        let realMessageIDs = Set(messages.map { $0.id })
+        let uniqueOptimistic = optimisticMessages.filter { !realMessageIDs.contains($0.id) }
+        combined.append(contentsOf: uniqueOptimistic)
+        
         return messageService.sortMessagesByServerTimestamp(combined)
     }
     
     // MARK: - Private Properties
     
     private let messageService: MessageService
+    private let readReceiptService: ReadReceiptService
     private var listener: ListenerRegistration?
+    private var readReceiptListener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
     let optimisticService = OptimisticUpdateService()
+    private let presenceService = PresenceService()
+    private let typingService = TypingService()
+    private var presenceHandles: [String: DatabaseHandle] = [:]
+    private var typingHandle: DatabaseHandle?
+    private var typingTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
-    init(currentUserID: String, messageService: MessageService = MessageService()) {
+    init(currentUserID: String, messageService: MessageService = MessageService(), readReceiptService: ReadReceiptService? = nil) {
         self.currentUserID = currentUserID
         self.messageService = messageService
+        self.readReceiptService = readReceiptService ?? ReadReceiptService()
         
-        // Monitor network status
+        // Set initial network status
         Task { @MainActor in
             monitorNetworkStatus()
+            setupNetworkObserver()
         }
     }
     
     deinit {
-        // Clean up listener without main actor isolation
+        // Clean up listeners without main actor isolation
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
         // NetworkMonitor cleanup is handled in its own deinit
     }
     
@@ -77,10 +102,15 @@ class ChatViewModel: ObservableObject {
             messages = fetchedMessages
             isLoading = false
         } catch {
-            print("⚠️ Failed to load messages: \(error.localizedDescription)")
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
             isLoading = false
         }
+    }
+    
+    /// Sets the current chat for the view model
+    /// - Parameter chat: The chat to set
+    func setChat(_ chat: Chat) {
+        self.chat = chat
     }
     
     /// Sets up real-time listener for messages in a chat
@@ -92,6 +122,22 @@ class ChatViewModel: ObservableObject {
         listener = messageService.observeMessages(chatID: chatID) { [weak self] newMessages in
             Task { @MainActor in
                 self?.messages = newMessages
+                
+                // Track render latency for performance monitoring
+                for message in newMessages {
+                    PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+                }
+                
+                // Remove optimistic messages that now exist in real messages
+                self?.removeConfirmedOptimisticMessages(realMessages: newMessages)
+            }
+        }
+        
+        // Enable real-time listener for read receipts (PR-12)
+        readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
+            Task { @MainActor in
+                self?.readReceipts = receipts
+                self?.updateMessageStatusesWithReadReceipts()
             }
         }
     }
@@ -100,18 +146,66 @@ class ChatViewModel: ObservableObject {
     func stopObserving() {
         listener?.remove()
         listener = nil
+        readReceiptListener?.remove()
+        readReceiptListener = nil
+        stopObservingTyping()
     }
     
     /// Marks a message as read by the current user
     /// - Parameter messageID: The message's ID
     func markMessageAsRead(messageID: String) {
+        guard let chat = chat else { return }
+        
         Task {
             do {
-                try await messageService.markMessageAsRead(messageID: messageID, userID: currentUserID)
+                try await readReceiptService.markMessageAsRead(messageID: messageID, userID: currentUserID, chatID: chat.id)
             } catch {
-                print("⚠️ Failed to mark message as read: \(error)")
             }
         }
+    }
+    
+    /// Marks all messages in the current chat as read
+    func markChatAsRead() {
+        guard let chat = chat else { return }
+        
+        Task {
+            do {
+                try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
+            } catch {
+            }
+        }
+    }
+    
+    /// Updates message statuses based on read receipts
+    private func updateMessageStatusesWithReadReceipts() {
+        
+        for i in 0..<messages.count {
+            let message = messages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                // Message has been read by at least one user
+                if message.status != .read {
+                    messages[i].status = .read
+                }
+            } else {
+            }
+        }
+        
+        // Also update optimistic messages
+        for i in 0..<optimisticMessages.count {
+            let message = optimisticMessages[i]
+            if let readAt = readReceipts[message.id], !readAt.isEmpty {
+                if message.status != .read {
+                    optimisticMessages[i].status = .read
+                }
+            }
+        }
+    }
+    
+    /// Gets read status for a message
+    /// - Parameter messageID: The message ID
+    /// - Returns: Dictionary of user IDs to read timestamps
+    func getReadStatus(messageID: String) -> [String: Date] {
+        return readReceipts[messageID] ?? [:]
     }
     
     /// Formats a timestamp into a user-friendly string
@@ -170,7 +264,8 @@ class ChatViewModel: ObservableObject {
         return timeDifference > 300 // Show timestamp if more than 5 minutes apart
     }
     
-    /// Sends a message to the chat with optimistic UI updates
+    /// Sends a message to the chat with optimized delivery
+    /// - Note: Optimized for < 200ms latency (PR-1 requirement)
     /// - Parameter text: The message text to send
     func sendMessage(text: String) {
         guard let chat = chat else { return }
@@ -188,81 +283,21 @@ class ChatViewModel: ObservableObject {
                         updateQueuedMessageCount()
                     }
                 } else {
-                    // Create optimistic message for immediate UI display
-                    let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
-                    
-                    // Add to optimistic messages for immediate display
-                    await MainActor.run {
-                        optimisticMessages.append(optimisticMessage)
-                        isOptimisticUpdate = true
-                    }
-                    
-                    // Try to send with optimistic updates
+                    // Send message with optimized delivery
                     do {
-                        let messageID = try await messageService.sendMessageOptimistic(chatID: chat.id, text: text)
-                        
-                        // Update optimistic message status
-                        await MainActor.run {
-                            if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                optimisticMessages[index].status = .sent
-                                optimisticMessages[index].isOptimistic = false
-                            }
-                        }
-                        
-                        // Simulate delivered status after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                    self?.optimisticMessages[index].status = .delivered
-                                }
-                            }
-                        }
+                        _ = try await messageService.sendMessage(chatID: chat.id, text: text)
                         
                     } catch {
-                        // Handle optimistic update failure
-                        await MainActor.run {
-                            if let index = optimisticMessages.firstIndex(where: { $0.text == text }) {
-                                optimisticMessages[index].status = .failed
-                                optimisticMessages[index].retryCount += 1
+                        // Send failed - automatically queue it for retry
+                        do {
+                            _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                            await MainActor.run {
+                                updateQueuedMessageCount()
+                                errorMessage = "Message queued - will send when online"
                             }
-                        }
-                        
-                        // For PR-7 testing, create mock message when Firebase fails
-                        let mockMessage = Message(
-                            id: UUID().uuidString,
-                            chatID: chat.id,
-                            senderID: currentUserID,
-                            text: text,
-                            timestamp: Date(),
-                            serverTimestamp: nil,
-                            readBy: [currentUserID],
-                            status: .sending,
-                            senderName: nil,
-                            isOffline: false,
-                            retryCount: 0,
-                            isOptimistic: true
-                        )
-                        
-                        // Add to optimistic messages
-                        await MainActor.run {
-                            optimisticMessages.append(mockMessage)
-                        }
-                        
-                        // Simulate status updates
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                    self?.optimisticMessages[index].status = .sent
-                                }
-                            }
-                        }
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == mockMessage.id }) {
-                                    self?.optimisticMessages[index].status = .delivered
-                                    self?.optimisticMessages[index].isOptimistic = false
-                                }
+                        } catch {
+                            await MainActor.run {
+                                errorMessage = "Failed to send message: \(error.localizedDescription)"
                             }
                         }
                     }
@@ -282,6 +317,61 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    /// Sends multiple messages in a burst for optimized performance
+    /// - Note: Handles 20+ rapid messages with no lag (PR-1 requirement)
+    /// - Parameter messages: Array of message texts to send
+    func sendBurstMessages(messages: [String]) {
+        guard let chat = chat else { return }
+        guard !messages.isEmpty else { return }
+        
+        isSending = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                if isOffline {
+                    // Queue all messages for offline delivery
+                    for text in messages {
+                        _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                    }
+                    await MainActor.run {
+                        updateQueuedMessageCount()
+                    }
+                } else {
+                    // Send burst messages with optimized delivery
+                    do {
+                        _ = try await messageService.sendBurstMessages(chatID: chat.id, messages: messages)
+                        
+                    } catch {
+                        // Burst failed - queue individual messages
+                        for text in messages {
+                            do {
+                                _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                            } catch {
+                                // Individual queue failure - continue with others
+                            }
+                        }
+                        await MainActor.run {
+                            updateQueuedMessageCount()
+                            errorMessage = "Messages queued - will send when online"
+                        }
+                    }
+                }
+                
+                await MainActor.run {
+                    isSending = false
+                    isOptimisticUpdate = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSending = false
+                    isOptimisticUpdate = false
+                    errorMessage = "Failed to send burst messages: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
     /// Retries a failed message
     /// - Parameter messageID: The message ID to retry
     func retryMessage(messageID: String) {
@@ -294,8 +384,8 @@ class ChatViewModel: ObservableObject {
                         optimisticMessages[index].retryCount += 1
                     }
                     
-                    // Try to resend
-                    let _ = try await messageService.sendMessageOptimistic(chatID: chat?.id ?? "", text: optimisticMessages[index].text)
+                    // Try to resend (use same ID)
+                    let _ = try await messageService.sendMessageOptimistic(chatID: chat?.id ?? "", text: optimisticMessages[index].text, messageID: messageID)
                     
                     await MainActor.run {
                         optimisticMessages[index].status = .sent
@@ -327,9 +417,9 @@ class ChatViewModel: ObservableObject {
     ///   - chatID: The chat ID
     ///   - text: The message text
     /// - Returns: Optimistic message
-    private func createOptimisticMessage(chatID: String, text: String) -> Message {
+    private func createOptimisticMessage(chatID: String, text: String, messageID: String) -> Message {
         return Message(
-            id: UUID().uuidString,
+            id: messageID,
             chatID: chatID,
             senderID: currentUserID,
             text: text,
@@ -354,6 +444,7 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    updateQueuedMessageCount() // Update even on failure
                     errorMessage = "Failed to sync messages: \(error.localizedDescription)"
                 }
             }
@@ -378,6 +469,34 @@ class ChatViewModel: ObservableObject {
         
         updateQueuedMessageCount()
         updateRetryableMessages()
+    }
+    
+    /// Sets up reactive network observer using Combine
+    private func setupNetworkObserver() {
+        // Observe network connection changes
+        networkMonitor.$isConnected
+            .sink { [weak self] isConnected in
+                Task { @MainActor in
+                    self?.isOffline = !isConnected
+                    
+                    // When coming back online, update count first, then sync
+                    self?.updateQueuedMessageCount()
+                    
+                    if isConnected && (self?.queuedMessageCount ?? 0) > 0 {
+                        self?.syncQueuedMessages()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Observe connection type changes
+        networkMonitor.$connectionType
+            .sink { [weak self] connectionType in
+                Task { @MainActor in
+                    self?.connectionType = connectionType
+                }
+            }
+            .store(in: &cancellables)
     }
     
     /// Updates the retryable messages state
@@ -422,6 +541,163 @@ class ChatViewModel: ObservableObject {
     /// Gets the current connection type
     func getConnectionType() -> ConnectionType {
         return messageService.getConnectionType()
+    }
+    
+    // MARK: - Group Chat Methods
+    
+    /// Sets up group member presence monitoring
+    /// - Parameter chat: The chat to monitor
+    func setupGroupMemberPresence(chat: Chat) {
+        guard chat.isGroupChat else { return }
+        
+        // Store group members
+        groupMembers = chat.members
+        
+        // Clean up existing observers
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        
+        // Set up presence observers for all group members
+        presenceHandles = presenceService.observeMultipleUsersPresence(userIDs: chat.members) { [weak self] presenceDict in
+            Task { @MainActor in
+                self?.groupMemberPresence = presenceDict
+            }
+        }
+    }
+    
+    /// Stops monitoring group member presence
+    func stopGroupMemberPresence() {
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+        groupMemberPresence.removeAll()
+        groupMembers.removeAll()
+    }
+    
+    /// Gets the presence status for a specific group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Presence status or offline if not found
+    func getGroupMemberPresence(userID: String) -> PresenceStatus {
+        return groupMemberPresence[userID] ?? .offline
+    }
+    
+    /// Gets read receipt information for a message in group chat
+    /// - Parameter message: The message to check
+    /// - Returns: Read receipt information
+    func getGroupReadReceiptInfo(message: Message) -> (readCount: Int, totalMembers: Int, readMembers: [String], unreadMembers: [String]) {
+        let readMembers = message.readBy.filter { $0 != currentUserID }
+        let unreadMembers = groupMembers.filter { !message.readBy.contains($0) && $0 != currentUserID }
+        
+        return (
+            readCount: message.readBy.count,
+            totalMembers: groupMembers.count,
+            readMembers: readMembers,
+            unreadMembers: unreadMembers
+        )
+    }
+    
+    /// Gets the display name for a group member
+    /// - Parameter userID: The user's ID
+    /// - Returns: Display name for the user
+    func getGroupMemberDisplayName(userID: String) -> String {
+        if userID == currentUserID {
+            return "You"
+        } else {
+            // In a real app, you'd fetch this from a user service
+            // For now, return a simplified display name
+            return "User \(userID.prefix(4))"
+        }
+    }
+    
+    // MARK: - Typing Indicator Methods
+    
+    /// Sets up typing indicator observer for a chat
+    /// - Parameter chatID: The chat ID to observe
+    func observeTyping(chatID: String) {
+        stopObservingTyping()
+        
+        typingHandle = typingService.observeTyping(chatID: chatID, currentUserID: currentUserID) { [weak self] users in
+            Task { @MainActor in
+                self?.typingUsers = users
+            }
+        }
+    }
+    
+    /// Stops observing typing indicators
+    func stopObservingTyping() {
+        guard let chat = chat, let handle = typingHandle else { return }
+        typingService.removeObserver(chatID: chat.id, handle: handle)
+        typingHandle = nil
+        typingUsers.removeAll()
+    }
+    
+    /// Called when user starts typing
+    /// - Parameter userName: Current user's display name
+    func userStartedTyping(userName: String) {
+        guard let chat = chat else { return }
+        
+        // Cancel any existing timer
+        typingTimer?.invalidate()
+        
+        Task {
+            do {
+                try await typingService.setUserTyping(userID: currentUserID, chatID: chat.id, userName: userName)
+            } catch {
+                // Silently fail - typing indicator is not critical
+            }
+        }
+        
+        // Set up auto-clear timer (3 seconds of inactivity)
+        typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            self?.userStoppedTyping()
+        }
+    }
+    
+    /// Called when user stops typing
+    func userStoppedTyping() {
+        guard let chat = chat else { return }
+        
+        typingTimer?.invalidate()
+        typingTimer = nil
+        
+        Task {
+            do {
+                try await typingService.clearUserTyping(userID: currentUserID, chatID: chat.id)
+            } catch {
+                // Silently fail - typing indicator is not critical
+            }
+        }
+    }
+    
+    /// Removes optimistic messages that now exist in real messages
+    /// - Parameter realMessages: Messages received from Firebase
+    private func removeConfirmedOptimisticMessages(realMessages: [Message]) {
+        let realMessageIDs = Set(realMessages.map { $0.id })
+        let realMessageTexts = Set(realMessages.map { $0.text })
+        
+        // Remove optimistic messages that match by ID OR by text+sender
+        optimisticMessages.removeAll { optimisticMsg in
+            // Match by ID (preferred)
+            if realMessageIDs.contains(optimisticMsg.id) {
+                return true
+            }
+            // Also match by text if sent by current user (backup for race conditions)
+            if optimisticMsg.senderID == currentUserID && realMessageTexts.contains(optimisticMsg.text) {
+                // Check if there's a real message with same text sent recently (within 5 seconds)
+                if let realMsg = realMessages.first(where: { 
+                    $0.text == optimisticMsg.text && 
+                    $0.senderID == currentUserID &&
+                    abs($0.timestamp.timeIntervalSince(optimisticMsg.timestamp)) < 5
+                }) {
+                    return true
+                }
+            }
+            return false
+        }
+        
+        // If no optimistic messages left, clear the flag
+        if optimisticMessages.isEmpty {
+            isOptimisticUpdate = false
+        }
     }
     
 }

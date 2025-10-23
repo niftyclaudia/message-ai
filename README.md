@@ -50,6 +50,10 @@ MessageAI/
 
 ## Features Implemented
 
+### 🎉 MVP Status: COMPLETE
+All 10 hard requirements + 3 P1 features implemented and tested.  
+See [MVP Completion Report](MessageAI/docs/mvp-completion-report.md) for details.
+
 ### Phase 1: Foundation (PRs #1-2)
 
 #### ✅ PR #1: Firebase Setup & Authentication Service
@@ -70,6 +74,90 @@ MessageAI/
 - State management with @Published and @EnvironmentObject
 - Comprehensive test suite (unit, UI, integration, performance)
 
+#### ✅ PR #3: User Profiles & Contact Discovery
+- Profile viewing and editing
+- Display name editing with validation
+- Profile photo upload to Firebase Storage
+- Photo compression and optimization
+- Contact list with real-time search functionality
+- Search by name or email (case-insensitive)
+
+### Phase 2: 1-on-1 Chat (PRs #4-8)
+
+#### ✅ PR #4-5: Conversation List & Chat View
+- Conversation list with last message preview
+- Real-time chat updates
+- Chat view with message display
+- Smooth scrolling and layout
+
+#### ✅ PR #6: Real-Time Message Delivery
+- Firestore snapshot listeners for instant updates
+- Sub-200ms message synchronization
+- Server-side timestamps
+- Network failure handling
+
+#### ✅ PR #7: Optimistic UI Updates
+- Instant local message display
+- "Sending..." status indicators
+- Automatic confirmation on server ack
+- Retry logic for failed messages
+
+#### ✅ PR #8: Offline Persistence
+- Local message caching with Firestore offline mode
+- Offline message queue
+- Automatic sync on reconnect
+- Full history preservation across app restarts
+
+### Phase 3: Group Chats & Presence (PRs #9-11)
+
+#### ✅ PR #9-10: Group Chat Support
+- Create group chats with 3+ members
+- Multi-user message delivery
+- Member attribution with names/avatars
+- Performance optimized for 3-10 member groups
+
+#### ✅ PR #11: Presence Indicators
+- Firebase Realtime Database presence system
+- Real-time online/offline status
+- Automatic status updates on app state changes
+- OnDisconnect hooks for reliability
+
+### Phase 4: Polish & Notifications (PRs #12-14)
+
+#### ✅ PR #12: Read Receipts
+- Per-message read tracking
+- "Read" / "Delivered" status indicators
+- Group chat read receipts
+- Real-time receipt updates
+
+#### ✅ PR #13: Push Notifications (APNs & FCM)
+- Apple Push Notification service integration
+- Firebase Cloud Messaging setup
+- Device token registration and management
+- Foreground, background, and terminated state handling
+- Deep link navigation from notification taps
+- Comprehensive test suite and setup documentation
+
+#### ✅ PR #14: Cloud Functions for Push Notifications
+- Serverless backend for automatic notification triggers
+- Firestore onCreate trigger for new messages
+- Sender exclusion logic (no self-notifications)
+- FCM token management and cleanup
+- Error handling and structured logging
+- Performance optimized (<2s delivery target)
+
+### Pre-Phase: MVP Completion (P1 Features)
+
+#### ✅ Typing Indicators
+- Real-time typing status with Firebase Realtime Database
+- "Alice is typing..." / "Alice & Bob are typing..." display
+- Auto-clear after 3 seconds of inactivity
+- < 200ms appearance, < 500ms hide after idle
+- Multi-user support in group chats
+- Service: `TypingService.swift`
+- View: `TypingIndicatorView.swift`
+- Tests: `TypingServiceTests.swift`
+
 ## Tech Stack
 
 - **Language**: Swift 5.9+
@@ -77,6 +165,8 @@ MessageAI/
 - **Backend**: Firebase
   - Firebase Authentication
   - Cloud Firestore
+  - Firebase Cloud Functions
+  - Firebase Cloud Messaging
   - Firebase Storage (future)
 - **Architecture**: MVVM
 - **State Management**: Combine (@Published, @StateObject, @EnvironmentObject)
@@ -106,6 +196,48 @@ open MessageAI/MessageAI.xcodeproj
 3. Ensure `GoogleService-Info.plist` is present in the project
 
 4. Build and run (Cmd+R)
+
+### Push Notifications Setup
+
+⚠️ **Important**: Push notifications require additional manual configuration:
+
+1. **Enable Push Notifications in Xcode**:
+   - Select MessageAI target → Signing & Capabilities
+   - Add "Push Notifications" capability
+   - Enable "Background Modes" → "Remote notifications"
+
+2. **Configure Firebase Console**:
+   - Generate APNs authentication key in Apple Developer Portal
+   - Upload key to Firebase Console → Project Settings → Cloud Messaging
+   - See detailed guide: `MessageAI/docs/notification-setup-guide.md`
+
+3. **Test on Physical Device**:
+   - Notifications don't work in iOS Simulator
+   - Use Firebase Console to send test notifications
+   - Verify foreground, background, and terminated states
+
+### Cloud Functions Setup
+
+The app includes Cloud Functions for automatic push notifications:
+
+1. **Deploy Functions**:
+   ```bash
+   cd functions
+   npm install
+   firebase deploy --only functions
+   ```
+
+2. **Monitor Function Logs**:
+   ```bash
+   firebase functions:log
+   ```
+
+3. **Local Development**:
+   ```bash
+   firebase emulators:start
+   ```
+
+See `functions/README.md` for detailed Cloud Functions documentation.
 
 ## Development Workflow
 

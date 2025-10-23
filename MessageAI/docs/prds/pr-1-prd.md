@@ -1,377 +1,266 @@
-# PRD: Firebase Project Setup & Authentication Foundation
+# PRD: Real-Time Message Delivery Optimization
 
-**Feature**: Firebase Backend & Auth Services
+**Feature**: Real-Time Message Delivery Optimization
 
 **Version**: 1.0
 
-**Status**: Ready for Development
+**Status**: Draft
 
 **Agent**: Pete
 
-**Target Release**: Phase 1 - Foundation
+**Target Release**: Phase 1
 
-**Links**: [PR Brief #1](../pr-brief/pr-briefs.md#pr-1-firebase-project-setup--authentication-foundation)
+**Links**: [PR Brief], [TODO], [Designs], [Tracking Issue]
 
 ---
 
 ## 1. Summary
 
-Establish Firebase backend infrastructure and authentication service layer. This PR configures Firebase project, implements AuthService and UserService for sign-up/sign-in operations, creates Firestore user collection with security rules, and enables offline persistence. No UI - pure backend foundation for PR #2.
+Optimize message delivery to achieve p95 latency < 200ms from send to acknowledgment to render, implement burst testing for 20+ rapid messages with no lag or out-of-order delivery, and add presence propagation < 500ms across all connected devices. This PR focuses on the core real-time messaging infrastructure that forms the foundation for all other features.
 
 ---
 
 ## 2. Problem & Goals
 
-**Problem**: Need secure backend infrastructure and authentication services before building any UI or features.
+- **What user problem are we solving?** Current messaging system may have latency issues that create poor user experience, especially during rapid message exchanges or when multiple users are typing simultaneously. Users expect instant, reliable message delivery in a professional messaging app.
 
-**Why Now**: PR #1 because all subsequent PRs depend on authenticated users and Firebase configuration.
+- **Why now?** This is the foundational PR for Phase 1 performance optimization. All subsequent features depend on reliable, fast message delivery. Without this optimization, group chats, offline sync, and other advanced features will perform poorly.
 
-**Goals**:
-- [ ] G1 — Firebase configured with Authentication + Firestore enabled
-- [ ] G2 — AuthService with sign-up, sign-in, sign-out operations
-- [ ] G3 — Firestore users collection with security rules
-- [ ] G4 — Services tested and ready for UI consumption (PR #2)
+- **Goals (ordered, measurable):**
+  - [ ] G1 — Achieve p95 message delivery latency < 200ms (send → ack → render)
+  - [ ] G2 — Handle 20+ rapid messages with zero lag or out-of-order delivery
+  - [ ] G3 — Implement presence propagation < 500ms across all connected devices
 
 ---
 
 ## 3. Non-Goals / Out of Scope
 
-- [ ] UI views (LoginView, SignUpView - deferred to PR #2)
-- [ ] UI tests and navigation (PR #2)
-- [ ] Social login (Apple/Google - future)
-- [ ] Password reset flows (future)
-- [ ] Profile editing (PR #3)
-- [ ] User search/discovery (PR #3)
+- [ ] Not implementing offline message queuing (covered in PR #2)
+- [ ] Not adding group chat features (covered in PR #3)
+- [ ] Not implementing push notifications (covered in PR #4)
+- [ ] Not optimizing for 1000+ message scrolling (covered in PR #5)
 
 ---
 
 ## 4. Success Metrics
 
-**System** (see `shared-standards.md`):
-- Firebase init < 500ms
-- signUp() < 5s, signIn() < 3s
-- Auth state changes < 100ms
-- Service test coverage > 80%
-
-**Quality**:
-- 0 blocking bugs in services
-- All acceptance gates pass
-- Services importable by PR #2
+Reference `MessageAI/agents/shared-standards.md` for metric templates:
+- **User-visible**: Message appears in recipient's chat within 200ms of send
+- **System**: p95 latency < 200ms, presence updates < 500ms, zero message reordering
+- **Quality**: 0 blocking bugs, all gates pass, crash-free >99%
 
 ---
 
 ## 5. Users & Stories
 
-- As a UI developer (PR #2), I want AuthService so I can build login/signup views
-- As a feature developer (PR #3+), I want authenticated users so I can secure data
-- As a developer, I want UserService so I can fetch/update user profiles
+- As a **remote worker**, I want messages to appear instantly so that I can have real-time conversations without delays.
+- As a **team member**, I want to see when others are typing in real-time so that I can coordinate communication effectively.
+- As a **user**, I want to send multiple messages quickly without them appearing out of order so that my conversation flow makes sense.
 
 ---
 
 ## 6. Experience Specification (UX)
 
-**N/A** - This PR is backend services only. No UX flows.
-
-Services provide state via `@Published` properties for PR #2 UI consumption.
+- **Entry points and flows**: Message sending from ChatView, typing indicators in conversation
+- **Visual behavior**: Instant message appearance, smooth typing indicators, presence status updates
+- **Loading/disabled/error states**: Optimistic UI with instant feedback, retry on failure
+- **Performance**: See targets in `MessageAI/agents/shared-standards.md` - < 200ms latency, 60 FPS animations
 
 ---
 
 ## 7. Functional Requirements (Must/Should)
 
-**MUST**:
-- [ ] Firebase project configured (Auth + Firestore)
-- [ ] AuthService: signUp, signIn, signOut, observeAuthState
-- [ ] UserService: createUser, fetchUser, updateUser
-- [ ] Email/password validation before Firebase calls
-- [ ] Custom error types with user-friendly descriptions
-- [ ] Firestore security rules (users can read all, write own)
-- [ ] Offline persistence enabled
-- [ ] Atomic user creation (Auth + Firestore document together)
+- **MUST**: Message delivery with p95 latency < 200ms from send to render
+- **MUST**: Handle burst messaging (20+ rapid messages) with zero lag or reordering
+- **MUST**: Presence propagation < 500ms across all connected devices
+- **MUST**: Real-time typing indicators < 200ms (already implemented, verify performance)
+- **SHOULD**: Optimistic UI with instant visual feedback
+- **SHOULD**: Graceful error handling with retry mechanisms
 
-**SHOULD**:
-- [ ] Log auth events for debugging
-- [ ] Handle duplicate creation attempts gracefully
-
-**Acceptance Gates**:
-- [Gate] signUp(valid data) → Firebase Auth user + Firestore doc created in < 5s
-- [Gate] signIn(valid creds) → currentUser populated, isAuthenticated = true in < 3s
-- [Gate] signUp(existing email) → Throws emailAlreadyInUse, no partial writes
-- [Gate] signOut() → currentUser = nil, isAuthenticated = false
-- [Gate] Invalid email → Throws invalidEmail BEFORE Firebase call
-- [Gate] Security rules → User can write users/{own-uid} only, read all
-- [Gate] Network error → Throws networkError with clear message
+**Acceptance gates per requirement:**
+- [Gate] When User A sends message → User B sees in < 200ms
+- [Gate] 20 rapid messages sent → All appear in correct order with < 200ms each
+- [Gate] User starts typing → Other users see indicator in < 200ms
+- [Gate] User comes online → All devices show presence in < 500ms
 
 ---
 
 ## 8. Data Model
 
-**Collection**: `users`
-
-**Document ID**: `{userID}` (Firebase Auth UID)
+No new Firestore collections required. Optimize existing message and presence data:
 
 ```swift
-struct User: Codable, Identifiable {
-    let id: String              // Firebase Auth UID
-    var displayName: String     // 1-50 chars, required
-    var email: String           // Valid format, required, immutable
-    var profilePhotoURL: String?  // Optional
-    var createdAt: Date         // Server timestamp, immutable
-    var lastActiveAt: Date      // Server timestamp
+// Message document (existing, optimize delivery)
+{
+  id: String,
+  text: String,
+  senderID: String,
+  timestamp: Timestamp,  // FieldValue.serverTimestamp()
+  readBy: [String]  // Array of user IDs
+}
+
+// Presence document (existing, optimize propagation)
+{
+  userID: String,
+  isOnline: Bool,
+  lastSeen: Timestamp,
+  isTyping: Bool,
+  typingInChat: String?  // Chat ID where user is typing
 }
 ```
 
-**Validation Rules**:
-- `id`: Must match Auth UID, immutable
-- `displayName`: 1-50 characters
-- `email`: Valid format, immutable
-- Server timestamps for date fields
-
-**Security Rules**:
-```javascript
-match /users/{userID} {
-  allow read: if isAuthenticated();
-  allow create: if isAuthenticated() && isOwner(userID) && validUserData();
-  allow update: if isAuthenticated() && isOwner(userID) && immutableFields();
-  allow delete: if false;  // Admin only
-}
-```
+- **Validation rules**: Existing Firebase security rules apply
+- **Indexing/queries**: Optimize Firestore listeners for real-time updates, add composite indexes for presence queries
 
 ---
 
 ## 9. API / Service Contracts
 
-**AuthService** (`Services/AuthService.swift`):
+Specify concrete service layer methods for optimization:
+
 ```swift
-class AuthService: ObservableObject {
-    @Published var currentUser: FirebaseAuth.User?
-    @Published var isAuthenticated: Bool = false
-    
-    func signUp(email: String, password: String, displayName: String) async throws -> String
-    func signIn(email: String, password: String) async throws
-    func signOut() throws
-    func observeAuthState()
-}
+// Message operations (optimize existing)
+func sendMessage(chatID: String, text: String) async throws -> String
+func observeMessages(chatID: String, completion: @escaping ([Message]) -> Void) -> ListenerRegistration
+func markMessageAsRead(messageID: String, userID: String) async throws
+
+// Presence operations (optimize existing)
+func updatePresence(isOnline: Bool, isTyping: Bool, typingInChat: String?) async throws
+func observePresence(userID: String, completion: @escaping (Presence) -> Void) -> ListenerRegistration
+func observeTypingInChat(chatID: String, completion: @escaping ([String]) -> Void) -> ListenerRegistration
+
+// Performance monitoring
+func measureMessageLatency(messageID: String) async -> TimeInterval
+func measurePresenceLatency(userID: String) async -> TimeInterval
 ```
 
-**UserService** (`Services/UserService.swift`):
-```swift
-class UserService {
-    func createUser(userID: String, displayName: String, email: String) async throws
-    func fetchUser(userID: String) async throws -> User
-    func updateUser(userID: String, displayName: String?, profilePhotoURL: String?) async throws
-}
-```
-
-**FirebaseService** (`Services/FirebaseService.swift`):
-```swift
-class FirebaseService {
-    static let shared = FirebaseService()
-    func configure() throws
-    func getFirestore() -> Firestore
-}
-```
-
-**Error Types**:
-```swift
-enum AuthError: LocalizedError {
-    case invalidEmail, emailAlreadyInUse, weakPassword
-    case invalidCredentials, userNotFound, networkError
-    case userDocumentCreationFailed, unknown(Error)
-}
-
-enum UserServiceError: LocalizedError {
-    case invalidDisplayName, notFound, permissionDenied
-    case networkError, unknown(Error)
-}
-```
-
-Pre/post-conditions documented in code comments per `shared-standards.md`.
+- **Pre/post-conditions**: All methods must complete within performance targets
+- **Error handling strategy**: Retry with exponential backoff, fallback to cached data
+- **Parameters and types**: Maintain existing interfaces, add performance monitoring
+- **Return values**: Include timing metadata for performance measurement
 
 ---
 
 ## 10. UI Components to Create/Modify
 
-**Services** (new):
-- `Services/FirebaseService.swift` — Firebase init + config
-- `Services/AuthService.swift` — Auth operations
-- `Services/UserService.swift` — Firestore user CRUD
+List SwiftUI views/files with one-line purpose each.
 
-**Models** (new):
-- `Models/User.swift` — User data model
-
-**Utilities** (new):
-- `Utilities/Constants.swift` — Collection names
-- `Utilities/Errors/AuthError.swift` — Auth error types
-- `Utilities/Errors/UserServiceError.swift` — User service errors
-
-**App** (modify):
-- `App/MessageAIApp.swift` — Add Firebase.configure() in init
-
-**Config** (add):
-- `GoogleService-Info.plist` — From Firebase Console
+- `Services/MessageService.swift` — Optimize message delivery and real-time sync
+- `Services/PresenceService.swift` — Optimize presence propagation and typing indicators
+- `Utilities/PerformanceMonitor.swift` — Add latency measurement capabilities
+- `ViewModels/ChatViewModel.swift` — Update to use optimized services
+- `Views/Main/ChatView.swift` — Ensure optimistic UI and smooth animations
 
 ---
 
 ## 11. Integration Points
 
-**Firebase Project**:
-- Project Name: `messageai`
-- Project ID: `messageai-2cf12`
-- Project Number: `75132810993`
-
-**Services**:
-- Firebase Authentication (email/password provider)
-- Firestore (users collection)
-- SwiftUI state management (@Published properties)
-- Combine (for future reactive patterns)
+- **Firebase Authentication** - User identity for presence tracking
+- **Firestore** - Optimized real-time listeners for messages and presence
+- **Firebase Realtime Database** - Fast presence updates (if needed for < 500ms)
+- **State management** - SwiftUI patterns for optimistic updates
+- **Performance monitoring** - Latency measurement and reporting
 
 ---
 
 ## 12. Test Plan & Acceptance Gates
 
-Reference `MessageAI/agents/shared-standards.md` for testing patterns.
+Define BEFORE implementation. Use checkboxes.
 
-**Unit Tests** (`MessageAITests/Services/`):
+Reference testing standards from `MessageAI/agents/shared-standards.md`.
 
-**AuthService**:
-- [ ] testSignUp_ValidData_CreatesUserAndDocument → Gate: Auth user + Firestore doc in < 5s
-- [ ] testSignIn_ValidCreds_Authenticates → Gate: currentUser populated in < 3s
-- [ ] testSignOut_ClearsState → Gate: currentUser nil
-- [ ] testSignUp_InvalidEmail_ThrowsError → Gate: Throws before Firebase call
-- [ ] testSignUp_ExistingEmail_ThrowsError → Gate: emailAlreadyInUse
-- [ ] testSignIn_WrongPassword_ThrowsError → Gate: invalidCredentials
-
-**UserService**:
-- [ ] testCreateUser_ValidData_CreatesDoc → Gate: Firestore doc created in < 1s
-- [ ] testFetchUser_ExistingUser_ReturnsUser → Gate: Returns correct User
-- [ ] testUpdateUser_ValidData_Updates → Gate: Firestore doc updated
-- [ ] testFetchUser_Nonexistent_ThrowsNotFound → Gate: notFound error
-
-**FirebaseService**:
-- [ ] testConfigure_Succeeds → Gate: Firebase initialized
-- [ ] testConfigure_Idempotent → Gate: Multiple calls safe
-
-**Integration Tests**:
-- [ ] testSecurityRules_UserCanReadAll → Gate: Authenticated user reads any user doc
-- [ ] testSecurityRules_UserCanWriteOwn → Gate: User writes users/{own-uid} only
-- [ ] testSecurityRules_UnauthCannotRead → Gate: Unauth request denied
-
-**Performance Tests** (see `shared-standards.md`):
-- [ ] testPerf_FirebaseInit_Under500ms
-- [ ] testPerf_SignIn_Under3s
-- [ ] testPerf_SignUp_Under5s
+- **Happy Path**
+  - [ ] User sends message → appears in recipient chat < 200ms
+  - [ ] User starts typing → indicator appears < 200ms
+  - [ ] User comes online → presence updates < 500ms
+  
+- **Edge Cases**
+  - [ ] Network interruption → messages queue and deliver on reconnect
+  - [ ] Rapid message sending → all messages appear in order
+  - [ ] Multiple users typing → all indicators show correctly
+  
+- **Multi-User**
+  - [ ] Real-time sync < 200ms across 3+ devices
+  - [ ] Concurrent typing indicators work smoothly
+  - [ ] Presence updates propagate to all connected devices
+  
+- **Performance (see shared-standards.md)**
+  - [ ] Message latency p95 < 200ms
+  - [ ] Presence propagation < 500ms
+  - [ ] Smooth 60fps animations during message delivery
 
 ---
 
 ## 13. Definition of Done
 
-See `shared-standards.md` for code quality standards.
-
-**Firebase Setup**:
-- [ ] Firebase project configured (messageai-2cf12)
-- [ ] Email/password authentication enabled in Firebase Console
-- [ ] Firestore database created
-- [ ] Security rules deployed
-- [ ] GoogleService-Info.plist downloaded and added to Xcode
-- [ ] Bundle ID matches Firebase project
-- [ ] README updated with setup steps
-
-**Code Complete**:
-- [ ] All services implemented
-- [ ] All error types defined
-- [ ] Constants file created
-- [ ] User model complete
-
-**Testing**:
-- [ ] All unit tests pass
-- [ ] Integration tests pass
-- [ ] Performance tests pass
-- [ ] Test coverage > 80%
-
-**Quality**:
-- [ ] No compiler warnings
-- [ ] Code follows Swift best practices
-- [ ] Service methods documented
-- [ ] No hardcoded values
-
-**Ready for PR #2**:
-- [ ] Services importable in SwiftUI
-- [ ] AuthService state observable
-- [ ] Error types displayable in UI
-- [ ] All acceptance gates verified
+See standards in `MessageAI/agents/shared-standards.md`:
+- [ ] Service methods optimized + unit tests (Swift Testing)
+- [ ] Real-time sync verified across 3+ devices with < 200ms latency
+- [ ] Burst messaging test passes (20+ messages, no reordering)
+- [ ] Presence propagation verified < 500ms
+- [ ] All acceptance gates pass
+- [ ] Performance metrics documented
 
 ---
 
 ## 14. Risks & Mitigations
 
-- Risk: Firebase misconfiguration → Mitigation: Setup checklist, test with emulator
-- Risk: Security rules too permissive → Mitigation: Comprehensive rules tests
-- Risk: Race condition (Auth vs Firestore) → Mitigation: Atomic creation with rollback
-- Risk: Poor error messages → Mitigation: Typed errors with descriptions
-- Risk: Services hard to test → Mitigation: Use Firebase Emulator for tests
+- **Risk**: Firebase latency varies by region → **Mitigation**: Use Firebase performance monitoring, consider regional optimization
+- **Risk**: High message volume causes delays → **Mitigation**: Implement message batching and throttling
+- **Risk**: Network conditions affect performance → **Mitigation**: Add offline queue and retry logic
+- **Risk**: Presence updates conflict → **Mitigation**: Use Firebase Realtime Database for presence, implement conflict resolution
 
 ---
 
 ## 15. Rollout & Telemetry
 
-**Feature Flag**: No (foundational backend)
-
-**Metrics**:
-- Service success rates (> 99%)
-- Latencies (signUp < 5s, signIn < 3s)
-- Error rates by type
-- Test coverage (> 80%)
-
-**Manual Validation**:
-1. App launches → Firebase initializes
-2. Call signUp() → User in Firebase Console
-3. Check Firestore → User doc exists
-4. Call signIn() → Returns user
-5. Security rules → Tested in emulator
+- **Feature flag?** No - this is core infrastructure optimization
+- **Metrics**: Message delivery latency, presence propagation time, message reordering incidents
+- **Manual validation steps**: Multi-device testing, burst messaging scenarios, network interruption testing
 
 ---
 
 ## 16. Open Questions
 
-- Q1: Firebase Emulator for tests? → A: Yes, use emulator for CI/CD
-- Q2: Who handles atomic Auth + Firestore? → A: AuthService for consistency
-- Q3: Auth state persistence? → A: Firebase SDK handles automatically
+- Q1: Should we use Firebase Realtime Database for presence instead of Firestore for < 500ms updates?
+- Q2: What's the optimal batch size for rapid message sending?
 
 ---
 
 ## 17. Appendix: Out-of-Scope Backlog
 
-- [ ] All UI views → PR #2
-- [ ] Navigation → PR #2
-- [ ] Social login → Future
-- [ ] Password reset → Future
-- [ ] Profile editing → PR #3
-- [ ] Biometric auth → Future
+Items deferred for future:
+- [ ] Message encryption (security enhancement)
+- [ ] Message reactions (UI enhancement)
+- [ ] Message threading (complexity)
 
 ---
 
 ## Preflight Questionnaire
 
-1. **Smallest end-to-end outcome?** Developer in PR #2 can call signUp/signIn successfully
-2. **Primary user?** UI developers (PR #2), feature developers (PR #3+)
-3. **Must vs should?** Must: Services + tests + security rules; Should: Advanced error recovery
-4. **Real-time requirements?** Auth state updates < 100ms (see shared-standards.md)
-5. **Performance?** Init < 500ms, signIn < 3s, signUp < 5s (shared-standards.md)
-6. **Error cases?** Invalid email, weak password, existing email, wrong creds, network failure
-7. **Data model?** New: users collection with User schema
-8. **Service APIs?** AuthService: signUp/signIn/signOut; UserService: create/fetch/update
-9. **UI entry points?** N/A - backend only
-10. **Security?** Firestore rules: read all, write own only
-11. **Dependencies?** Firebase project setup, GoogleService-Info.plist
-12. **Rollout?** Full (no flag), track success rates and latencies
-13. **Out of scope?** UI, navigation, social auth, password reset, profile editing
+Answer these to drive vertical slice and acceptance gates:
+
+1. **Smallest end-to-end user outcome for this PR?** User sends message, recipient sees it in < 200ms
+2. **Primary user and critical action?** Remote worker sending/receiving messages in real-time
+3. **Must-have vs nice-to-have?** Must-have: < 200ms latency, no message reordering
+4. **Real-time requirements?** < 200ms message delivery, < 500ms presence propagation
+5. **Performance constraints?** p95 latency < 200ms, 60 FPS animations
+6. **Error/edge cases to handle?** Network interruptions, rapid messaging, concurrent users
+7. **Data model changes?** No new collections, optimize existing message/presence data
+8. **Service APIs required?** Optimize existing MessageService and PresenceService methods
+9. **UI entry points and states?** ChatView message sending, typing indicators, presence status
+10. **Security/permissions implications?** Existing Firebase security rules apply
+11. **Dependencies or blocking integrations?** None - this is foundational optimization
+12. **Rollout strategy and metrics?** Core infrastructure, measure latency and presence propagation
+13. **What is explicitly out of scope?** Offline queuing, group chat features, push notifications, scrolling optimization
 
 ---
 
 ## Authoring Notes
 
-- Backend foundation only - no UI
-- Services ready for PR #2 consumption
-- Test with Firebase Emulator
-- Security rules follow least privilege
-- References `shared-standards.md` throughout
+- Write Test Plan before coding
+- Favor vertical slice that ships standalone
+- Keep service layer deterministic
+- SwiftUI views are thin wrappers
+- Test offline/online thoroughly
+- Reference `MessageAI/agents/shared-standards.md` throughout

@@ -1,28 +1,38 @@
-# MessageAI - PR Brief List
+# MessageAI PR Briefs
 
-**Project**: Cross-Platform Messaging App  
-**Framework**: SwiftUI + Firebase  
-**Target**: iOS Native Application  
+Comprehensive list of all planned PRs for MessageAI post-MVP development, organized by phase and implementation order.
 
 ---
 
-## Phase 1: Core Foundation
+## Phase 1: Core Messaging Performance (43-45 points)
 
-### PR #1: Firebase Project Setup & Authentication Foundation
+### PR #1: Real-Time Message Delivery Optimization
 
-**Brief:** Establish the core Firebase infrastructure including project configuration, authentication setup, and basic user management. This PR creates the foundation for all subsequent features by implementing Firebase Auth with email/password and social login options, setting up Firestore database structure, and creating the basic user profile system. Includes proper error handling, offline persistence configuration, and security rules.
+**Brief:** Optimize message delivery to achieve p95 latency < 200ms from send to acknowledgment to render. Implement burst testing for 20+ rapid messages with no lag or out-of-order delivery. Add presence propagation < 500ms across all connected devices. This PR focuses on the core real-time messaging infrastructure that forms the foundation for all other features.
 
 **Dependencies:** None
 
-**Complexity:** Medium
+**Complexity:** Complex
 
 **Phase:** 1
 
 ---
 
-### PR #2: Core SwiftUI App Structure & Navigation
+### PR #2: Offline Persistence & Sync System
 
-**Brief:** Build the fundamental SwiftUI app architecture with proper navigation patterns, state management, and basic UI components. This includes the main app structure, navigation controllers, basic theming, and the foundation for all screens. Implements proper SwiftUI patterns for data binding and state management that will support real-time updates throughout the app.
+**Brief:** Implement comprehensive offline messaging system with 3-message queue in Airplane Mode that auto-sends on reconnect. Ensure force-quit scenarios preserve full message history on reopen. Add network drop handling with 30s+ auto-reconnect and sync < 1s. Include clear UI states for Connecting/Offline/Sending X messages to keep users informed of system status.
+
+**Dependencies:** PR #1
+
+**Complexity:** Complex
+
+**Phase:** 1
+
+---
+
+### PR #3: Group Chat Enhancement
+
+**Brief:** Enhance group chat functionality for 3+ users with smooth simultaneous messaging. Add clear attribution with names and avatars for each message. Implement per-message read receipts for group conversations. Include member list with live online status indicators. Build on existing multi-user typing indicators to create a complete group chat experience.
 
 **Dependencies:** PR #1
 
@@ -32,9 +42,9 @@
 
 ---
 
-### PR #3: User Profile Management & Contact System
+### PR #4: Mobile Lifecycle Management
 
-**Brief:** Implement comprehensive user profile management including profile creation, editing, photo upload, and contact discovery. This PR creates the user collection in Firestore, implements profile CRUD operations, and establishes the contact system that will be used for starting conversations. Includes proper data validation and security rules.
+**Brief:** Implement robust mobile lifecycle handling for backgrounding with instant reconnect on foregrounding. Add push notification deep-linking to correct message threads. Ensure zero message loss during app state transitions and maintain battery-friendly operation. Handle all iOS app lifecycle events gracefully while maintaining real-time connectivity.
 
 **Dependencies:** PR #1, PR #2
 
@@ -44,59 +54,35 @@
 
 ---
 
-### PR #3.5: Google Sign-In Authentication
+### PR #5: Performance & UX Optimization
 
-**Brief:** Implement Google Sign-In as an authentication option alongside email/password. This PR extends the AuthService to support Google OAuth provider, adds a "Sign in with Google" button to authentication screens, and handles the complete OAuth flow including credential exchange, user profile mapping, and account linking. Provides a seamless social login experience that reduces signup friction and automatically populates user profile data (name, email, photo) from Google accounts.
+**Brief:** Achieve excellent performance metrics with cold launch < 2s and navigation < 400ms. Implement 60 FPS scrolling with 1000+ messages using list windowing techniques. Add optimistic UI with instant feedback and retry on failure. Optimize keyboard handling to eliminate jank and keep input pinned. Deliver professional polish throughout the user experience.
 
-**Dependencies:** PR #1, PR #2, PR #3
+**Dependencies:** PR #1, PR #2, PR #3, PR #4
 
-**Complexity:** Medium
+**Complexity:** Complex
 
 **Phase:** 1
 
 ---
 
-## Phase 2: 1-on-1 Chat
+## Phase 2: Technical Excellence & Deployment (12 points)
 
-### PR #4: Conversation List Screen
+### PR #6: Technical Implementation Audit
 
-**Brief:** Build the conversation list screen that displays all existing chats with the most recent message, timestamps, and online/offline status of other users. This PR implements the home screen that users see when they open the app, including proper data binding to Firestore and real-time updates when new messages arrive.
+**Brief:** Conduct comprehensive technical audit including folder structure organization, Firebase security rules review for database/firestore/storage, and secrets management to ensure GoogleService-Info.plist is not committed to git. Document architecture with clear diagrams and prepare function calling setup for future AI features. Establish security best practices and code organization standards.
 
-**Dependencies:** PR #1, PR #2, PR #3
+**Dependencies:** None
 
-**Complexity:** Medium
-
-**Phase:** 2
-
----
-
-### PR #5: Chat View Screen & Message Display
-
-**Brief:** Build the chat view screen that displays messages in a conversation. This PR implements the core chat interface with message bubbles, proper scrolling, and message layout. Includes message timestamps and basic message status indicators.
-
-**Dependencies:** PR #4
-
-**Complexity:** Medium
+**Complexity:** Simple
 
 **Phase:** 2
 
 ---
 
-### PR #6: Real-Time Message Sending/Receiving
+### PR #7: Authentication & Data Management Polish
 
-**Brief:** Implement real-time message sending and receiving using Firestore snapshot listeners. This PR adds the core messaging functionality with Firestore listeners, message creation, and real-time synchronization. Includes proper error handling and network failure management.
-
-**Dependencies:** PR #5
-
-**Complexity:** Complex
-
-**Phase:** 2
-
----
-
-### PR #7: Optimistic UI & Server Timestamps
-
-**Brief:** Implement optimistic UI updates and server-synced timestamps. This PR ensures messages appear instantly in the UI while being sent to the server, and uses Firestore server timestamps to prevent time-sync issues. Includes proper status indicators for message delivery.
+**Brief:** Complete authentication flow with password reset functionality if missing. Verify profile editing capabilities for name and avatar changes. Implement comprehensive sync logic and offline cache verification. Add multi-device sync testing to ensure consistent experience across user's devices. Build on existing auth flow to create bulletproof user management.
 
 **Dependencies:** PR #6
 
@@ -106,99 +92,123 @@
 
 ---
 
-### PR #8: Firestore Offline Persistence
+### PR #8: Repository Setup & Documentation
 
-**Brief:** Implement comprehensive offline message persistence and synchronization. This PR enables the app to work seamlessly offline by implementing Firestore offline cache, message queuing for offline sends, and proper sync when reconnecting. Users can read all previous messages and send new ones even without internet connectivity.
+**Brief:** Create comprehensive README with setup instructions, environment template, and architecture documentation. Implement one-command run scripts or clear setup procedures. Test complete setup process on fresh repository clone to ensure new developers can get started quickly. Document all dependencies, configuration steps, and common troubleshooting scenarios.
 
 **Dependencies:** PR #6, PR #7
 
-**Complexity:** Complex
+**Complexity:** Simple
 
 **Phase:** 2
 
 ---
 
-## Phase 3: Group Chats & Presence
+### PR #9: Deployment & Distribution
 
-### PR #9: Create New Chat Flow
+**Brief:** Create TestFlight build or provide clear simulator instructions for testing. Test application on real devices to verify functionality. Document access procedures and distribution methods. Ensure the app is ready for external testing and potential production deployment. Include device compatibility testing and performance verification on physical hardware.
 
-**Brief:** Implement the "Create New Chat" flow for selecting 1 or 3+ users to start conversations. This PR adds the interface for starting new conversations, including user selection, contact list integration, and chat creation logic. Supports both one-on-one and group chat creation.
+**Dependencies:** PR #6, PR #7, PR #8
 
-**Dependencies:** PR #4, PR #6
+**Complexity:** Simple
 
-**Complexity:** Medium
-
-**Phase:** 3
+**Phase:** 2
 
 ---
 
-### PR #10: Group Chat Logic & Multi-User Support
+## Phase 3: AI Features for Remote Team Professionals (26 points)
 
-**Brief:** Ensure group chat logic works seamlessly for sending messages to N members. This PR extends the messaging system to handle multiple participants, ensuring all existing features work with group chats. Includes proper member management and group chat UI.
+### PR #10: AI Infrastructure Setup
 
-**Dependencies:** PR #9
+**Brief:** Establish AI infrastructure by choosing and integrating AI API (OpenAI GPT-4 or Anthropic Claude), setting up vector database (Pinecone/Firebase/n8n), implementing message indexing pipeline with Cloud Functions, and creating AI service layer (AIService, VectorSearchService, EmbeddingService). This foundation enables all subsequent AI features and ensures scalable, maintainable AI integration.
 
-**Complexity:** Medium
-
-**Phase:** 3
-
----
-
-### PR #11: Online/Offline Presence Indicators
-
-**Brief:** Integrate Firebase Realtime Database for online/offline presence indicators. This PR implements the presence system that shows when users are online/offline, using Firebase Realtime Database's superior onDisconnect hooks. Includes proper cleanup of presence data and handling of app state transitions.
-
-**Dependencies:** PR #1, PR #3
-
-**Complexity:** Medium
-
-**Phase:** 3
-
----
-
-## Phase 4: Polish & Notifications
-
-### PR #12: Message Read Receipts
-
-**Brief:** Implement message read receipts logic with client-side and Firestore updates. This PR adds read status tracking for messages, proper Firestore field updates when users view messages, and visual indicators for read receipts. Includes proper UI state management for read status.
-
-**Dependencies:** PR #6, PR #7
-
-**Complexity:** Medium
-
-**Phase:** 4
-
----
-
-### PR #13: APNs & Firebase Cloud Messaging Setup
-
-**Brief:** Configure Apple Push Notification service and Firebase Cloud Messaging integration. This PR implements the complete push notification system including device token management, notification payload handling, and proper notification display. Includes background and foreground notification handling.
-
-**Dependencies:** PR #1, PR #6
+**Dependencies:** PR #5
 
 **Complexity:** Complex
 
-**Phase:** 4
+**Phase:** 3
 
 ---
 
-### PR #14: Cloud Functions for Push Notifications
+### PR #11: Thread Summarization AI Feature
 
-**Brief:** Write and deploy Cloud Function to trigger push notifications when new messages are sent. This PR creates serverless backend functions that monitor Firestore for new messages and automatically send push notifications to all chat participants. Includes proper error handling and notification customization.
+**Brief:** Implement AI-powered thread summarization to help remote workers skip reading 100+ messages and quickly understand conversation context. Feature should achieve ≥80% accuracy with 2-3s response times, link back to source messages, and include comprehensive service and UI implementation. Target 20-case evaluation set for testing accuracy and user satisfaction.
 
-**Dependencies:** PR #13
+**Dependencies:** PR #10
+
+**Complexity:** Medium
+
+**Phase:** 3
+
+---
+
+### PR #12: Action-Item Extraction AI Feature
+
+**Brief:** Build AI feature to extract action items and tasks from message threads, ensuring remote workers never miss deadlines or assignments. Include assignee detection, due date recognition, and priority assessment. Achieve ≥80% accuracy with 2-3s response times, provide links to source messages, and implement comprehensive testing with 20-case evaluation set.
+
+**Dependencies:** PR #10
+
+**Complexity:** Medium
+
+**Phase:** 3
+
+---
+
+### PR #13: Smart Search AI Feature
+
+**Brief:** Create intelligent search functionality that finds messages by meaning rather than exact words, helping remote workers locate relevant information quickly. Implement semantic search capabilities with vector similarity matching, context-aware results, and intuitive UI. Target ≥80% accuracy with fast response times and comprehensive testing framework.
+
+**Dependencies:** PR #10
+
+**Complexity:** Medium
+
+**Phase:** 3
+
+---
+
+### PR #14: Priority Detection AI Feature
+
+**Brief:** Develop AI system to automatically surface urgent messages and prioritize conversations based on content analysis. Include keyword detection, urgency scoring, and automatic conversation ranking. Achieve ≥80% accuracy in priority detection with 2-3s response times. Implement comprehensive UI for priority display and user feedback mechanisms.
+
+**Dependencies:** PR #10
+
+**Complexity:** Medium
+
+**Phase:** 3
+
+---
+
+### PR #15: Decision Tracking AI Feature
+
+**Brief:** Implement AI-powered decision tracking to monitor what was decided in conversations and who agreed to specific decisions. Include participant identification, decision extraction, and agreement tracking. Target ≥80% accuracy with comprehensive source linking and 20-case evaluation testing. Build UI for decision history and participant tracking.
+
+**Dependencies:** PR #10
+
+**Complexity:** Medium
+
+**Phase:** 3
+
+---
+
+### PR #16: Advanced AI Capabilities
+
+**Brief:** Implement one advanced AI capability (function-calling with cite-back OR RAG with vector search + generation) to demonstrate sophisticated AI integration. Include performance optimization with caching and batching, comprehensive edge case handling for empty results and rate limits, and advanced UI for complex AI interactions. This PR showcases the most sophisticated AI capabilities of the platform.
+
+**Dependencies:** PR #11, PR #12, PR #13, PR #14, PR #15
 
 **Complexity:** Complex
 
-**Phase:** 4
+**Phase:** 3
 
 ---
 
-### PR #15: Notification Testing & Validation
+## Phase 4: Innovation Bonus (+3 points)
 
-**Brief:** Test notifications across all app states (foreground, background, terminated) and validate proper delivery. This PR includes comprehensive testing of the notification system, ensuring notifications work correctly in all scenarios and app states.
+### PR #17: Insights Dashboard
 
-**Dependencies:** PR #13, PR #14
+**Brief:** Create unified AI insights dashboard as bottom sheet with 4 sections: Summary (thread summary), Decisions (who/what/when), Action Items (assignee/due), and Next Check-in (AI suggestion). Implement tap-to-jump functionality that highlights source messages and includes smooth animations. This feature provides remote workers with a comprehensive overview of their conversations and tasks.
+
+**Dependencies:** PR #16
 
 **Complexity:** Medium
 
@@ -206,11 +216,11 @@
 
 ---
 
-### PR #16: Bug Fixing & UI Polish
+### PR #18: Priority Sections & Smart Filtering
 
-**Brief:** Complete bug fixing and UI polish to ensure a production-ready application. This PR includes comprehensive testing, bug fixes, UI improvements, and final polish. Ensures the app meets all quality standards and provides an excellent user experience.
+**Brief:** Implement heuristic-based conversation filtering with 4 priority sections: Urgent (@mentions, time keywords, due < 48h), Needs Reply (questions, direct requests), FYI (announcements/updates), and Later (default bucket). Use fast heuristics with regex/keywords for p95 latency < 150ms and 60 FPS scrolling. Include manual override with long-press to change priority and persist settings. Ensure offline capability.
 
-**Dependencies:** All previous PRs
+**Dependencies:** PR #16
 
 **Complexity:** Medium
 
@@ -218,21 +228,35 @@
 
 ---
 
-## Implementation Summary
+## Phase 5: Evidence Collection & Final Polish (0 points)
 
-**Total PRs:** 17  
-**Phase 1 (Core Foundation):** 4 PRs  
-**Phase 2 (1-on-1 Chat):** 5 PRs  
-**Phase 3 (Group Chats & Presence):** 3 PRs  
-**Phase 4 (Polish & Notifications):** 5 PRs  
+### PR #19: Evidence Collection & Documentation
 
-**Complexity Distribution:**
-- Medium: 12 PRs  
-- Complex: 5 PRs
+**Brief:** Collect comprehensive evidence for demo day including performance metrics (latency histogram, offline queue videos, 3-user demos, 60 FPS profiler traces), AI evaluation data (20-example eval table with accuracy percentages), setup documentation (README screenshots, TestFlight links), and final testing results. Create postmvp-completion-report.md with rubric checklist and update README with all evidence.
+
+**Dependencies:** PR #17, PR #18
+
+**Complexity:** Simple
+
+**Phase:** 5
+
+---
+
+## Summary
+
+**Total PRs:** 19  
+**Phases:** 5 (Performance → Technical → AI → Innovation → Evidence)  
+**Target Points:** 84-86 (need ≥80)  
+**Implementation Order:** Sequential within phases, parallel where dependencies allow
 
 **Key Dependencies:**
-- PR #1 (Firebase Setup) is foundational for all features
-- PR #3.5 (Google Sign-In) reduces signup friction and improves user onboarding
-- PR #6 (Real-Time Messaging) is the core messaging foundation
-- PR #7 (Optimistic UI) enables smooth user experience
-- PR #8 (Offline Support) is critical for user experience
+- Phase 1: Sequential (performance builds on performance)
+- Phase 2: Can start after Phase 1 PR #5
+- Phase 3: Requires Phase 1 completion
+- Phase 4: Requires Phase 3 completion  
+- Phase 5: Final evidence collection
+
+**Complexity Distribution:**
+- Simple: 4 PRs (Technical setup, documentation)
+- Medium: 10 PRs (Most AI features, group chat, lifecycle)
+- Complex: 5 PRs (Core performance, AI infrastructure, advanced features)

@@ -44,11 +44,9 @@ class ProfileViewModel: ObservableObject {
         
         do {
             user = try await userService.fetchCurrentUserProfile(authService: authService)
-            print("✅ Profile loaded successfully")
             
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to load profile: \(error.localizedDescription)")
         }
         
         isLoading = false
@@ -76,11 +74,9 @@ class ProfileViewModel: ObservableObject {
                 user = updatedUser
             }
             
-            print("✅ Profile updated successfully")
             
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to update profile: \(error.localizedDescription)")
             throw error
         }
         
@@ -127,11 +123,9 @@ class ProfileViewModel: ObservableObject {
             }
             
             uploadProgress = 1.0
-            print("✅ Profile photo uploaded successfully")
             
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to upload photo: \(error.localizedDescription)")
             throw error
         }
         

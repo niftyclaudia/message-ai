@@ -51,7 +51,6 @@ struct ProfilePhotoView: View {
         displayName: "John Doe",
         size: 120
     ) {
-        print("Photo tapped")
     }
 }
 

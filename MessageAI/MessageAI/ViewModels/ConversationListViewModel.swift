@@ -58,7 +58,6 @@ class ConversationListViewModel: ObservableObject {
             
         } catch {
             errorMessage = error.localizedDescription
-            print("⚠️ Failed to load chats: \(error)")
         }
         
         isLoading = false
@@ -113,11 +112,10 @@ class ConversationListViewModel: ObservableObject {
             presenceHandles[userID] = handle
         }
         
-        print("✅ Observing presence for \(userIDs.count) chat participants")
     }
     
     /// Stops observing presence for all users
-    nonisolated func stopObservingPresence() {
+    func stopObservingPresence() {
         for (userID, handle) in presenceHandles {
             presenceService.removeObserver(userID: userID, handle: handle)
         }
@@ -181,7 +179,6 @@ class ConversationListViewModel: ObservableObject {
             chats.removeAll { $0.id == chatID }
         } catch {
             errorMessage = "Failed to delete chat: \(error.localizedDescription)"
-            print("❌ Failed to delete chat \(chatID): \(error)")
         }
     }
     
@@ -208,7 +205,6 @@ class ConversationListViewModel: ObservableObject {
                     let user = try await userService.fetchUser(userID: userID)
                     chatUsers[userID] = user
                 } catch {
-                    print("⚠️ Failed to load user \(userID): \(error)")
                 }
             }
         }
@@ -217,9 +213,13 @@ class ConversationListViewModel: ObservableObject {
     // MARK: - Deinitialization
     
     deinit {
-        // Clean up listener without main actor isolation
+        // Clean up Firestore listener
         listener?.remove()
         listener = nil
-        stopObservingPresence()
+        
+        // Clean up presence observers - must be done synchronously in deinit
+        for (userID, handle) in presenceHandles {
+            presenceService.removeObserver(userID: userID, handle: handle)
+        }
     }
 }

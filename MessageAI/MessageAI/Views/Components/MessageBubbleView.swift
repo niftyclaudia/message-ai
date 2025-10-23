@@ -16,6 +16,8 @@ struct MessageBubbleView: View {
     let message: Message
     let isFromCurrentUser: Bool
     let status: MessageStatus
+    let showSenderName: Bool
+    let senderName: String?
     
     // MARK: - Body
     
@@ -26,6 +28,14 @@ struct MessageBubbleView: View {
             }
             
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
+                // Sender name for group chats
+                if showSenderName, let senderName = senderName {
+                    Text(senderName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+                }
+                
                 Text(message.text)
                     .font(.body)
                     .foregroundColor(isFromCurrentUser ? .white : .primary)
@@ -115,7 +125,9 @@ struct MessageBubbleView: View {
                 status: .delivered
             ),
             isFromCurrentUser: true,
-            status: .delivered
+            status: .delivered,
+            showSenderName: false,
+            senderName: nil
         )
         
         // Received message
@@ -129,13 +141,31 @@ struct MessageBubbleView: View {
                 status: .sent
             ),
             isFromCurrentUser: false,
-            status: .sent
+            status: .sent,
+            showSenderName: false,
+            senderName: nil
+        )
+        
+        // Group chat message with sender name
+        MessageBubbleView(
+            message: Message(
+                id: "3",
+                chatID: "chat1",
+                senderID: "user2",
+                text: "This is a group message",
+                timestamp: Date(),
+                status: .sent
+            ),
+            isFromCurrentUser: false,
+            status: .sent,
+            showSenderName: true,
+            senderName: "John Doe"
         )
         
         // Failed message
         MessageBubbleView(
             message: Message(
-                id: "3",
+                id: "4",
                 chatID: "chat1",
                 senderID: "user1",
                 text: "This message failed to send",
@@ -143,7 +173,9 @@ struct MessageBubbleView: View {
                 status: .failed
             ),
             isFromCurrentUser: true,
-            status: .failed
+            status: .failed,
+            showSenderName: false,
+            senderName: nil
         )
     }
     .padding()
