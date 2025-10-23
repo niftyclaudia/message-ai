@@ -317,6 +317,97 @@ class PerformanceMonitor {
         return csv
     }
     
+    // MARK: - PR-4 Lifecycle Metrics
+    
+    private var reconnectStart: Date?
+    private var deepLinkStart: Date?
+    
+    /// Marks the start of reconnect operation
+    func startReconnect() {
+        reconnectStart = Date()
+        log("Reconnect started")
+    }
+    
+    /// Marks the end of reconnect operation
+    /// - Returns: Reconnect time in milliseconds
+    @discardableResult
+    func endReconnect() -> Double? {
+        guard let startTime = reconnectStart else {
+            log("Warning: No reconnect start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let reconnectMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .reconnectLatency,
+            value: reconnectMs,
+            metadata: [:]
+        )
+        
+        metrics.append(metric)
+        reconnectStart = nil
+        
+        log("Reconnect completed in \(String(format: "%.1f", reconnectMs))ms")
+        
+        return reconnectMs
+    }
+    
+    /// Marks the start of deep link navigation
+    func startDeepLinkNavigation() {
+        deepLinkStart = Date()
+        log("Deep link navigation started")
+    }
+    
+    /// Marks the end of deep link navigation
+    /// - Returns: Navigation time in milliseconds
+    @discardableResult
+    func endDeepLinkNavigation() -> Double? {
+        guard let startTime = deepLinkStart else {
+            log("Warning: No deep link navigation start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let navMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .deepLinkNavigation,
+            value: navMs,
+            metadata: [:]
+        )
+        
+        metrics.append(metric)
+        deepLinkStart = nil
+        
+        log("Deep link navigation completed in \(String(format: "%.1f", navMs))ms")
+        
+        return navMs
+    }
+    
+    /// Track a lifecycle transition
+    /// - Parameters:
+    ///   - from: Source state
+    ///   - to: Destination state
+    ///   - duration: Transition duration in seconds
+    func trackLifecycleTransition(from: AppLifecycleState, to: AppLifecycleState, duration: TimeInterval) {
+        let durationMs = duration * 1000
+        
+        let metric = PerformanceMetric(
+            type: .lifecycleTransition,
+            value: durationMs,
+            metadata: [
+                "from": from.rawValue,
+                "to": to.rawValue
+            ]
+        )
+        
+        metrics.append(metric)
+        
+        log("Lifecycle transition \(from.rawValue) → \(to.rawValue): \(String(format: "%.1f", durationMs))ms")
+    }
+    
     // MARK: - Logging
     
     private func log(_ message: String) {
@@ -344,6 +435,10 @@ enum MetricType: String, CaseIterable {
     case presencePropagation = "presence_propagation"
     case typingIndicator = "typing_indicator"
     case scrollPerformance = "scroll_performance"
+    // PR #4: New lifecycle metrics
+    case lifecycleTransition = "lifecycle_transition"
+    case reconnectLatency = "reconnect_latency"
+    case deepLinkNavigation = "deeplink_navigation"
 }
 
 // MARK: - PerformanceStatistics Model

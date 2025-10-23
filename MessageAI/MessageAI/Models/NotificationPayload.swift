@@ -3,6 +3,7 @@
 //  MessageAI
 //
 //  Notification data structure for push notifications
+//  Enhanced for PR #4: Mobile Lifecycle Management (deep-linking support)
 //
 
 import Foundation
@@ -21,6 +22,10 @@ struct NotificationPayload: Codable {
     
     /// Text content of the message (first 100 characters)
     let messageText: String
+    
+    /// ID of the specific message (for deep-linking and highlighting)
+    /// - Note: Added in PR #4 for precise navigation
+    let messageID: String?
     
     /// Timestamp when notification was created
     let timestamp: Date
@@ -43,6 +48,7 @@ struct NotificationPayload: Codable {
         self.senderID = senderID
         self.senderName = senderName
         self.messageText = messageText
+        self.messageID = userInfo["messageID"] as? String  // Optional for deep-linking
         self.timestamp = Date()
     }
     
@@ -53,6 +59,7 @@ struct NotificationPayload: Codable {
         case senderID
         case senderName
         case messageText
+        case messageID
         case timestamp
     }
 }
