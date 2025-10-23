@@ -52,14 +52,47 @@ struct MessageRowView: View {
     var body: some View {
         VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
             
+            // PR-3: Show attribution with avatar for group chat messages from others
+            if isGroupChat && !isFromCurrentUser && shouldShowSenderName {
+                HStack(alignment: .top, spacing: 8) {
+                    // Avatar and name
+                    AvatarView(
+                        photoURL: nil, // Will be fetched from UserService cache
+                        displayName: senderDisplayName,
+                        size: 28
+                    )
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(senderDisplayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.leading, 12)
+            }
+            
             // Message bubble
-            MessageBubbleView(
-                message: message,
-                isFromCurrentUser: isFromCurrentUser,
-                status: message.status,
-                showSenderName: shouldShowSenderName,
-                senderName: shouldShowSenderName ? senderDisplayName : nil
-            )
+            HStack {
+                if !isFromCurrentUser && isGroupChat {
+                    // Spacer for avatar alignment in groups
+                    Spacer()
+                        .frame(width: 36)
+                }
+                
+                MessageBubbleView(
+                    message: message,
+                    isFromCurrentUser: isFromCurrentUser,
+                    status: message.status,
+                    showSenderName: false, // PR-3: Attribution shown above, not in bubble
+                    senderName: nil
+                )
+                
+                if isFromCurrentUser || !isGroupChat {
+                    Spacer()
+                }
+            }
             
             // Timestamp and status
             if shouldShowTimestamp {

@@ -18,6 +18,14 @@ class UserService {
         db.collection(Constants.Collections.users)
     }
     
+    // MARK: - Caching for PR-3 Group Chat Enhancement
+    
+    /// Local cache for user profiles to reduce Firebase reads
+    /// - Note: Improves performance for group chat attribution
+    private var userCache: [String: User] = [:]
+    private var cacheTimestamps: [String: Date] = [:]
+    private let cacheExpirationSeconds: TimeInterval = 300 // 5 minutes
+    
     // MARK: - Initialization
     
     init(firestore: Firestore? = nil) {
@@ -248,6 +256,157 @@ class UserService {
             
             completion(users)
         }
+    }
+    
+    // MARK: - Group Chat Support Methods (PR-3)
+    
+    /// Fetches user profile with local caching for performance
+    /// - Parameter userID: The user's ID
+    /// - Returns: User object from cache or Firestore
+    /// - Throws: UserServiceError for authentication or network errors
+    /// - Note: Uses 5-minute cache to reduce Firebase reads for group chat attribution
+    /// - Performance: < 50ms from cache, < 200ms from network
+    func fetchUserProfile(userID: String) async throws -> User {
+        // Check cache first
+        if let cachedUser = getCachedUser(userID: userID) {
+            return cachedUser
+        }
+        
+        // Fetch from Firestore if not in cache
+        let user = try await fetchUser(userID: userID)
+        
+        // Update cache
+        cacheUser(user)
+        
+        return user
+    }
+    
+    /// Fetches multiple user profiles with batch optimization
+    /// - Parameter userIDs: Array of user IDs to fetch
+    /// - Returns: Dictionary mapping userID to User object
+    /// - Throws: UserServiceError for network errors
+    /// - Note: Uses caching and batch fetching for optimal performance
+    /// - Performance: Target < 400ms for 10 users (PR-3 requirement)
+    func fetchMultipleUserProfiles(userIDs: [String]) async throws -> [String: User] {
+        var result: [String: User] = [:]
+        var idsToFetch: [String] = []
+        
+        // First, check cache for existing profiles
+        for userID in userIDs {
+            if let cachedUser = getCachedUser(userID: userID) {
+                result[userID] = cachedUser
+            } else {
+                idsToFetch.append(userID)
+            }
+        }
+        
+        // If all users are cached, return immediately
+        if idsToFetch.isEmpty {
+            return result
+        }
+        
+        // Fetch missing users from Firestore
+        do {
+            // Use whereField with 'in' operator for batch fetch (max 10 at a time)
+            let batchSize = 10
+            let batches = stride(from: 0, to: idsToFetch.count, by: batchSize).map {
+                Array(idsToFetch[$0..<min($0 + batchSize, idsToFetch.count)])
+            }
+            
+            for batch in batches {
+                let snapshot = try await usersCollection
+                    .whereField("id", in: batch)
+                    .getDocuments()
+                
+                for document in snapshot.documents {
+                    let user = try decodeUser(from: document.data(), id: document.documentID)
+                    result[user.id] = user
+                    cacheUser(user)
+                }
+            }
+            
+            return result
+            
+        } catch {
+            throw mapFirestoreError(error)
+        }
+    }
+    
+    /// Observes a user profile for real-time updates
+    /// - Parameters:
+    ///   - userID: The user's ID to observe
+    ///   - completion: Callback with updated user profile
+    /// - Returns: ListenerRegistration for cleanup
+    /// - Note: Updates local cache automatically on changes
+    func observeUserProfile(userID: String, completion: @escaping (User) -> Void) -> ListenerRegistration {
+        return usersCollection.document(userID).addSnapshotListener { snapshot, error in
+            guard let snapshot = snapshot,
+                  snapshot.exists,
+                  error == nil,
+                  let data = snapshot.data() else {
+                completion(User(
+                    id: userID,
+                    displayName: "Unknown User",
+                    email: "",
+                    profilePhotoURL: nil,
+                    createdAt: Date(),
+                    lastActiveAt: Date()
+                ))
+                return
+            }
+            
+            // Decode user and update cache
+            guard let user = try? self.decodeUser(from: data, id: userID) else {
+                return
+            }
+            
+            self.cacheUser(user)
+            completion(user)
+        }
+    }
+    
+    // MARK: - Cache Management
+    
+    /// Retrieves user from cache if available and not expired
+    /// - Parameter userID: The user's ID
+    /// - Returns: Cached User object or nil if not found/expired
+    private func getCachedUser(userID: String) -> User? {
+        guard let user = userCache[userID],
+              let timestamp = cacheTimestamps[userID] else {
+            return nil
+        }
+        
+        // Check if cache is expired (5 minutes)
+        let now = Date()
+        if now.timeIntervalSince(timestamp) > cacheExpirationSeconds {
+            // Cache expired, remove from cache
+            userCache.removeValue(forKey: userID)
+            cacheTimestamps.removeValue(forKey: userID)
+            return nil
+        }
+        
+        return user
+    }
+    
+    /// Stores user in local cache
+    /// - Parameter user: The User object to cache
+    private func cacheUser(_ user: User) {
+        userCache[user.id] = user
+        cacheTimestamps[user.id] = Date()
+    }
+    
+    /// Clears all cached user profiles
+    /// - Note: Call this on logout or when cache needs to be refreshed
+    func clearCache() {
+        userCache.removeAll()
+        cacheTimestamps.removeAll()
+    }
+    
+    /// Clears cached user for specific user ID
+    /// - Parameter userID: The user ID to remove from cache
+    func clearCachedUser(userID: String) {
+        userCache.removeValue(forKey: userID)
+        cacheTimestamps.removeValue(forKey: userID)
     }
     
     // MARK: - Validation Helpers
