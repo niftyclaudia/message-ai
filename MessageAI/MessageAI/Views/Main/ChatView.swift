@@ -298,18 +298,19 @@ struct ChatView: View {
         
         do {
             let messageService = MessageService()
-            let totalCount = try await messageService.getMessageCount(chatID: chat.id)
+            // Use viewModel's message count as the source of truth
+            let totalCount = viewModel.allMessages.count
             
             // Load initial window around the latest messages
             let startIndex = max(0, totalCount - 50)
             _ = try await windowing.loadWindow(
                 around: totalCount - 1,
                 totalCount: totalCount,
-                itemLoader: { startIndex, count in
+                itemLoader: { _, count in
+                    // Fetch messages using the existing API with limit parameter
                     try await messageService.fetchMessages(
                         chatID: chat.id,
-                        startIndex: startIndex,
-                        count: count
+                        limit: count
                     )
                 }
             )
