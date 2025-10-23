@@ -73,38 +73,143 @@ Post-MVP enhancements to transform the messaging app from a solid MVP into an Ex
 ## 🛠️ Phase 2: Technical Excellence & Deployment (12 points)
 
 **Goal:** Polish implementation, security, and get it deployed  
-**Status:** ⏳ PLANNED
+**Status:** 🔄 IN PROGRESS - Dual-agent parallel sprint  
+**Philosophy:** **Calm Intelligence** - Building a focus rehabilitation tool, not just a messaging app
 
-### 4 Categories
+### Phase 2 Update: Parallel Sprint Approach
+
+Phase 2 has been reorganized into two parallel work streams (Flow A + Flow B) to accelerate development while integrating **Calm Intelligence** principles throughout.
+
+**Reference**: See `MessageAI/docs/sprints/tomorrow-night-sprint-plan.md` for detailed sprint plan
+
+---
+
+### Flow A: UI/UX Polish (Agent A - develop branch)
+
+**Goal:** Essential messaging features with Calm Intelligence principles
+
+#### Core Features
+- **Image Upload & Display** - Send/view images in conversations
+  - Firebase Storage integration
+  - Offline queueing
+  - Lazy loading for performance
+  - Calm progress indicators
+
+- **Push Notifications** - Smart, gentle notifications
+  - **Calm Intelligence**: Bundle rapid messages (3 in 30s = 1 notification)
+  - Gentle defaults (soft sound, no vibration)
+  - Deep linking to conversations
+  - Don't notify if user actively viewing chat
+
+- **Add Contacts** - Search and add users
+  - Search by email/username
+  - Gentle empty states
+  - Create or navigate to existing chat
+
+- **Delete Messages** - User control over their messages
+  - Long-press to delete with gentle confirmation
+  - Offline queueing
+  - Calm visual feedback
+
+- **"All Caught Up" State** - Ambient reassurance
+  - **Calm Intelligence**: Psychological relief when inbox clear
+  - Green checkmark with calm design
+  - Reduces FOMO
+
+**Agent A Template**: `MessageAI/agents/develop/agent-a-ui-polish-template.md`
+
+---
+
+### Flow B: AI Infrastructure & Features (Agent B - secondagent branch)
+
+**Goal:** Transparent, supportive AI features
+
+#### AI Infrastructure
+- OpenAI GPT-4 integration via Cloud Functions
+- Swift AI service layer
+- Transparent response models (reasoning, confidence, signals)
+- Error handling and caching
+
+#### AI Features (2-3 features)
+- **Thread Summarization** - Long-press conversation → AI summary
+  - **Calm Intelligence**: "I analyzed 47 messages and focused on decisions. High confidence."
+  - Show reasoning, confidence, and signals
+  - Cache results
+
+- **Action Item Extraction** - Find tasks with transparency
+  - **Calm Intelligence**: "I identified this as an action item because Sarah said 'can you' and mentioned Friday"
+  - Link to source messages
+  - Show assignee, due date, reasoning
+
+- **Priority Detection** (bonus) - Adaptive prioritization
+  - **Calm Intelligence**: Not frequency-based, but emotional/temporal context
+  - Explain why: "@mentioned + deadline + from manager"
+
+- **Chatbot UI** (bonus if time) - Morning recap assistant
+  - Floating button for easy access
+  - "What did I miss?" functionality
+
+**Agent B Template**: `MessageAI/agents/secondagent/agent-b-ai-infra-template.md`
+
+---
+
+### Calm Intelligence Integration (Both Flows)
+
+**Four Core Principles Applied**:
+
+1. **Silence by Design**
+   - Flow A: Smart notification bundling, gentle defaults
+   - Flow B: Summaries instead of constant pings
+
+2. **Ambient Reassurance**
+   - Flow A: "All caught up" states
+   - Flow B: "You're up to date" from AI
+
+3. **Adaptive Prioritization**
+   - Flow A: Context-aware notification timing
+   - Flow B: Emotional/temporal context, not just frequency
+
+4. **Transparency-First AI**
+   - Flow B: Every AI decision includes reasoning, confidence, signals
+   - Flow A: Clear feedback on all actions
+
+**Reference**: See `MessageAI/docs/calm-intelligence-vision.md` for full philosophy
+
+---
+
+### Original Phase 2 Categories (Integrated into Flows)
 
 #### 2.1 Technical Implementation (4 pts)
-- Audit folder structure and organization
-- Review Firebase security rules (database, firestore, storage)
-- Secrets management (GoogleService-Info.plist not in git)
-- Document architecture with diagrams
-- Prep for AI: function calling setup
+- ✅ Audit folder structure and organization (PR #6 complete)
+- ✅ Review Firebase security rules (PR #6 complete)
+- ✅ Secrets management (PR #6 complete)
+- 🔄 Document architecture with diagrams (Flow A/B integration)
+- 🔄 Prep for AI: function calling setup (Flow B)
 
 #### 2.2 Authentication & Data Management (5 pts)
-- ✅ Auth flow complete (sign up/in/out)
-- Add password reset if missing
-- ✅ Profile editing (name + avatar)
-- Verify sync logic and offline cache
-- Multi-device sync testing
+- ✅ Auth flow complete (PR #7 complete)
+- ✅ Password reset functionality (PR #7 complete)
+- ✅ Profile editing (PR #7 complete)
+- ✅ Verify sync logic and offline cache (PR #7 complete)
+- ✅ Multi-device sync testing (PR #7 complete)
 
 #### 2.3 Repo & Setup (2 pts)
-- Comprehensive README (setup, env template, architecture)
-- One-command run or clear scripts
-- Test setup on fresh clone
+- ⏳ Comprehensive README (after sprint)
+- ⏳ One-command run or clear scripts (after sprint)
+- ⏳ Test setup on fresh clone (after sprint)
 
 #### 2.4 Deployment (1 pt)
-- TestFlight build OR simulator with clear instructions
-- Test on real device
-- Document access
+- ⏳ TestFlight build OR simulator instructions (after sprint)
+- ⏳ Test on real device (after sprint)
+- ⏳ Document access (after sprint)
 
 ### Key Deliverables
-- Security audit complete
-- Architecture documented
-- Deployed build accessible
+- Flow A features working (images, notifications, contacts, delete)
+- Flow B AI features working (summarization + action items with transparency)
+- Calm Intelligence principles integrated throughout
+- All tests passing
+- Documentation updated
+- Ready for deployment preparation
 
 ---
 
