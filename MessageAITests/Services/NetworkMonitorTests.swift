@@ -2,24 +2,24 @@
 //  NetworkMonitorTests.swift
 //  MessageAITests
 //
-//  Unit tests for NetworkMonitor service
+//  Unit tests for NetworkMonitorService
 //
 
 import Testing
 import Foundation
 @testable import MessageAI
 
-/// Tests for NetworkMonitor connectivity detection
+/// Tests for NetworkMonitorService connectivity detection
 struct NetworkMonitorTests {
     
     // MARK: - Test Properties
     
-    private var networkMonitor: NetworkMonitor!
+    private var networkMonitor: NetworkMonitorService!
     
     // MARK: - Setup
     
     init() {
-        networkMonitor = NetworkMonitor()
+        networkMonitor = NetworkMonitorService()
     }
     
     // MARK: - Connection Status Tests

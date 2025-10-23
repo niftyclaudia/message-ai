@@ -9,34 +9,37 @@ import Testing
 import Foundation
 @testable import MessageAI
 
-/// Tests for MessageService offline persistence and queuing
+/// Tests for offline persistence and queuing
 struct MessageServiceOfflineTests {
     
     // MARK: - Test Properties
     
-    private var messageService: MessageService!
+    private var offlineMessageService: OfflineMessageService!
+    private var networkMonitor: NetworkMonitorService!
     
     // MARK: - Setup
     
     init() {
-        messageService = MessageService()
+        offlineMessageService = OfflineMessageService()
+        networkMonitor = NetworkMonitorService()
     }
     
     // MARK: - Offline Message Queuing Tests
     
     @Test("Queue Message When Offline Stores Message Locally")
     func queueMessageWhenOfflineStoresMessageLocally() async throws {
-        // Given: A message service with offline queuing
+        // Given: An offline message service
         let chatID = "test-chat"
         let messageText = "Test offline message"
+        let senderID = "test-user"
         
         // When: Queue a message (simulating offline behavior)
-        let messageID = try await messageService.queueMessage(chatID: chatID, text: messageText)
+        let messageID = try await offlineMessageService.queueMessageOffline(chatID: chatID, text: messageText, senderID: senderID)
         
         // Then: Message should be stored in queue
         #expect(!messageID.isEmpty)
         
-        let queuedMessages = messageService.getQueuedMessages()
+        let queuedMessages = offlineMessageService.getOfflineMessages()
         #expect(queuedMessages.count == 1)
         #expect(queuedMessages.first?.text == messageText)
         #expect(queuedMessages.first?.chatID == chatID)
@@ -45,37 +48,37 @@ struct MessageServiceOfflineTests {
     @Test("Get Queued Message Count Returns Correct Count")
     func getQueuedMessageCountReturnsCorrectCount() async throws {
         // Given: Empty queue
-        #expect(messageService.getQueuedMessageCount() == 0)
+        #expect(offlineMessageService.getQueuedMessageCount() == 0)
         
         // When: Queue multiple messages
-        _ = try await messageService.queueMessage(chatID: "chat1", text: "Message 1")
-        _ = try await messageService.queueMessage(chatID: "chat2", text: "Message 2")
+        _ = try await offlineMessageService.queueMessageOffline(chatID: "chat1", text: "Message 1", senderID: "test-user")
+        _ = try await offlineMessageService.queueMessageOffline(chatID: "chat2", text: "Message 2", senderID: "test-user")
         
         // Then: Count should be correct
-        #expect(messageService.getQueuedMessageCount() == 2)
+        #expect(offlineMessageService.getQueuedMessageCount() == 2)
     }
     
     @Test("Clear All Queued Messages Removes All Messages")
     func clearAllQueuedMessagesRemovesAllMessages() async throws {
         // Given: Queue with messages
-        _ = try await messageService.queueMessage(chatID: "chat1", text: "Message 1")
-        _ = try await messageService.queueMessage(chatID: "chat2", text: "Message 2")
-        #expect(messageService.getQueuedMessageCount() == 2)
+        _ = try await offlineMessageService.queueMessageOffline(chatID: "chat1", text: "Message 1", senderID: "test-user")
+        _ = try await offlineMessageService.queueMessageOffline(chatID: "chat2", text: "Message 2", senderID: "test-user")
+        #expect(offlineMessageService.getQueuedMessageCount() == 2)
         
         // When: Clear all queued messages
-        messageService.clearAllQueuedMessages()
+        offlineMessageService.clearOfflineMessages()
         
         // Then: Queue should be empty
-        #expect(messageService.getQueuedMessageCount() == 0)
+        #expect(offlineMessageService.getQueuedMessageCount() == 0)
     }
     
     @Test("Has Retryable Messages Returns True When Messages Can Be Retried")
     func hasRetryableMessagesReturnsTrueWhenMessagesCanBeRetried() async throws {
         // Given: Queue with messages that haven't exceeded retry limit
-        _ = try await messageService.queueMessage(chatID: "chat1", text: "Message 1")
+        _ = try await offlineMessageService.queueMessageOffline(chatID: "chat1", text: "Message 1", senderID: "test-user")
         
         // When: Check for retryable messages
-        let hasRetryable = messageService.hasRetryableMessages()
+        let hasRetryable = offlineMessageService.hasRetryableMessages()
         
         // Then: Should have retryable messages
         #expect(hasRetryable == true)
@@ -83,29 +86,32 @@ struct MessageServiceOfflineTests {
     
     @Test("Queue Size Limit Enforced")
     func queueSizeLimitEnforced() async throws {
-        // Given: A message service with queue size limit
+        // Given: An offline message service with 3-message queue limit
         let chatID = "test-chat"
+        let senderID = "test-user"
         
-        // When: Try to queue more messages than the limit (100)
-        // Note: This test would need to be adjusted based on actual implementation
-        // For now, we'll test the basic functionality
+        // When: Queue up to the limit (3 messages)
+        _ = try await offlineMessageService.queueMessageOffline(chatID: chatID, text: "Message 1", senderID: senderID)
+        _ = try await offlineMessageService.queueMessageOffline(chatID: chatID, text: "Message 2", senderID: senderID)
+        _ = try await offlineMessageService.queueMessageOffline(chatID: chatID, text: "Message 3", senderID: senderID)
         
-        // Queue a reasonable number of messages
-        for i in 1...5 {
-            _ = try await messageService.queueMessage(chatID: chatID, text: "Message \(i)")
-        }
+        // Then: Should have 3 messages (oldest gets removed when adding 4th)
+        #expect(offlineMessageService.getQueuedMessageCount() == 3)
         
-        // Then: Messages should be queued successfully
-        #expect(messageService.getQueuedMessageCount() == 5)
+        // When: Queue one more (should replace oldest)
+        _ = try await offlineMessageService.queueMessageOffline(chatID: chatID, text: "Message 4", senderID: senderID)
+        
+        // Then: Should still have 3 messages
+        #expect(offlineMessageService.getQueuedMessageCount() == 3)
     }
     
     // MARK: - Network Status Tests
     
     @Test("Is Online Returns Network Status")
     func isOnlineReturnsNetworkStatus() {
-        // Given: A message service
+        // Given: A network monitor
         // When: Check online status
-        let isOnline = messageService.isOnline()
+        let isOnline = networkMonitor.isOnline()
         
         // Then: Should return a boolean value
         #expect(isOnline == true || isOnline == false)
@@ -113,9 +119,9 @@ struct MessageServiceOfflineTests {
     
     @Test("Get Connection Type Returns Valid Type")
     func getConnectionTypeReturnsValidType() {
-        // Given: A message service
+        // Given: A network monitor
         // When: Get connection type
-        let connectionType = messageService.getConnectionType()
+        let connectionType = networkMonitor.connectionType
         
         // Then: Should return a valid connection type
         #expect(connectionType == .wifi || connectionType == .cellular || 

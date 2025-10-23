@@ -55,8 +55,6 @@ class PerformanceService: ObservableObject {
         
         // Start app launch tracking
         performanceMonitor.startAppLaunch()
-        
-        print("PerformanceService: Started performance monitoring")
     }
     
     /// Stops performance monitoring
@@ -66,8 +64,6 @@ class PerformanceService: ObservableObject {
         isMonitoring = false
         monitoringTimer?.invalidate()
         monitoringTimer = nil
-        
-        print("PerformanceService: Stopped performance monitoring")
     }
     
     /// Measures launch time

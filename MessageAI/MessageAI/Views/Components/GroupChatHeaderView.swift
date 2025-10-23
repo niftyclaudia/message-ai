@@ -89,7 +89,7 @@ struct GroupChatHeaderView: View {
                 }
             }
         } catch {
-            print("GroupChatHeaderView: Error loading member names: \(error.localizedDescription)")
+            // Silently fail - member names are not critical for header
         }
     }
 }

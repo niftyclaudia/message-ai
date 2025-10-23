@@ -32,6 +32,8 @@ class AppLifecycleManager: ObservableObject {
     
     private let presenceService: PresenceService
     private let messageService: MessageService
+    @MainActor
+    private lazy var offlineViewModel: OfflineViewModel = OfflineViewModel()
     private var cancellables = Set<AnyCancellable>()
     private var currentUserID: String?
     private var authStateListener: AuthStateDidChangeListenerHandle?
@@ -145,9 +147,11 @@ class AppLifecycleManager: ObservableObject {
                 // Set user online
                 try await presenceService.setUserOnline(userID: userID)
                 
-                // Sync messages from server (prioritize any active chat)
-                try await messageService.syncQueuedMessages()
-                let syncedCount = messageService.getQueuedMessageCount()
+                // Sync offline messages when reconnecting
+                await offlineViewModel.retryFailedMessages()
+                let syncedCount = await MainActor.run {
+                    offlineViewModel.getOfflineMessages().count
+                }
                 
                 // Calculate and track reconnect duration
                 let duration = Date().timeIntervalSince(transitionStart)
@@ -191,11 +195,14 @@ class AppLifecycleManager: ObservableObject {
                 let duration = Date().timeIntervalSince(transitionStart)
                 
                 // Log transition event
+                let pendingCount = await MainActor.run {
+                    offlineViewModel.getOfflineMessages().count
+                }
                 let event = LifecycleTransitionEvent(
                     from: previousState,
                     to: .background,
                     duration: duration,
-                    messagesPending: messageService.getQueuedMessageCount()
+                    messagesPending: pendingCount
                 )
                 transitionEvents.append(event)
             } catch {
