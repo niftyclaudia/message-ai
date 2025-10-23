@@ -104,6 +104,7 @@ service-account-key.json
 firebase-debug.log*
 firestore-debug.log*
 .firebase/
+GoogleService-Info.plist
 
 # Firebase Functions
 functions/node_modules/

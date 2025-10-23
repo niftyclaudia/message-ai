@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "MessageAI OpenAI Function Schemas",
+  "description": "Function definitions for OpenAI function calling integration (Phase 3)",
+  "version": "1.0.0",
+  "functions": [
+    {
+      "name": "sendMessage",
+      "description": "Send a message to a chat. Use this when the user wants to send a message to an existing conversation or create a new message in a chat.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chatID": {
+            "type": "string",
+            "description": "The unique identifier of the chat where the message should be sent. Must be a valid chat ID from the chats collection."
+          },
+          "text": {
+            "type": "string",
+            "description": "The message text content to send. Must be non-empty and less than 10,000 characters."
+          }
+        },
+        "required": ["chatID", "text"]
+      },
+      "returns": {
+        "type": "string",
+        "description": "The unique identifier (messageID) of the newly created message."
+      },
+      "example": {
+        "input": {
+          "chatID": "chat_abc123",
+          "text": "Hello, this is an AI-generated message!"
+        },
+        "output": "msg_xyz789"
+      },
+      "implementation": {
+        "service": "MessageService",
+        "method": "sendMessage(chatID:text:)",
+        "async": true,
+        "errors": [
+          "Chat not found",
+          "User not a member of chat",
+          "Text exceeds maximum length",
+          "Network error"
+        ]
+      }
+    },
+    {
+      "name": "searchMessages",
+      "description": "Search for messages across all chats using text-based search. Returns messages that match the search query. In Phase 3, this will be enhanced with semantic search using embeddings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query text. Will match against message content using text search (Phase 2) or semantic search with embeddings (Phase 3)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results to return. Defaults to 20. Maximum is 100.",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "chatID": {
+            "type": "string",
+            "description": "Optional. If provided, only search within this specific chat. If omitted, search across all chats the user has access to.",
+            "optional": true
+          }
+        },
+        "required": ["query"]
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Message ID"
+            },
+            "text": {
+              "type": "string",
+              "description": "Message content"
+            },
+            "senderID": {
+              "type": "string",
+              "description": "User ID of sender"
+            },
+            "chatID": {
+              "type": "string",
+              "description": "Chat ID where message was sent"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the message was sent (ISO 8601)"
+            },
+            "relevanceScore": {
+              "type": "number",
+              "description": "Relevance score (0.0 to 1.0) for semantic search (Phase 3 only)"
+            }
+          }
+        },
+        "description": "Array of messages matching the search query, sorted by relevance or timestamp."
+      },
+      "example": {
+        "input": {
+          "query": "meeting tomorrow",
+          "limit": 10
+        },
+        "output": [
+          {
+            "id": "msg_123",
+            "text": "Don't forget the meeting tomorrow at 3 PM",
+            "senderID": "user_456",
+            "chatID": "chat_789",
+            "timestamp": "2025-10-22T14:30:00Z",
+            "relevanceScore": 0.95
+          }
+        ]
+      },
+      "implementation": {
+        "service": "MessageService",
+        "method": "searchMessages(query:limit:chatID:)",
+        "async": true,
+        "status": "Phase 3 - To be implemented with OpenAI embeddings",
+        "notes": [
+          "Phase 2: Basic text search using Firestore queries",
+          "Phase 3: Semantic search with OpenAI embeddings",
+          "Consider using Algolia/Typesense for advanced search"
+        ]
+      }
+    },
+    {
+      "name": "summarizeThread",
+      "description": "Generate a summary of recent messages in a chat thread. Useful for catching up on long conversations or providing context to AI agents.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chatID": {
+            "type": "string",
+            "description": "The unique identifier of the chat to summarize."
+          },
+          "messageCount": {
+            "type": "integer",
+            "description": "Number of recent messages to include in the summary. Defaults to 50. Maximum is 200.",
+            "default": 50,
+            "minimum": 10,
+            "maximum": 200
+          },
+          "summaryLength": {
+            "type": "string",
+            "enum": ["brief", "moderate", "detailed"],
+            "description": "Desired summary length. 'brief' = 1-2 sentences, 'moderate' = 1 paragraph, 'detailed' = multiple paragraphs.",
+            "default": "moderate"
+          }
+        },
+        "required": ["chatID"]
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "AI-generated summary of the thread"
+          },
+          "messageCount": {
+            "type": "integer",
+            "description": "Number of messages analyzed"
+          },
+          "timeRange": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp of oldest message in summary"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp of newest message in summary"
+              }
+            }
+          },
+          "keyTopics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Main topics discussed in the thread"
+          }
+        },
+        "description": "Summary object containing the summary text and metadata."
+      },
+      "example": {
+        "input": {
+          "chatID": "chat_abc123",
+          "messageCount": 50,
+          "summaryLength": "moderate"
+        },
+        "output": {
+          "summary": "The conversation focused on planning the Q4 product launch. Team members discussed timeline concerns, agreed on a November 15th launch date, and assigned action items for marketing materials and technical documentation.",
+          "messageCount": 50,
+          "timeRange": {
+            "start": "2025-10-20T09:00:00Z",
+            "end": "2025-10-23T16:45:00Z"
+          },
+          "keyTopics": ["product launch", "timeline", "marketing", "documentation"]
+        }
+      },
+      "implementation": {
+        "service": "MessageService / AIService",
+        "method": "summarizeThread(chatID:messageCount:summaryLength:)",
+        "async": true,
+        "status": "Phase 3 - To be implemented",
+        "dependencies": [
+          "OpenAI API integration",
+          "Prompt engineering for summaries",
+          "Token counting and cost management"
+        ],
+        "notes": [
+          "Fetch recent messages using ChatService.fetchRecentMessages()",
+          "Format messages as conversation history",
+          "Call OpenAI API with summarization prompt",
+          "Cache summaries to reduce API costs",
+          "Consider streaming for long summaries"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "phase": "Phase 3 - AI Integration",
+    "openai_model_recommended": "gpt-4-turbo-preview",
+    "authentication": {
+      "type": "Firebase Auth Token",
+      "description": "All function calls must be authenticated. The AI agent must have valid Firebase credentials and be authorized to perform actions on behalf of the user."
+    },
+    "rate_limiting": {
+      "sendMessage": "10 messages per minute per user",
+      "searchMessages": "30 requests per minute per user",
+      "summarizeThread": "10 requests per hour per user (due to OpenAI API costs)"
+    },
+    "security_considerations": [
+      "AI agents can only access chats the authenticated user has access to",
+      "Message sending requires valid chat membership",
+      "Search results filtered by user's chat memberships",
+      "All actions logged for audit trail",
+      "Rate limiting prevents abuse"
+    ],
+    "cost_considerations": [
+      "Each summarizeThread call costs ~$0.01-0.05 depending on thread length",
+      "searchMessages with embeddings costs ~$0.0001 per search",
+      "sendMessage is free (only Firebase costs)"
+    ]
+  },
+  "future_functions": [
+    {
+      "name": "translateMessage",
+      "description": "Translate a message to another language",
+      "status": "Planned for Phase 4"
+    },
+    {
+      "name": "suggestReply",
+      "description": "Generate smart reply suggestions based on conversation context",
+      "status": "Planned for Phase 4"
+    },
+    {
+      "name": "extractActionItems",
+      "description": "Extract action items and to-dos from conversation",
+      "status": "Planned for Phase 4"
+    }
+  ]
+}
+

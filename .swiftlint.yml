@@ -1,0 +1,111 @@
+# SwiftLint Configuration
+# Industry-standard Swift code quality rules
+
+# Disable default rules that are too strict or noisy
+disabled_rules:
+  - trailing_whitespace  # Too noisy during development
+  - todo  # Allow TODO comments with tickets
+
+# Opt-in rules (not enabled by default but valuable)
+opt_in_rules:
+  - explicit_init  # Avoid .init() ambiguity
+  - explicit_type_interface  # Require explicit types on public APIs
+  - fatal_error_message  # Require messages in fatalError
+  - closure_spacing  # Proper spacing in closures
+  - empty_count  # Use isEmpty instead of count == 0
+  - explicit_acl  # Explicit access control
+  - explicit_top_level_acl  # Explicit access control on top-level
+  - first_where  # Use .first(where:) instead of .filter.first
+  - modifier_order  # Consistent modifier ordering
+  - multiline_parameters  # Clean multi-line parameters
+  - sorted_imports  # Alphabetical imports
+  - vertical_parameter_alignment_on_call  # Align parameters
+
+# Line Length
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+# Function Length
+function_body_length:
+  warning: 50
+  error: 100
+
+# Type Body Length
+type_body_length:
+  warning: 300
+  error: 500
+
+# File Length
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+
+# Identifier Names
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - id
+    - x
+    - y
+    - db
+    - vm
+    - vc
+
+# Type Names
+type_name:
+  min_length: 3
+  max_length:
+    warning: 40
+    error: 50
+
+# Force Cast/Unwrap
+force_cast: error
+force_unwrapping: warning
+force_try: error
+
+# Custom Rules
+custom_rules:
+  # No print statements (use proper logging)
+  no_print_statements:
+    name: "No print statements"
+    regex: '\bprint\s*\('
+    message: "Use proper logging instead of print(). Use Logger or os_log."
+    severity: warning
+  
+  # No empty lines at start of file
+  no_empty_first_line:
+    name: "No empty first line"
+    regex: '^\n'
+    message: "Remove empty line at start of file"
+    severity: warning
+
+# Excluded paths (don't lint these)
+excluded:
+  - Pods
+  - .build
+  - DerivedData
+  - .swiftpm
+  - MessageAI.xcodeproj
+  - MessageAI.xcworkspace
+  - build
+  - fastlane
+  - MessageAITests/Mocks  # Allow flexible code in mocks
+  - MessageAIUITests  # UI tests can be more flexible
+
+# Included paths (explicitly lint these)
+included:
+  - MessageAI/MessageAI
+  - MessageAITests
+
+# Reporter
+reporter: "xcode"  # Xcode-compatible format for inline warnings
+

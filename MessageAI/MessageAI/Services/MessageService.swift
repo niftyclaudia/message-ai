@@ -18,7 +18,7 @@ class MessageService {
     private let firestore: Firestore
     private let userDefaults = UserDefaults.standard
     private let maxRetryCount = 3
-    private let maxQueueSize = 100
+    private let maxQueueSize = 3 // PR-2 requirement: 3-message queue
     
     // Make queue key user-specific to prevent cross-device/simulator conflicts
     private var queueKey: String {
@@ -150,6 +150,9 @@ class MessageService {
             
             // Commit batch atomically
             try await batch.commit()
+            
+            // Update message status to sent after successful server commit
+            try await updateMessageStatus(messageID: messageID, status: .sent)
             
             // Track server ack latency
             PerformanceMonitor.shared.endMessageSend(messageID: messageID, phase: "serverAck")
@@ -416,9 +419,11 @@ class MessageService {
             // Sort by server timestamp for consistent ordering
             let sortedMessages = self.sortMessagesByServerTimestamp(messages)
             
-            // Track render latency for performance monitoring
+            // Track render latency for performance monitoring (only for messages sent by current user)
             for message in sortedMessages {
-                PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+                if message.senderID == Auth.auth().currentUser?.uid {
+                    PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+                }
             }
             
             completion(sortedMessages)
