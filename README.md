@@ -176,26 +176,97 @@ See [MVP Completion Report](MessageAI/docs/mvp-completion-report.md) for details
 
 ### Prerequisites
 
-- Xcode 15.0+
-- iOS 18.5+
-- Firebase project configured
+- **Xcode**: 15.0+
+- **iOS**: 18.5+
+- **macOS**: Monterey or later
+- **Firebase Project**: Configured with Authentication, Firestore, Storage, and Realtime Database
+- **Homebrew**: For SwiftLint installation (optional but recommended)
 
-### Installation
+### Installation (5-Minute Setup)
 
-1. Clone the repository:
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/niftyclaudia/message-ai.git
-cd MessageAI
+cd MessagingApp-secondagent
 ```
 
-2. Open the project:
+#### 2. Set Up Firebase Configuration
+
+⚠️ **IMPORTANT**: Never commit `GoogleService-Info.plist` to git!
+
 ```bash
-open MessageAI/MessageAI.xcodeproj
+# Copy the template file
+cp MessageAI/MessageAI/GoogleService-Info.template.plist MessageAI/MessageAI/GoogleService-Info.plist
+
+# Open the file and replace placeholders with your Firebase credentials
+# Get your credentials from: https://console.firebase.google.com/
+# Project Settings → Your Apps → Download GoogleService-Info.plist
 ```
 
-3. Ensure `GoogleService-Info.plist` is present in the project
+**Replace these values:**
+- `REPLACE_WITH_YOUR_CLIENT_ID`
+- `REPLACE_WITH_YOUR_API_KEY`
+- `REPLACE_WITH_YOUR_GCM_SENDER_ID`
+- `REPLACE_WITH_YOUR_PROJECT_ID`
+- `REPLACE_WITH_YOUR_STORAGE_BUCKET`
+- `REPLACE_WITH_YOUR_APP_ID`
 
-4. Build and run (Cmd+R)
+#### 3. Install Pre-Commit Hook (Security)
+
+The pre-commit hook prevents accidental commits of secrets:
+
+```bash
+# Hook is already installed at .git/hooks/pre-commit
+# Test it works:
+git add MessageAI/MessageAI/GoogleService-Info.plist
+git commit -m "test"
+# Should be blocked with error message ✅
+git reset HEAD MessageAI/MessageAI/GoogleService-Info.plist
+```
+
+#### 4. Install SwiftLint (Optional)
+
+```bash
+brew install swiftlint
+
+# Verify installation
+swiftlint version
+```
+
+SwiftLint will run automatically during Xcode builds once installed.
+
+#### 5. Open and Build
+
+```bash
+# Open the project
+open MessageAI/MessageAI.xcodeproj
+
+# Build and run (Cmd+R)
+# Select target: MessageAI
+# Select destination: iPhone 15 Simulator (or physical device)
+```
+
+**Expected result**: App launches, shows login screen ✅
+
+### First-Time Setup Validation
+
+Run these checks to ensure everything works:
+
+```bash
+# 1. Check Firebase config exists (should NOT error)
+ls MessageAI/MessageAI/GoogleService-Info.plist
+
+# 2. Check template exists
+ls MessageAI/MessageAI/GoogleService-Info.template.plist
+
+# 3. Run SwiftLint (optional)
+swiftlint lint --quiet
+
+# 4. Run tests
+xcodebuild test -scheme MessageAI -destination 'platform=iOS Simulator,name=iPhone 15'
+```
+
+All checks should pass ✅
 
 ### Push Notifications Setup
 
@@ -312,6 +383,110 @@ RootView (checks auth state)
 - **@EnvironmentObject**: Injected to child views
 - **@Published**: Auth state changes propagate instantly to UI
 
+## Architecture Overview
+
+MessageAI follows **MVVM (Model-View-ViewModel)** architecture with a dedicated **Service Layer**.
+
+### Architecture Layers
+
+```
+Views (SwiftUI)
+    ↓ @StateObject / @ObservedObject
+ViewModels (@MainActor, ObservableObject)
+    ↓ Async method calls
+Services (Protocol-based)
+    ↓ Firebase SDK
+Firebase (Backend)
+```
+
+### Key Architectural Decisions
+
+- **MVVM Pattern**: Clean separation of UI, state management, and business logic
+- **Service Layer**: All Firebase operations abstracted behind protocols
+- **Protocol-Based**: Easy mocking for tests, clean dependency injection
+- **Real-Time Listeners**: Firestore snapshots for instant message sync (<100ms)
+- **Offline-First**: Local caching with automatic sync on reconnect
+
+### Documentation
+
+- 📁 **[File Structure](docs/architecture/file-structure.md)** - Complete directory organization
+- 📊 **[Message Flow](docs/architecture/message-flow.md)** - Data flow diagrams and sequence charts
+- 📝 **[ADR-001: Firebase Backend](docs/architecture/adr-001-firebase.md)** - Why we chose Firebase
+- 📝 **[ADR-002: MVVM Architecture](docs/architecture/adr-002-mvvm.md)** - Why we chose MVVM
+
+### Phase 3: AI Integration (Planned)
+
+- 🤖 **[AI Integration Guide](docs/ai-integration/README.md)** - OpenAI function calling setup
+- 🔧 **[Function Schemas](docs/ai-integration/function-schemas.json)** - AI-callable functions
+
+## Security & Best Practices
+
+### 🔒 Secrets Management
+
+**Never commit sensitive files!**
+
+Protected files (automatically blocked by pre-commit hook):
+- `GoogleService-Info.plist` - Firebase config
+- `*.p8` - APNs authentication keys
+- `*.pem` - Certificates
+- `.env*` - Environment files
+- `*APNs*.p8` - Push notification keys
+
+**How it works:**
+1. `.gitignore` blocks files from being tracked
+2. Pre-commit hook prevents accidental commits
+3. Template files provide safe scaffolding
+
+**If you need to override** (rare):
+```bash
+git commit --no-verify  # Use with caution!
+```
+
+### 🔐 Firebase Security Rules
+
+All Firebase services have production-ready security rules:
+
+**Firestore** (`firestore.rules`):
+- ✅ Users can only read/write chats they're members of
+- ✅ Message senders must match authenticated user
+- ✅ Read receipts can only be updated by chat members
+- ✅ All operations require authentication
+
+**Storage** (`storage.rules`):
+- ✅ Users can only upload to their own profile photo path
+- ✅ Max 5MB file size limit
+- ✅ Images only (no arbitrary files)
+
+**Realtime Database** (`database.rules.json`):
+- ✅ Users can only update their own presence
+- ✅ All users can read presence (for online indicators)
+
+**Deploy rules:**
+```bash
+firebase deploy --only firestore:rules
+firebase deploy --only storage
+firebase deploy --only database
+```
+
+### 📏 Code Quality (SwiftLint)
+
+SwiftLint enforces code quality standards automatically.
+
+**Configuration**: `.swiftlint.yml`
+- Line length: Warning at 120, error at 200
+- Force unwrapping: Warning (use guard/if let)
+- Force casting: Error (use safe casting)
+- Custom rules: No print statements (use Logger)
+
+**Run manually:**
+```bash
+swiftlint lint              # Check all files
+swiftlint lint --quiet      # Only show errors
+swiftlint autocorrect       # Fix auto-correctable issues
+```
+
+**Xcode integration**: SwiftLint runs automatically on build (if installed)
+
 ## Code Standards
 
 See `MessageAI/agents/shared-standards.md` for detailed coding standards.
@@ -324,6 +499,42 @@ See `MessageAI/agents/shared-standards.md` for detailed coding standards.
 - Proper use of @State, @StateObject, @EnvironmentObject
 - All async operations properly awaited
 - User-friendly error messages
+- All service operations are protocol-based for testability
+
+### Layer Responsibilities
+
+**Views MUST:**
+- Be SwiftUI structs
+- Have no business logic
+- Only call ViewModel methods
+- Be presentation-only
+
+**Views MUST NOT:**
+- Import FirebaseFirestore
+- Have @Published properties
+- Contain business logic
+
+**ViewModels MUST:**
+- Conform to ObservableObject
+- Be marked @MainActor
+- Use @Published for UI state
+- Call Service methods
+
+**ViewModels MUST NOT:**
+- Import SwiftUI (View, Color, Font)
+- Perform Firebase operations directly
+- Contain UI layout code
+
+**Services MUST:**
+- Be protocol-based
+- Handle all Firebase operations
+- Return plain Swift types
+- Be stateless
+
+**Services MUST NOT:**
+- Import SwiftUI
+- Reference ViewModels or Views
+- Manage UI state
 
 ## Performance Targets
 
