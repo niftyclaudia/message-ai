@@ -3,6 +3,7 @@
 //  MessageAI
 //
 //  Core notification management service for push notifications
+//  Enhanced for PR #4: Mobile Lifecycle Management (deep-linking support)
 //
 
 import Foundation
@@ -12,13 +13,22 @@ import FirebaseFirestore
 
 /// Service for managing push notifications and device tokens
 /// - Note: Handles permission requests, token registration, and notification processing
+/// - PR #4: Added deep-linking support with messageID
 @MainActor
 class NotificationService: NSObject, ObservableObject {
+    
+    // MARK: - Published Properties
+    
+    /// Current deep link to navigate to (set by notification tap)
+    @Published var activeDeepLink: DeepLink?
     
     // MARK: - Properties
     
     /// Firestore database reference
     private let db = Firestore.firestore()
+    
+    /// Deep linking service for navigation
+    private let deepLinkingService = DeepLinkingService()
     
     // MARK: - Initialization
     
@@ -100,11 +110,26 @@ class NotificationService: NSObject, ObservableObject {
     }
     
     /// Handle notification tap (background or terminated)
+    /// - PR #4: Enhanced to create and publish deep link for navigation
     /// - Parameter response: UNNotificationResponse object
     /// - Returns: ChatID to navigate to, or nil if invalid
     func handleNotificationTap(_ response: UNNotificationResponse) -> String? {
         let userInfo = response.notification.request.content.userInfo
-        return parseNotificationPayload(userInfo)?.chatID
+        
+        // Start tracking navigation time for < 400ms target
+        PerformanceMonitor.shared.startNavigation(from: "notification_tap")
+        
+        // Parse payload and create deep link
+        if let payload = parseNotificationPayload(userInfo) {
+            let deepLink = deepLinkingService.createDeepLink(from: payload)
+            
+            // Set active deep link for navigation
+            activeDeepLink = deepLink
+            
+            return payload.chatID
+        }
+        
+        return nil
     }
     
     /// Parse notification payload into structured data
@@ -112,6 +137,17 @@ class NotificationService: NSObject, ObservableObject {
     /// - Returns: NotificationPayload if valid, nil otherwise
     func parseNotificationPayload(_ userInfo: [AnyHashable: Any]) -> NotificationPayload? {
         return NotificationPayload(userInfo: userInfo)
+    }
+    
+    /// Clear the active deep link after navigation completes
+    func clearDeepLink() {
+        activeDeepLink = nil
+    }
+    
+    /// Get the deep linking service for advanced operations
+    /// - Returns: DeepLinkingService instance
+    func getDeepLinkingService() -> DeepLinkingService {
+        return deepLinkingService
     }
     
     // MARK: - Private Methods

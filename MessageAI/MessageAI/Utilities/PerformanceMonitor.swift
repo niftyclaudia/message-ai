@@ -317,6 +317,208 @@ class PerformanceMonitor {
         return csv
     }
     
+    // MARK: - PR-5 Performance Metrics
+    
+    private var scrollStart: Date?
+    private var uiResponseStart: Date?
+    private var keyboardTransitionStart: Date?
+    
+    // MARK: - PR-4 Lifecycle Metrics
+    
+    private var reconnectStart: Date?
+    private var deepLinkStart: Date?
+    
+    /// Marks the start of reconnect operation
+    func startReconnect() {
+        reconnectStart = Date()
+        log("Reconnect started")
+    }
+    
+    /// Marks the end of reconnect operation
+    /// - Returns: Reconnect time in milliseconds
+    @discardableResult
+    func endReconnect() -> Double? {
+        guard let startTime = reconnectStart else {
+            log("Warning: No reconnect start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let reconnectMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .reconnectLatency,
+            value: reconnectMs,
+            metadata: [:]
+        )
+        
+        metrics.append(metric)
+        reconnectStart = nil
+        
+        log("Reconnect completed in \(String(format: "%.1f", reconnectMs))ms")
+        
+        return reconnectMs
+    }
+    
+    /// Marks the start of deep link navigation
+    func startDeepLinkNavigation() {
+        deepLinkStart = Date()
+        log("Deep link navigation started")
+    }
+    
+    /// Marks the end of deep link navigation
+    /// - Returns: Navigation time in milliseconds
+    @discardableResult
+    func endDeepLinkNavigation() -> Double? {
+        guard let startTime = deepLinkStart else {
+            log("Warning: No deep link navigation start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let navMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .deepLinkNavigation,
+            value: navMs,
+            metadata: [:]
+        )
+        
+        metrics.append(metric)
+        deepLinkStart = nil
+        
+        log("Deep link navigation completed in \(String(format: "%.1f", navMs))ms")
+        
+        return navMs
+    }
+    
+    /// Track a lifecycle transition
+    /// - Parameters:
+    ///   - from: Source state
+    ///   - to: Destination state
+    ///   - duration: Transition duration in seconds
+    func trackLifecycleTransition(from: AppLifecycleState, to: AppLifecycleState, duration: TimeInterval) {
+        let durationMs = duration * 1000
+        
+        let metric = PerformanceMetric(
+            type: .lifecycleTransition,
+            value: durationMs,
+            metadata: [
+                "from": from.rawValue,
+                "to": to.rawValue
+            ]
+        )
+        
+        metrics.append(metric)
+        
+        log("Lifecycle transition \(from.rawValue) → \(to.rawValue): \(String(format: "%.1f", durationMs))ms")
+    }
+    
+    // MARK: - PR-5 Scroll Performance Tracking
+    
+    /// Marks the start of scroll performance measurement
+    func startScrollPerformance() {
+        scrollStart = Date()
+        log("Scroll performance measurement started")
+    }
+    
+    /// Marks the end of scroll performance measurement
+    /// - Parameter fps: Frames per second achieved
+    /// - Returns: Scroll performance duration in milliseconds
+    @discardableResult
+    func endScrollPerformance(fps: Double) -> Double? {
+        guard let startTime = scrollStart else {
+            log("Warning: No scroll performance start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let durationMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .scrollPerformance,
+            value: fps,
+            metadata: ["duration_ms": "\(String(format: "%.1f", durationMs))"]
+        )
+        
+        metrics.append(metric)
+        scrollStart = nil
+        
+        log("Scroll performance: \(String(format: "%.1f", fps)) FPS over \(String(format: "%.1f", durationMs))ms")
+        
+        return durationMs
+    }
+    
+    // MARK: - PR-5 UI Response Time Tracking
+    
+    /// Marks the start of UI response measurement
+    /// - Parameter action: The user action being measured
+    func startUIResponse(action: String) {
+        uiResponseStart = Date()
+        log("UI response measurement started for: \(action)")
+    }
+    
+    /// Marks the end of UI response measurement
+    /// - Parameter action: The user action that completed
+    /// - Returns: UI response time in milliseconds
+    @discardableResult
+    func endUIResponse(action: String) -> Double? {
+        guard let startTime = uiResponseStart else {
+            log("Warning: No UI response start time for action: \(action)")
+            return nil
+        }
+        
+        let endTime = Date()
+        let responseMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .uiResponse,
+            value: responseMs,
+            metadata: ["action": action]
+        )
+        
+        metrics.append(metric)
+        uiResponseStart = nil
+        
+        log("UI response for \(action): \(String(format: "%.1f", responseMs))ms")
+        
+        return responseMs
+    }
+    
+    // MARK: - PR-5 Keyboard Transition Tracking
+    
+    /// Marks the start of keyboard transition
+    func startKeyboardTransition() {
+        keyboardTransitionStart = Date()
+        log("Keyboard transition started")
+    }
+    
+    /// Marks the end of keyboard transition
+    /// - Returns: Keyboard transition time in milliseconds
+    @discardableResult
+    func endKeyboardTransition() -> Double? {
+        guard let startTime = keyboardTransitionStart else {
+            log("Warning: No keyboard transition start time")
+            return nil
+        }
+        
+        let endTime = Date()
+        let transitionMs = endTime.timeIntervalSince(startTime) * 1000
+        
+        let metric = PerformanceMetric(
+            type: .keyboardTransition,
+            value: transitionMs,
+            metadata: [:]
+        )
+        
+        metrics.append(metric)
+        keyboardTransitionStart = nil
+        
+        log("Keyboard transition completed in \(String(format: "%.1f", transitionMs))ms")
+        
+        return transitionMs
+    }
+    
     // MARK: - Logging
     
     private func log(_ message: String) {
@@ -344,6 +546,13 @@ enum MetricType: String, CaseIterable {
     case presencePropagation = "presence_propagation"
     case typingIndicator = "typing_indicator"
     case scrollPerformance = "scroll_performance"
+    // PR #4: New lifecycle metrics
+    case lifecycleTransition = "lifecycle_transition"
+    case reconnectLatency = "reconnect_latency"
+    case deepLinkNavigation = "deeplink_navigation"
+    // PR #5: New performance metrics
+    case uiResponse = "ui_response"
+    case keyboardTransition = "keyboard_transition"
 }
 
 // MARK: - PerformanceStatistics Model
