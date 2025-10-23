@@ -427,7 +427,7 @@ class ChatViewModel: ObservableObject {
                 if isOffline {
                     // Queue all messages for offline delivery
                     for text in messages {
-                        _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                        _ = try await offlineViewModel.queueMessageOffline(chatID: chat.id, text: text, senderID: currentUserID)
                     }
                     await MainActor.run {
                         updateQueuedMessageCount()
@@ -444,7 +444,7 @@ class ChatViewModel: ObservableObject {
                         // Burst failed - queue individual messages
                         for text in messages {
                             do {
-                                _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                                _ = try await offlineViewModel.queueMessageOffline(chatID: chat.id, text: text, senderID: currentUserID)
                             } catch {
                                 // Individual queue failure - continue with others
                             }
@@ -490,8 +490,8 @@ class ChatViewModel: ObservableObject {
                         optimisticMessages[index].isOptimistic = false
                     }
                 } else {
-                    // Fallback to regular retry
-                    try await messageService.retryFailedMessage(messageID: messageID)
+                    // Retry all failed messages through offline service
+                    await offlineViewModel.retryFailedMessages()
                     await MainActor.run {
                         updateQueuedMessageCount()
                     }
@@ -535,23 +535,17 @@ class ChatViewModel: ObservableObject {
     /// Syncs queued messages when connection is restored
     func syncQueuedMessages() {
         Task {
-            do {
-                try await messageService.syncQueuedMessages()
-                await MainActor.run {
-                    updateQueuedMessageCount()
-                }
-            } catch {
-                await MainActor.run {
-                    updateQueuedMessageCount() // Update even on failure
-                    errorMessage = "Failed to sync messages: \(error.localizedDescription)"
-                }
+            await offlineViewModel.retryFailedMessages()
+            await MainActor.run {
+                updateQueuedMessageCount()
+                updateRetryableMessages()
             }
         }
     }
     
     /// Updates the queued message count
     func updateQueuedMessageCount() {
-        queuedMessageCount = messageService.getQueuedMessages().count
+        queuedMessageCount = offlineViewModel.getOfflineMessages().count
     }
     
     /// PR-2: Updates offline state from the offline view model
@@ -620,7 +614,7 @@ class ChatViewModel: ObservableObject {
     
     /// Updates the retryable messages state
     func updateRetryableMessages() {
-        hasRetryableMessages = messageService.hasRetryableMessages()
+        hasRetryableMessages = offlineViewModel.getOfflineMessages().contains { $0.canRetry(maxRetries: 3) }
     }
     
     /// Retries all failed messages
@@ -630,19 +624,10 @@ class ChatViewModel: ObservableObject {
         }
         
         Task {
-            do {
-                try await messageService.retryAllFailedMessages()
-                await MainActor.run {
-                    updateQueuedMessageCount()
-                    updateRetryableMessages()
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = "Failed to retry messages: \(error.localizedDescription)"
-                }
-            }
-            
+            await offlineViewModel.retryFailedMessages()
             await MainActor.run {
+                updateQueuedMessageCount()
+                updateRetryableMessages()
                 isRetrying = false
             }
         }
@@ -650,7 +635,7 @@ class ChatViewModel: ObservableObject {
     
     /// Clears all queued messages
     func clearAllQueuedMessages() {
-        messageService.clearAllQueuedMessages()
+        offlineViewModel.clearOfflineMessages()
         Task { @MainActor in
             updateQueuedMessageCount()
             updateRetryableMessages()
@@ -659,7 +644,7 @@ class ChatViewModel: ObservableObject {
     
     /// Gets the current connection type
     func getConnectionType() -> ConnectionType {
-        return messageService.getConnectionType()
+        return networkMonitor.connectionType
     }
     
     // MARK: - Group Chat Methods

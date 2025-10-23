@@ -317,21 +317,13 @@ extension OptimisticUI {
     ///   - messageID: The message ID to retry
     ///   - messageService: The message service
     /// - Returns: Success or failure
+    /// - Note: Retry logic is now handled by OfflineViewModel and SyncService
     func retryOptimisticMessage(
         messageID: String,
         messageService: MessageService
     ) async -> Bool {
-        
-        do {
-            _ = try await retryFailedOperation(
-                operation: {
-                    try await messageService.retryFailedMessage(messageID: messageID)
-                },
-                maxRetries: maxRetries
-            )
-            return true
-        } catch {
-            return false
-        }
+        // Optimistic message retry is now handled through OfflineViewModel
+        // and SyncService - this method is deprecated
+        return false
     }
 }
