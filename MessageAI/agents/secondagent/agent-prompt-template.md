@@ -45,7 +45,7 @@ Key reminders:
 - Create all test files (unit, UI, service)
 - Run tests to verify everything works
 - Verify with user before creating PR
-- Create PR to secondagent branch when approved
+- Create PR to develop branch when approved
 - Work autonomously until complete
 
 Start by reading your instruction file, then begin.
@@ -129,5 +129,5 @@ Start by reading your instruction file, then begin.
   - `MessageAI/agents/secondagent/{agent-type}-template.md` for detailed instructions
   - Templates for structure (prd-template.md and test-template.md at root level)
 
-- **Branch strategy**: Always from `secondagent`, PR targets `secondagent`
+- **Branch strategy**: Always from `develop`, PR targets `develop`
 

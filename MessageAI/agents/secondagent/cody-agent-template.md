@@ -28,7 +28,7 @@ When starting, you will receive:
 
 ### Step 1: Setup
 
-Create branch FROM secondagent:
+Create branch FROM develop:
 ```bash
 git checkout secondagent
 git pull origin secondagent
@@ -124,14 +124,14 @@ Check every gate from PRD Section 12:
 
 ### Step 7: Create Pull Request
 
-**IMPORTANT: PR must target `secondagent` branch, NOT `main`**
+**IMPORTANT: PR must target `develop` branch, NOT `main`**
 
 **PR title format:**
 ```
 PR #{number}: {Feature Name}
 ```
 
-**Base branch:** `secondagent`  
+**Base branch:** `develop`  
 **Compare branch:** `feat/pr-{number}-{feature-name}`
 
 **PR description must include:**
@@ -287,7 +287,7 @@ git checkout -b feat/pr-1-message-send
 # - Confirm: "Ready for PR?"
 # - WAIT for approval
 
-# 8. Create PR (targeting secondagent)
+# 8. Create PR (targeting develop)
 git add .
 git commit -m "feat: add message send functionality"
 git push origin feat/pr-1-message-send
