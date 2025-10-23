@@ -66,16 +66,17 @@ struct ProfileView: View {
             .sheet(isPresented: $showEditProfile) {
                 ProfileEditView()
                     .environmentObject(authService)
-                    .onDisappear {
-                        // Refresh profile when edit sheet is dismissed
-                        Task {
-                            await viewModel.loadProfile(authService: authService)
-                        }
-                    }
             }
             .task {
-                // Pass the environment's authService to the ViewModel
+                // Load profile initially
                 await viewModel.loadProfile(authService: authService)
+                
+                // Start observing for real-time updates
+                viewModel.observeProfile(authService: authService)
+            }
+            .onDisappear {
+                // Stop observing when view disappears
+                viewModel.stopObserving()
             }
         }
     }

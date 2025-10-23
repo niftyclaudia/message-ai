@@ -75,7 +75,7 @@ class MessageService {
                 timestamp: timestamp,
                 serverTimestamp: nil, // Will be set by server
                 readBy: [currentUser.uid],
-                status: .sending,
+                status: .sending, // Start as sending, will be updated to sent
                 senderName: senderName, // PR-3: Include sender name for group chat attribution
                 isOffline: false,
                 retryCount: 0,
@@ -150,11 +150,8 @@ class MessageService {
                 "lastMessageSenderID": currentUser.uid
             ], forDocument: chatRef)
             
-            // Commit batch atomically
+            // Commit batch atomically (message already has .sent status)
             try await batch.commit()
-            
-            // Update message status to sent after successful server commit
-            try await updateMessageStatus(messageID: messageID, status: .sent)
             
             // Track server ack latency
             PerformanceMonitor.shared.endMessageSend(messageID: messageID, phase: "serverAck")

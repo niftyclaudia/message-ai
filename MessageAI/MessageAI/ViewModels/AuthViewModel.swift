@@ -121,6 +121,31 @@ class AuthViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Send password reset email
+    /// - Parameter email: User's email address
+    /// - Note: Updates isLoading and errorMessage during operation
+    func sendPasswordReset(email: String) async {
+        // Client-side validation
+        if email.isEmpty {
+            showErrorAlert("Please enter your email address")
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            try await authService.sendPasswordResetEmail(email: email)
+            // Success - show success message
+            showErrorAlert("Check your email for password reset instructions")
+            
+        } catch {
+            showErrorAlert(getUserFriendlyMessage(for: error))
+        }
+        
+        isLoading = false
+    }
+    
     /// Sign out current user
     func signOut() async {
         // Remove FCM token before logout

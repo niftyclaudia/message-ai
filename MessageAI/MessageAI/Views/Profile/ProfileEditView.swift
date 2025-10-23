@@ -78,7 +78,9 @@ struct ProfileEditView: View {
                             
                             TextField("Enter your name", text: $displayName)
                                 .textFieldStyle(.roundedBorder)
-                                .autocapitalization(.words)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .textInputAutocapitalization(.never)
                             
                             HStack {
                                 Text("\(characterCount)/\(Constants.Validation.displayNameMaxLength)")
