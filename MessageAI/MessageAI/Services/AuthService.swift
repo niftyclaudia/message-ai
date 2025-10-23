@@ -116,7 +116,7 @@ class AuthService: ObservableObject {
         }
         
         do {
-            let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
+            _ = try await Auth.auth().signIn(withEmail: email, password: password)
             
         } catch {
             throw mapAuthError(error)
@@ -174,8 +174,8 @@ class AuthService: ObservableObject {
                     try await userService.createUser(userID: userID, displayName: displayName, email: email)
 
                     // Optionally update profile photo URL if available
-                    if let photoURL = user.profile?.imageURL(withDimension: 200) {
-                        // Store photo URL in user document
+                    if let _ = user.profile?.imageURL(withDimension: 200) {
+                        // TODO: Store photo URL in user document
                         // This can be enhanced to download and upload to Firebase Storage
                     }
 
