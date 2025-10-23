@@ -20,6 +20,7 @@ struct ChatView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
     @State private var showChatInfo: Bool = false
+    @State private var showMemberList: Bool = false // PR-3: Show group member list
     @State private var currentUserName: String = ""
     
     
@@ -125,15 +126,16 @@ struct ChatView: View {
                     .foregroundColor(.blue)
             }
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(chatTitle)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                if chat.isGroupChat {
-                    Text("\(chat.members.count) members")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            // PR-3: Use GroupChatHeaderView for group chats, standard header for 1-on-1
+            if chat.isGroupChat {
+                GroupChatHeaderView(chat: chat) {
+                    showMemberList = true
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(chatTitle)
+                        .font(.headline)
+                        .foregroundColor(.primary)
                 }
             }
             
@@ -151,6 +153,10 @@ struct ChatView: View {
         .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
         .sheet(isPresented: $showChatInfo) {
             ChatInfoView(chat: chat, otherUser: otherUser)
+        }
+        .sheet(isPresented: $showMemberList) {
+            // PR-3: Group member list with live presence
+            GroupMemberListView(chat: chat)
         }
     }
     
