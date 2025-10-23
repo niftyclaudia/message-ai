@@ -16,9 +16,11 @@ struct ChatView: View {
     let chat: Chat
     let otherUser: User?
     @StateObject private var viewModel: ChatViewModel
+    @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
     @State private var showChatInfo: Bool = false
+    @State private var currentUserName: String = ""
     
     
     // MARK: - Initialization
@@ -39,6 +41,11 @@ struct ChatView: View {
             
             // Messages area
             messagesArea
+            
+            // Typing indicator
+            if !viewModel.typingUsers.isEmpty {
+                TypingIndicatorView(typingUsers: viewModel.typingUsers)
+            }
             
             // Offline indicator
             OfflineIndicatorView(
@@ -65,10 +72,19 @@ struct ChatView: View {
                 isSending: $viewModel.isSending,
                 isOffline: $viewModel.isOffline,
                 onSend: {
+                    viewModel.userStoppedTyping() // Clear typing indicator before sending
                     viewModel.sendMessage(text: messageText)
                     messageText = ""
                 }
             )
+            .onChange(of: messageText) { oldValue, newValue in
+                // Trigger typing indicator when user types
+                if !newValue.isEmpty && oldValue != newValue {
+                    viewModel.userStartedTyping(userName: currentUserName)
+                } else if newValue.isEmpty {
+                    viewModel.userStoppedTyping()
+                }
+            }
             .onTapGesture {
                 // This helps ensure the text field can be tapped
             }
@@ -85,10 +101,26 @@ struct ChatView: View {
             
             // Set up presence monitoring for all chats
             viewModel.setupGroupMemberPresence(chat: chat)
+            
+            // Set up typing indicators
+            viewModel.observeTyping(chatID: chat.id)
+            
+            // Fetch current user's display name
+            if let userID = authService.currentUser?.uid {
+                do {
+                    let userService = UserService()
+                    let user = try await userService.fetchUser(userID: userID)
+                    currentUserName = user.displayName
+                } catch {
+                    // Fallback to email or default
+                    currentUserName = authService.currentUser?.email ?? "User"
+                }
+            }
         }
         .onDisappear {
             viewModel.stopObserving()
             viewModel.stopGroupMemberPresence()
+            viewModel.userStoppedTyping() // Clear typing status when leaving chat
         }
     }
     

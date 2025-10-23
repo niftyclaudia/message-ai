@@ -8,6 +8,15 @@
         ".read": "auth != null",
         ".write": "auth != null && auth.uid == $userID"
       }
+    },
+    
+    "typing": {
+      "$chatID": {
+        ".read": "auth != null",
+        "$userID": {
+          ".write": "auth != null && auth.uid == $userID"
+        }
+      }
     }
   }
 }

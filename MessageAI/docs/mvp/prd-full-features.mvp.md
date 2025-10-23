@@ -170,9 +170,9 @@ These are the non-negotiable features for launch, corresponding to the 10 hard r
 
 ### Should Have (P1)
 
-* Users can see an "is typing..." indicator.
-* Users can edit their display name and profile picture.
-* Users can search their contact list to start a new chat.
+* ✅ Users can see an "is typing..." indicator (Completed: Pre-Phase).
+* ✅ Users can edit their display name and profile picture (Completed: PR #3).
+* ✅ Users can search their contact list to start a new chat (Completed: PR #3).
 
 ### Could Have (P2)
 

@@ -8,12 +8,22 @@ This document contains common standards referenced by all agent templates to avo
 
 All features MUST maintain these targets:
 
-- **App load time**: < 2-3 seconds (cold start to interactive UI)
-- **Message delivery latency**: < 100ms (send to receive)
-- **Scrolling**: Smooth 60fps with 100+ messages
+### Phase 1 (Post-MVP) Targets
+- **App load time**: < 2 seconds (cold start to interactive UI)
+- **Navigation**: Inbox → thread < 400ms
+- **Message delivery latency**: p95 < 200ms (send → server ack → render)
+- **Scrolling**: Smooth 60fps with 1000+ messages (list windowing required)
+- **Burst messaging**: 20+ messages rapidly with no lag or out-of-order renders
+- **Presence propagation**: < 500ms for all online users
+- **Typing indicators**: < 200ms appearance, < 500ms hide after idle
 - **Tap feedback**: < 50ms response time
 - **No UI blocking**: Keep main thread responsive
 - **Smooth animations**: Use SwiftUI best practices
+
+### MVP Baseline Targets (for reference)
+- **App load time**: < 2-3 seconds (cold start to interactive UI)
+- **Message delivery latency**: < 100ms (send to receive)
+- **Scrolling**: Smooth 60fps with 100+ messages
 
 ---
 
@@ -21,6 +31,19 @@ All features MUST maintain these targets:
 
 Every feature involving messaging MUST address:
 
+### Phase 1 (Post-MVP) Requirements
+- **Sync speed**: Messages sync across devices in < 200ms (p95)
+- **Burst handling**: 20+ messages rapidly with no visible lag or out-of-order renders
+- **Offline behavior**: 3-message queue in Airplane Mode → visible 'Queued' → auto-send on reconnect
+- **Network resilience**: 30s+ network drop → auto-reconnect; full sync completes in < 1s
+- **Force-quit recovery**: Full chat history preserved after force-quit
+- **Optimistic UI**: Immediate visual feedback before server confirmation
+- **Concurrent messaging**: Handle multiple simultaneous messages gracefully
+- **Works with 3+ devices**: Test multi-device scenarios
+- **Presence system**: Online/offline status propagates within < 500ms
+- **Typing indicators**: Multi-user support ("Alice & Bob are typing...")
+
+### MVP Baseline Requirements (for reference)
 - **Sync speed**: Messages sync across devices in < 100ms
 - **Offline behavior**: Messages queue and send on reconnect
 - **Optimistic UI**: Immediate visual feedback before server confirmation
@@ -97,6 +120,21 @@ This project uses a **hybrid testing approach**:
 - Tests: Firebase interactions, async operations, error handling
 
 ### Test Coverage Requirements
+
+#### Phase 1 (Post-MVP) Requirements
+- ✅ Happy path scenarios
+- ✅ Edge cases (empty input, offline, errors)
+- ✅ Multi-user scenarios (3+ simultaneous users)
+- ✅ Performance targets (p95 < 200ms, 60fps with 1000+ messages)
+- ✅ Real-time sync (<200ms p95)
+- ✅ Offline persistence (3-message queue, force-quit recovery)
+- ✅ Burst messaging (20+ messages rapidly)
+- ✅ Presence propagation (<500ms)
+- ✅ Typing indicators (multi-user, <200ms appearance)
+- ✅ Network resilience (30s+ drops, <1s sync)
+- ✅ Group chat performance (3+ users simultaneously)
+
+#### MVP Baseline Requirements (for reference)
 - ✅ Happy path scenarios
 - ✅ Edge cases (empty input, offline, errors)
 - ✅ Multi-user scenarios
@@ -105,6 +143,69 @@ This project uses a **hybrid testing approach**:
 - ✅ Offline persistence
 
 ### Multi-Device Testing Pattern (Swift Testing)
+
+#### Phase 1 (Post-MVP) Testing Patterns
+```swift
+// Burst messaging test (20+ messages rapidly)
+@Test("Burst Messaging Handles 20+ Messages Without Lag")
+func burstMessagingHandles20PlusMessagesWithoutLag() async throws {
+    let service = MessageService()
+    let chatID = "test-chat"
+    
+    // Send 20 messages rapidly
+    let startTime = Date()
+    for i in 1...20 {
+        try await service.sendMessage(chatID: chatID, text: "Message \(i)")
+    }
+    let endTime = Date()
+    
+    // Should complete without visible lag
+    let duration = endTime.timeIntervalSince(startTime)
+    #expect(duration < 5.0) // 20 messages in < 5 seconds
+}
+
+// Presence propagation test
+@Test("Presence Status Propagates Within 500ms")
+func presenceStatusPropagatesWithin500ms() async throws {
+    let service1 = PresenceService()
+    let service2 = PresenceService()
+    
+    // Device 1 goes online
+    let startTime = Date()
+    try await service1.setOnline()
+    
+    // Wait for propagation
+    try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+    
+    // Device 2 should see Device 1 as online
+    let isOnline = try await service2.isUserOnline(userID: "device1")
+    #expect(isOnline == true)
+}
+
+// Performance measurement test
+@Test("Message Delivery p95 Latency Under 200ms")
+func messageDeliveryP95LatencyUnder200ms() async throws {
+    let service = MessageService()
+    let latencies: [TimeInterval] = []
+    
+    // Send 100 messages and measure latency
+    for _ in 1...100 {
+        let startTime = Date()
+        try await service.sendMessage(chatID: "test", text: "test")
+        let latency = Date().timeIntervalSince(startTime)
+        latencies.append(latency)
+    }
+    
+    // Calculate p95
+    let sortedLatencies = latencies.sorted()
+    let p95Index = Int(Double(sortedLatencies.count) * 0.95)
+    let p95Latency = sortedLatencies[p95Index]
+    
+    #expect(p95Latency < 0.2) // < 200ms
+}
+```
+
+#### MVP Baseline Testing Pattern (for reference)
 ```swift
 // Automated test simulating multiple devices
 @Test("Message Sync Across Devices Completes Within 100ms")
@@ -127,6 +228,39 @@ func messageSyncAcrossDevicesCompletesWithin100ms() async throws {
     #expect(messages.contains { $0.id == messageID })
 }
 ```
+
+---
+
+## Phase 1 (Post-MVP) Specific Requirements
+
+### Performance Measurement & Evidence Collection
+
+All Phase 1 features MUST include:
+
+#### Performance Measurement Tools
+- **Latency tracking**: Measure p50, p95, p99 latencies for all operations
+- **Performance monitoring**: Use `PerformanceMonitor.swift` for real-time metrics
+- **Evidence collection**: Screenshots, videos, and timing data for each category
+
+#### Required Evidence Types
+- **Latency histograms**: Visual representation of performance distributions
+- **Demo videos**: Real-time performance demonstrations
+- **Screenshots**: UI states, timing measurements, performance metrics
+- **Timing data**: Measured latencies, sync times, propagation speeds
+
+#### Testing Scenarios
+- **Burst testing**: 20+ messages in < 5 seconds
+- **Multi-device sync**: 3+ devices simultaneously
+- **Offline scenarios**: Airplane Mode, force-quit, network drops
+- **Group chat**: 3+ users messaging simultaneously
+- **Lifecycle transitions**: Background/foreground, push notifications
+
+#### Performance Targets by Category
+- **Real-Time Delivery**: p95 < 200ms, burst handling, presence < 500ms
+- **Offline Persistence**: 3-message queue, force-quit recovery, 30s+ network drops
+- **Group Chat**: 3+ simultaneous users, attribution, read receipts
+- **Mobile Lifecycle**: Instant sync, push notifications, no message loss
+- **Performance & UX**: < 2s launch, 60fps with 1000+ messages, optimistic UI
 
 ---
 
@@ -187,6 +321,16 @@ git checkout -b feat/pr-1-message-send
 
 ## Success Metrics Template
 
+### Phase 1 (Post-MVP) Metrics
+- **User-visible**: Time to complete task, number of taps, flow completion
+- **System**: p95 message latency < 200ms, app load < 2s, 60fps with 1000+ messages
+- **Performance**: Burst messaging (20+ messages), presence propagation < 500ms
+- **Offline**: 3-message queue, force-quit recovery, 30s+ network resilience
+- **Group chat**: 3+ simultaneous users, attribution, read receipts
+- **Quality**: 0 blocking bugs, all acceptance gates pass, crash-free rate >99%
+- **Evidence**: Latency histograms, demo videos, timing data, screenshots
+
+### MVP Baseline Metrics (for reference)
 - **User-visible**: Time to complete task, number of taps, flow completion
 - **System**: Message delivery latency, app load time, scrolling fps
 - **Quality**: 0 blocking bugs, all acceptance gates pass, crash-free rate >99%
@@ -231,3 +375,26 @@ ScrollView {
 1. Optimize Firebase queries with indexes
 2. Use Firebase batch writes
 3. Ensure Firestore persistence enabled
+
+### Issue: Phase 1 performance targets not met
+**Solution:**
+1. Use `PerformanceMonitor.swift` to measure actual latencies
+2. Profile with Xcode Instruments to identify bottlenecks
+3. Implement list windowing for 1000+ messages
+4. Optimize Firebase listener setup and caching
+5. Test burst scenarios (20+ messages) under load
+
+### Issue: Presence propagation slow (>500ms)
+**Solution:**
+1. Use Firebase Realtime Database for presence (faster than Firestore)
+2. Implement onDisconnect hooks properly
+3. Test multi-device scenarios with timing measurements
+4. Consider WebSocket connections for critical presence updates
+
+### Issue: Offline queue not working properly
+**Solution:**
+1. Verify Firestore offline persistence is enabled
+2. Test 3-message queue in Airplane Mode
+3. Implement proper UI indicators ("Queued", "Sending X...")
+4. Test force-quit and recovery scenarios
+5. Measure sync completion time (< 1s target)

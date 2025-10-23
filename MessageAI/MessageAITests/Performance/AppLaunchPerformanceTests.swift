@@ -30,7 +30,8 @@ final class AppLaunchPerformanceTests: XCTestCase {
         measure(metrics: [XCTCPUMetric(), XCTMemoryMetric()]) {
             // Simulate LoginView initialization
             let authService = AuthService()
-            let viewModel = AuthViewModel(authService: authService)
+            let mockNotificationService = MockNotificationService()
+            let viewModel = AuthViewModel(authService: authService, notificationService: mockNotificationService)
             
             // Views should be lightweight
             XCTAssertNotNil(viewModel)
