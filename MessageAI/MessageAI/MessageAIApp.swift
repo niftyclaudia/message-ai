@@ -64,10 +64,11 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Messagin
     
     /// Navigate to specific chat from notification
     /// - Parameter chatID: Chat ID to navigate to
+    /// - Note: PR #4: Deep-link navigation handled by NotificationService and DeepLinkViewModel
     private func navigateToChat(chatID: String) {
-        // TODO: Implement navigation to specific chat
-        // This would require passing the chatID to the root view
-        // The actual navigation will be handled by the ConversationListView
+        // Deep-link navigation is now handled by NotificationService
+        // which publishes activeDeepLink for DeepLinkViewModel to process
+        // Navigation timing tracked to meet < 400ms target
     }
 }
 

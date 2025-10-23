@@ -850,4 +850,43 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    // MARK: - PR-4 Deep Link Support
+    
+    /// Message ID to highlight (set from deep link)
+    @Published var highlightedMessageID: String?
+    
+    /// Whether to scroll to a specific message
+    @Published var scrollToMessageID: String?
+    
+    /// Scrolls to a specific message and optionally highlights it
+    /// - PR #4: Used for deep-link navigation from push notifications (< 400ms target)
+    /// - Parameters:
+    ///   - messageID: The message ID to scroll to
+    ///   - shouldHighlight: Whether to highlight the message with animation
+    func scrollToMessage(messageID: String, shouldHighlight: Bool = true) {
+        let startTime = Date()
+        
+        // Set scroll target
+        scrollToMessageID = messageID
+        
+        // Set highlight if requested
+        if shouldHighlight {
+            highlightedMessageID = messageID
+            
+            // Auto-clear highlight after 2 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.highlightedMessageID = nil
+            }
+        }
+        
+        // Track navigation time
+        PerformanceMonitor.shared.endDeepLinkNavigation()
+    }
+    
+    /// Clears the scroll target and highlight
+    func clearScrollTarget() {
+        scrollToMessageID = nil
+        highlightedMessageID = nil
+    }
+    
 }
