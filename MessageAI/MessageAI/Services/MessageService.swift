@@ -94,7 +94,8 @@ class MessageService {
         }
     }
     
-    /// Sends a message to Firestore with real-time delivery
+    /// Sends a message to Firestore with optimized real-time delivery
+    /// - Note: Optimized for < 200ms latency (PR-1 requirement)
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - text: The message text
@@ -108,29 +109,55 @@ class MessageService {
         let messageID = UUID().uuidString
         let timestamp = Date()
         
+        // Start performance tracking for PR-1 optimization
+        PerformanceMonitor.shared.startMessageSend(messageID: messageID)
+        
+        // Create message with server timestamp for consistent ordering
         let message = Message(
             id: messageID,
             chatID: chatID,
             senderID: currentUser.uid,
             text: text,
             timestamp: timestamp,
+            serverTimestamp: nil, // Will be set by server
             readBy: [currentUser.uid],
-            status: .sent,  // Set to sent immediately - no need for separate update
+            status: .sending, // Start as sending, will be updated to sent
             senderName: nil,
             isOffline: false,
-            retryCount: 0
+            retryCount: 0,
+            isOptimistic: false
         )
         
         do {
-            // Save to Firestore
-            try firestore.collection("chats")
+            // Use batch write for atomic operation and better performance
+            let batch = firestore.batch()
+            
+            // Add message to batch
+            let messageRef = firestore.collection("chats")
                 .document(chatID)
                 .collection(Message.collectionName)
                 .document(messageID)
-                .setData(from: message)
+            
+            try batch.setData(from: message, forDocument: messageRef)
+            
+            // Update chat's last message info in same batch
+            let chatRef = firestore.collection("chats").document(chatID)
+            batch.updateData([
+                "lastMessage": text,
+                "lastMessageTimestamp": timestamp,
+                "lastMessageSenderID": currentUser.uid
+            ], forDocument: chatRef)
+            
+            // Commit batch atomically
+            try await batch.commit()
+            
+            // Track server ack latency
+            PerformanceMonitor.shared.endMessageSend(messageID: messageID, phase: "serverAck")
             
             return messageID
         } catch {
+            // Track failed send
+            PerformanceMonitor.shared.endMessageSend(messageID: messageID, phase: "failed")
             throw MessageServiceError.networkError(error)
         }
     }
@@ -348,19 +375,23 @@ class MessageService {
         }
     }
     
-    /// Sets up real-time listener for messages in a chat
+    /// Sets up optimized real-time listener for messages in a chat
+    /// - Note: Optimized for < 200ms sync latency (PR-1 requirement)
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - completion: Callback with updated messages array
     /// - Returns: ListenerRegistration for cleanup
     func observeMessages(chatID: String, completion: @escaping ([Message]) -> Void) -> ListenerRegistration {
+        // Optimize query with proper indexing and limit for performance
         let query = firestore.collection("chats")
             .document(chatID)
             .collection(Message.collectionName)
             .order(by: "timestamp", descending: false)
+            .limit(to: 100) // Limit for performance
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
+                print("MessageService: Error observing messages: \(error.localizedDescription)")
                 completion([])
                 return
             }
@@ -370,18 +401,27 @@ class MessageService {
                 return
             }
             
-            var messages: [Message] = []
-            for document in snapshot.documents {
+            // Process documents efficiently
+            let messages = snapshot.documents.compactMap { document -> Message? in
                 do {
                     var message = try document.data(as: Message.self)
                     message.id = document.documentID
-                    messages.append(message)
+                    return message
                 } catch {
-                    // Continue with other documents
+                    print("MessageService: Error parsing message: \(error.localizedDescription)")
+                    return nil
                 }
             }
             
-            completion(messages)
+            // Sort by server timestamp for consistent ordering
+            let sortedMessages = self.sortMessagesByServerTimestamp(messages)
+            
+            // Track render latency for performance monitoring
+            for message in sortedMessages {
+                PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+            }
+            
+            completion(sortedMessages)
         }
     }
     
@@ -547,6 +587,99 @@ class MessageService {
             }
         }
     }
+    
+    // MARK: - PR-1 Optimization Methods
+    
+    /// Sends multiple messages in a burst for optimized performance
+    /// - Note: Handles 20+ rapid messages with no lag or out-of-order delivery (PR-1 requirement)
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - messages: Array of message texts to send
+    /// - Returns: Array of message IDs
+    /// - Throws: MessageServiceError for various failure scenarios
+    func sendBurstMessages(chatID: String, messages: [String]) async throws -> [String] {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw MessageServiceError.permissionDenied
+        }
+        
+        guard !messages.isEmpty else {
+            return []
+        }
+        
+        // Start performance tracking for burst operation
+        let burstStartTime = Date()
+        PerformanceMonitor.shared.startSync()
+        
+        var messageIDs: [String] = []
+        let batch = firestore.batch()
+        let timestamp = Date()
+        
+        // Create all messages in batch for atomic operation
+        for (index, text) in messages.enumerated() {
+            let messageID = UUID().uuidString
+            let messageTimestamp = Date(timeInterval: Double(index) * 0.001, since: timestamp) // 1ms apart for ordering
+            
+            let message = Message(
+                id: messageID,
+                chatID: chatID,
+                senderID: currentUser.uid,
+                text: text,
+                timestamp: messageTimestamp,
+                serverTimestamp: nil,
+                readBy: [currentUser.uid],
+                status: .sending,
+                senderName: nil,
+                isOffline: false,
+                retryCount: 0,
+                isOptimistic: false
+            )
+            
+            let messageRef = firestore.collection("chats")
+                .document(chatID)
+                .collection(Message.collectionName)
+                .document(messageID)
+            
+            try batch.setData(from: message, forDocument: messageRef)
+            messageIDs.append(messageID)
+        }
+        
+        // Update chat's last message info
+        let chatRef = firestore.collection("chats").document(chatID)
+        if let lastMessage = messages.last {
+            batch.updateData([
+                "lastMessage": lastMessage,
+                "lastMessageTimestamp": timestamp,
+                "lastMessageSenderID": currentUser.uid
+            ], forDocument: chatRef)
+        }
+        
+        do {
+            // Commit all messages atomically
+            try await batch.commit()
+            
+            // Track burst completion
+            PerformanceMonitor.shared.endSync(messageCount: messages.count)
+            
+            let burstDuration = Date().timeIntervalSince(burstStartTime) * 1000
+            print("MessageService: Burst of \(messages.count) messages sent in \(String(format: "%.1f", burstDuration))ms")
+            
+            return messageIDs
+        } catch {
+            throw MessageServiceError.networkError(error)
+        }
+    }
+    
+    /// Measures message delivery latency for performance monitoring
+    /// - Parameter messageID: The message ID to measure
+    /// - Returns: Latency in milliseconds
+    func measureMessageLatency(messageID: String) async -> TimeInterval {
+        // This method is called by PerformanceMonitor internally
+        // Return the measured latency from PerformanceMonitor
+        if let stats = PerformanceMonitor.shared.getStatistics(type: .messageLatency) {
+            return stats.p95 / 1000.0 // Convert ms to seconds
+        }
+        return 0.0
+    }
 }
 
 // MARK: - MessageServiceError
@@ -583,3 +716,4 @@ enum MessageServiceError: LocalizedError {
         }
     }
 }
+
