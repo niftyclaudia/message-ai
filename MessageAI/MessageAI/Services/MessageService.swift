@@ -45,9 +45,10 @@ class MessageService {
     ///   - chatID: The chat's ID
     ///   - text: The message text
     ///   - messageID: Pre-generated message ID (for optimistic UI matching)
+    ///   - senderName: Optional sender display name for group chat attribution (PR-3)
     /// - Returns: Message ID
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendMessageOptimistic(chatID: String, text: String, messageID: String) async throws -> String {
+    func sendMessageOptimistic(chatID: String, text: String, messageID: String, senderName: String? = nil) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
@@ -65,7 +66,7 @@ class MessageService {
         )
         
         do {
-            // Create message with server timestamp
+            // Create message with server timestamp and sender name for group attribution
             let message = Message(
                 id: messageID,
                 chatID: chatID,
@@ -75,7 +76,7 @@ class MessageService {
                 serverTimestamp: nil, // Will be set by server
                 readBy: [currentUser.uid],
                 status: .sending,
-                senderName: nil,
+                senderName: senderName, // PR-3: Include sender name for group chat attribution
                 isOffline: false,
                 retryCount: 0,
                 isOptimistic: false  // Don't save optimistic flag to Firebase
@@ -99,9 +100,10 @@ class MessageService {
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - text: The message text
+    ///   - senderName: Optional sender display name for group chat attribution (PR-3)
     /// - Returns: Message ID
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendMessage(chatID: String, text: String) async throws -> String {
+    func sendMessage(chatID: String, text: String, senderName: String? = nil) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
@@ -112,7 +114,7 @@ class MessageService {
         // Start performance tracking for PR-1 optimization
         PerformanceMonitor.shared.startMessageSend(messageID: messageID)
         
-        // Create message with server timestamp for consistent ordering
+        // Create message with server timestamp for consistent ordering and sender name for group attribution
         let message = Message(
             id: messageID,
             chatID: chatID,
@@ -122,7 +124,7 @@ class MessageService {
             serverTimestamp: nil, // Will be set by server
             readBy: [currentUser.uid],
             status: .sending, // Start as sending, will be updated to sent
-            senderName: nil,
+            senderName: senderName, // PR-3: Include sender name for group chat attribution
             isOffline: false,
             retryCount: 0,
             isOptimistic: false
@@ -600,9 +602,10 @@ class MessageService {
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - messages: Array of message texts to send
+    ///   - senderName: Optional sender display name for group chat attribution (PR-3)
     /// - Returns: Array of message IDs
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendBurstMessages(chatID: String, messages: [String]) async throws -> [String] {
+    func sendBurstMessages(chatID: String, messages: [String], senderName: String? = nil) async throws -> [String] {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
@@ -633,7 +636,7 @@ class MessageService {
                 serverTimestamp: nil,
                 readBy: [currentUser.uid],
                 status: .sending,
-                senderName: nil,
+                senderName: senderName, // PR-3: Include sender name for group chat attribution
                 isOffline: false,
                 retryCount: 0,
                 isOptimistic: false
