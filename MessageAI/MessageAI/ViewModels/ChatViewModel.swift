@@ -692,7 +692,7 @@ class ChatViewModel: ObservableObject {
         
         do {
             let userService = UserService()
-            let memberProfiles = try await userService.fetchMultipleUserProfiles(userIDs: chat.members)
+            _ = try await userService.fetchMultipleUserProfiles(userIDs: chat.members)
             
             await MainActor.run {
                 groupMembers = chat.members
