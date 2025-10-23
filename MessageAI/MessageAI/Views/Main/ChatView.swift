@@ -42,28 +42,19 @@ struct ChatView: View {
             // Messages area
             messagesArea
             
-            // Typing indicator
-            if !viewModel.typingUsers.isEmpty {
-                TypingIndicatorView(typingUsers: viewModel.typingUsers)
-            }
-            
-            // Offline indicator
-            OfflineIndicatorView(
-                isOffline: viewModel.isOffline,
+            // PR-2: Clean, unified connection status banner (Apple HIG compliant)
+            // Only shows when NOT online - follows Apple best practices
+            ConnectionStatusBanner(
+                connectionState: viewModel.connectionState,
                 queuedMessageCount: viewModel.queuedMessageCount,
-                connectionType: viewModel.connectionType,
                 onRetry: {
                     viewModel.syncQueuedMessages()
                 }
             )
             
-            // Optimistic update indicator
-            if viewModel.isOptimisticUpdate && !viewModel.optimisticMessages.isEmpty {
-                OptimisticUpdateSummary(
-                    optimisticService: viewModel.optimisticService,
-                    chatID: chat.id
-                )
-                .padding(.horizontal)
+            // Typing indicator (shown below status for context)
+            if !viewModel.typingUsers.isEmpty {
+                TypingIndicatorView(typingUsers: viewModel.typingUsers)
             }
             
             // Message input

@@ -2,201 +2,299 @@
 //  OfflinePersistenceIntegrationTests.swift
 //  MessageAITests
 //
-//  Integration tests for offline persistence functionality
+//  Integration tests for offline persistence system
 //
 
 import Testing
 import Foundation
 @testable import MessageAI
 
-/// Integration tests for offline persistence and sync
+/// Integration tests for offline persistence system
+/// - Note: Tests end-to-end offline functionality with real components
 struct OfflinePersistenceIntegrationTests {
     
     // MARK: - Test Properties
     
-    private var messageService: MessageService!
+    private var offlineViewModel: OfflineViewModel!
     private var chatViewModel: ChatViewModel!
     
     // MARK: - Setup
     
     init() {
-        messageService = MessageService()
-        chatViewModel = ChatViewModel(currentUserID: "test-user", messageService: messageService)
+        offlineViewModel = OfflineViewModel()
+        chatViewModel = ChatViewModel(currentUserID: "test-user")
+        
+        // Ensure clean state
+        offlineViewModel.clearOfflineMessages()
     }
     
-    // MARK: - Offline Message Flow Tests
+    // MARK: - End-to-End Tests
     
-    @Test("Offline Message Flow Works End To End")
-    func offlineMessageFlowWorksEndToEnd() async throws {
-        // Given: A chat view model and message service
+    @Test("Offline Message Flow Complete")
+    func offlineMessageFlowComplete() async throws {
+        // Given
         let chatID = "test-chat"
-        let messageText = "Test offline message"
+        let text = "Test offline message"
+        let senderID = "test-user"
         
-        // When: Send message while offline (simulated)
-        let messageID = try await messageService.queueMessage(chatID: chatID, text: messageText)
+        // When - Queue message offline
+        let messageID = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID,
+            text: text,
+            senderID: senderID
+        )
         
-        // Then: Message should be queued and view model should reflect state
+        // Then - Message should be queued
         #expect(!messageID.isEmpty)
-        #expect(messageService.getQueuedMessageCount() == 1)
-        #expect(chatViewModel.queuedMessageCount == 1)
+        #expect(offlineViewModel.getQueuedMessageCount() == 1)
+        #expect(offlineViewModel.hasMessagesToSync() == true)
+        
+        let offlineMessages = offlineViewModel.getOfflineMessages()
+        #expect(offlineMessages.count == 1)
+        
+        let queuedMessage = offlineMessages.first!
+        #expect(queuedMessage.id == messageID)
+        #expect(queuedMessage.chatID == chatID)
+        #expect(queuedMessage.text == text)
+        #expect(queuedMessage.senderID == senderID)
+        #expect(queuedMessage.status == .queued)
     }
     
-    @Test("Message Status Updates Correctly During Offline Flow")
-    func messageStatusUpdatesCorrectlyDuringOfflineFlow() async throws {
-        // Given: A message service with queued messages
+    @Test("3-Message Queue Limit Enforced")
+    func threeMessageQueueLimitEnforced() async throws {
+        // Given
         let chatID = "test-chat"
-        let messageText = "Test message"
+        let senderID = "test-user"
         
-        // When: Queue a message
-        let messageID = try await messageService.queueMessage(chatID: chatID, text: messageText)
-        
-        // Then: Message should have correct status
-        let queuedMessages = messageService.getQueuedMessages()
-        #expect(queuedMessages.count == 1)
-        #expect(queuedMessages.first?.id == messageID)
-        #expect(queuedMessages.first?.text == messageText)
-    }
-    
-    @Test("Retry Logic Works With Exponential Backoff")
-    func retryLogicWorksWithExponentialBackoff() async throws {
-        // Given: A message service with failed messages
-        let chatID = "test-chat"
-        let messageText = "Test retry message"
-        
-        // When: Queue a message and simulate retry
-        let messageID = try await messageService.queueMessage(chatID: chatID, text: messageText)
-        
-        // Then: Retry count should be tracked
-        let queuedMessages = messageService.getQueuedMessages()
-        #expect(queuedMessages.count == 1)
-        #expect(queuedMessages.first?.retryCount == 0)
-    }
-    
-    // MARK: - Network State Integration Tests
-    
-    @Test("Network State Changes Trigger Appropriate Actions")
-    func networkStateChangesTriggerAppropriateActions() async throws {
-        // Given: A chat view model monitoring network state
-        let initialOfflineState = chatViewModel.isOffline
-        
-        // When: Network state changes (simulated)
-        await chatViewModel.monitorNetworkStatus()
-        
-        // Then: View model should update accordingly
-        #expect(chatViewModel.isOffline == true || chatViewModel.isOffline == false)
-    }
-    
-    @Test("Connection Type Is Properly Tracked")
-    func connectionTypeIsProperlyTracked() async throws {
-        // Given: A chat view model
-        // When: Check connection type
-        let connectionType = chatViewModel.getConnectionType()
-        
-        // Then: Should have valid connection type
-        #expect(connectionType == .wifi || connectionType == .cellular || 
-                connectionType == .ethernet || connectionType == .none)
-    }
-    
-    // MARK: - Cache Management Tests
-    
-    @Test("Cache Size Limit Is Enforced")
-    func cacheSizeLimitIsEnforced() async throws {
-        // Given: A message service with cache size limit
-        // When: Queue many messages
-        for i in 1...5 {
-            _ = try await messageService.queueMessage(chatID: "chat-\(i)", text: "Message \(i)")
+        // When - Add 4 messages (exceeds 3-message limit)
+        var messageIDs: [String] = []
+        for i in 1...4 {
+            let messageID = try await offlineViewModel.queueMessageOffline(
+                chatID: chatID,
+                text: "Message \(i)",
+                senderID: senderID
+            )
+            messageIDs.append(messageID)
         }
         
-        // Then: Cache should not exceed limit
-        #expect(messageService.getQueuedMessageCount() == 5)
+        // Then - Should only have 3 messages (oldest removed)
+        #expect(offlineViewModel.getQueuedMessageCount() == 3)
+        #expect(offlineViewModel.getMaxQueueSize() == 3)
+        
+        let offlineMessages = offlineViewModel.getOfflineMessages()
+        #expect(offlineMessages.count == 3)
+        
+        // First message should be removed (oldest)
+        let messageTexts = offlineMessages.map { $0.text }
+        #expect(!messageTexts.contains("Message 1"))
+        #expect(messageTexts.contains("Message 2"))
+        #expect(messageTexts.contains("Message 3"))
+        #expect(messageTexts.contains("Message 4"))
     }
     
-    @Test("Failed Messages Are Cleaned Up After Max Retries")
-    func failedMessagesAreCleanedUpAfterMaxRetries() async throws {
-        // Given: A message service with retry limit
+    @Test("Network State Integration")
+    func networkStateIntegration() async throws {
+        // Given
+        #expect(offlineViewModel.isOnline() == true)
+        #expect(offlineViewModel.getConnectionState() == .online)
+        
+        // When - Simulate offline state
+        offlineViewModel.simulateNetworkState(.offline)
+        
+        // Then
+        #expect(offlineViewModel.isOnline() == false)
+        #expect(offlineViewModel.getConnectionState() == .offline)
+        
+        // When - Simulate connecting state
+        offlineViewModel.simulateNetworkState(.connecting)
+        
+        // Then
+        #expect(offlineViewModel.isOnline() == false)
+        #expect(offlineViewModel.getConnectionState() == .connecting)
+        
+        // When - Simulate syncing state
+        offlineViewModel.simulateNetworkState(.syncing(3))
+        
+        // Then
+        #expect(offlineViewModel.isOnline() == false)
+        #expect(offlineViewModel.getConnectionState() == .syncing(3))
+        #expect(offlineViewModel.getConnectionState().syncingCount == 3)
+    }
+    
+    @Test("Message Persistence Across Operations")
+    func messagePersistenceAcrossOperations() async throws {
+        // Given - Add some messages
         let chatID = "test-chat"
-        let messageText = "Test message"
+        let senderID = "test-user"
         
-        // When: Queue a message
-        _ = try await messageService.queueMessage(chatID: chatID, text: messageText)
+        let messageID1 = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID,
+            text: "Message 1",
+            senderID: senderID
+        )
+        let messageID2 = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID,
+            text: "Message 2",
+            senderID: senderID
+        )
         
-        // Then: Message should be queued initially
-        #expect(messageService.getQueuedMessageCount() == 1)
+        #expect(offlineViewModel.getQueuedMessageCount() == 2)
         
-        // When: Clear all queued messages (simulating cleanup)
-        messageService.clearAllQueuedMessages()
+        // When - Update message status
+        offlineViewModel.updateOfflineState()
         
-        // Then: Queue should be empty
-        #expect(messageService.getQueuedMessageCount() == 0)
+        // Then - Messages should persist
+        #expect(offlineViewModel.getQueuedMessageCount() == 2)
+        
+        let messages = offlineViewModel.getOfflineMessages()
+        #expect(messages.count == 2)
+        #expect(messages.contains { $0.id == messageID1 })
+        #expect(messages.contains { $0.id == messageID2 })
     }
     
-    // MARK: - UI State Integration Tests
-    
-    @Test("UI State Reflects Offline Status")
-    func uiStateReflectsOfflineStatus() async throws {
-        // Given: A chat view model
-        // When: Check offline state
-        let isOffline = chatViewModel.isOffline
+    @Test("Chat-Specific Message Filtering")
+    func chatSpecificMessageFiltering() async throws {
+        // Given - Messages for different chats
+        let chatID1 = "chat-1"
+        let chatID2 = "chat-2"
+        let senderID = "test-user"
         
-        // Then: UI state should reflect network status
-        #expect(isOffline == true || isOffline == false)
+        _ = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID1,
+            text: "Message for chat 1",
+            senderID: senderID
+        )
+        _ = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID2,
+            text: "Message for chat 2",
+            senderID: senderID
+        )
+        _ = try await offlineViewModel.queueMessageOffline(
+            chatID: chatID1,
+            text: "Another message for chat 1",
+            senderID: senderID
+        )
+        
+        #expect(offlineViewModel.getQueuedMessageCount() == 3)
+        
+        // When - Get messages for specific chat
+        let chat1Messages = offlineViewModel.getMessagesForChat(chatID: chatID1)
+        let chat2Messages = offlineViewModel.getMessagesForChat(chatID: chatID2)
+        
+        // Then - Should filter correctly
+        #expect(chat1Messages.count == 2)
+        #expect(chat2Messages.count == 1)
+        #expect(chat1Messages.allSatisfy { $0.chatID == chatID1 })
+        #expect(chat2Messages.allSatisfy { $0.chatID == chatID2 })
     }
     
-    @Test("Queued Message Count Updates In UI")
-    func queuedMessageCountUpdatesInUI() async throws {
-        // Given: A chat view model
-        let initialCount = chatViewModel.queuedMessageCount
+    @Test("Sync Statistics Integration")
+    func syncStatisticsIntegration() async throws {
+        // Given - Add some messages
+        let chatID = "test-chat"
+        let senderID = "test-user"
         
-        // When: Queue a message
-        _ = try await messageService.queueMessage(chatID: "test-chat", text: "Test message")
-        await chatViewModel.updateQueuedMessageCount()
+        for i in 1...3 {
+            _ = try await offlineViewModel.queueMessageOffline(
+                chatID: chatID,
+                text: "Message \(i)",
+                senderID: senderID
+            )
+        }
         
-        // Then: UI should reflect updated count
-        #expect(chatViewModel.queuedMessageCount == initialCount + 1)
+        // When - Get sync statistics
+        let stats = offlineViewModel.getSyncStatistics()
+        
+        // Then - Statistics should be accurate
+        #expect(stats["queuedMessages"] as? Int == 3)
+        #expect(stats["isSyncing"] as? Bool == false)
+        #expect(stats["syncProgress"] as? Double == 0.0)
     }
     
-    @Test("Retryable Messages State Updates Correctly")
-    func retryableMessagesStateUpdatesCorrectly() async throws {
-        // Given: A chat view model
-        // When: Check retryable messages state
-        await chatViewModel.updateRetryableMessages()
+    @Test("Queue Space Management")
+    func queueSpaceManagement() async throws {
+        // Given - Empty queue
+        #expect(offlineViewModel.hasQueueSpace() == true)
+        #expect(offlineViewModel.getMaxQueueSize() == 3)
         
-        // Then: State should be valid
-        #expect(chatViewModel.hasRetryableMessages == true || chatViewModel.hasRetryableMessages == false)
+        // When - Add 2 messages
+        for i in 1...2 {
+            _ = try await offlineViewModel.queueMessageOffline(
+                chatID: "test-chat",
+                text: "Message \(i)",
+                senderID: "test-user"
+            )
+        }
+        
+        // Then - Should have space
+        #expect(offlineViewModel.hasQueueSpace() == true)
+        #expect(offlineViewModel.getQueuedMessageCount() == 2)
+        
+        // When - Add one more message (queue full)
+        _ = try await offlineViewModel.queueMessageOffline(
+            chatID: "test-chat",
+            text: "Message 3",
+            senderID: "test-user"
+        )
+        
+        // Then - Queue should be full
+        #expect(offlineViewModel.hasQueueSpace() == false)
+        #expect(offlineViewModel.getQueuedMessageCount() == 3)
     }
     
-    // MARK: - Performance Tests
-    
-    @Test("Offline Operations Complete Within Performance Targets")
-    func offlineOperationsCompleteWithinPerformanceTargets() async throws {
-        // Given: A message service
-        let startTime = Date()
+    @Test("Clear Messages Integration")
+    func clearMessagesIntegration() async throws {
+        // Given - Add some messages
+        for i in 1...3 {
+            _ = try await offlineViewModel.queueMessageOffline(
+                chatID: "test-chat",
+                text: "Message \(i)",
+                senderID: "test-user"
+            )
+        }
+        #expect(offlineViewModel.getQueuedMessageCount() == 3)
         
-        // When: Perform offline operations
-        _ = try await messageService.queueMessage(chatID: "test-chat", text: "Performance test message")
-        let queuedMessages = messageService.getQueuedMessages()
+        // When - Clear all messages
+        offlineViewModel.clearOfflineMessages()
         
-        // Then: Operations should complete quickly
-        let duration = Date().timeIntervalSince(startTime)
-        #expect(duration < 1.0) // Should complete within 1 second
-        #expect(queuedMessages.count == 1)
+        // Then - Queue should be empty
+        #expect(offlineViewModel.getQueuedMessageCount() == 0)
+        #expect(offlineViewModel.getOfflineMessages().isEmpty)
+        #expect(offlineViewModel.hasMessagesToSync() == false)
     }
     
-    @Test("Cache Operations Are Efficient")
-    func cacheOperationsAreEfficient() async throws {
-        // Given: A message service with queued messages
-        _ = try await messageService.queueMessage(chatID: "test-chat", text: "Cache test message")
+    @Test("Connection State Transitions")
+    func connectionStateTransitions() async throws {
+        // Given - Start online
+        #expect(offlineViewModel.getConnectionState() == .online)
         
-        let startTime = Date()
+        // When - Transition to offline
+        offlineViewModel.simulateNetworkState(.offline)
         
-        // When: Perform cache operations
-        let count = messageService.getQueuedMessageCount()
-        let hasRetryable = messageService.hasRetryableMessages()
+        // Then
+        #expect(offlineViewModel.getConnectionState() == .offline)
+        #expect(offlineViewModel.isOnline() == false)
         
-        // Then: Operations should be fast
-        let duration = Date().timeIntervalSince(startTime)
-        #expect(duration < 0.1) // Should complete within 100ms
-        #expect(count == 1)
-        #expect(hasRetryable == true)
+        // When - Transition to connecting
+        offlineViewModel.simulateNetworkState(.connecting)
+        
+        // Then
+        #expect(offlineViewModel.getConnectionState() == .connecting)
+        #expect(offlineViewModel.isOnline() == false)
+        
+        // When - Transition to syncing
+        offlineViewModel.simulateNetworkState(.syncing(2))
+        
+        // Then
+        #expect(offlineViewModel.getConnectionState() == .syncing(2))
+        #expect(offlineViewModel.getConnectionState().syncingCount == 2)
+        #expect(offlineViewModel.isOnline() == false)
+        
+        // When - Transition back to online
+        offlineViewModel.simulateNetworkState(.online)
+        
+        // Then
+        #expect(offlineViewModel.getConnectionState() == .online)
+        #expect(offlineViewModel.isOnline() == true)
     }
 }

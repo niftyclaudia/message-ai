@@ -6,11 +6,17 @@
 //
 
 import XCTest
+@testable import MessageAI
 
-/// UI tests for offline messaging features
+/// UI tests for offline messaging functionality
+/// - Note: Tests offline UI flows, connection states, and message queuing
 final class OfflineMessagingUITests: XCTestCase {
     
+    // MARK: - Properties
+    
     var app: XCUIApplication!
+    
+    // MARK: - Setup
     
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -24,131 +30,213 @@ final class OfflineMessagingUITests: XCTestCase {
     
     // MARK: - Offline Indicator Tests
     
-    func testOfflineIndicatorDisplaysWhenOffline() throws {
-        // Given: App is running
-        // When: User goes offline (simulated)
-        // Then: Offline indicator should be visible
+    func testOfflineIndicator_DisplaysWhenOffline() throws {
+        // Given - App is running
+        XCTAssertTrue(app.waitForExistence(timeout: 5))
         
-        // This test would need to be implemented with actual offline simulation
-        // For now, we'll test the basic app launch
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Simulate offline state (this would be done through test controls)
+        // Note: In a real test, you'd use test controls to simulate network state
+        
+        // Then - Offline indicator should be visible
+        let offlineIndicator = app.otherElements["OfflineIndicatorView"]
+        // Note: This would need to be implemented with proper accessibility identifiers
     }
     
-    func testOfflineIndicatorShowsQueuedMessageCount() throws {
-        // Given: App is running and offline
-        // When: User sends messages while offline
-        // Then: Offline indicator should show queued message count
+    func testOfflineIndicator_ShowsQueuedMessageCount() throws {
+        // Given - App is running and offline
         
-        // This test would need to be implemented with actual offline simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Queue some messages
+        
+        // Then - Should show queued message count
+        let queuedCount = app.staticTexts.matching(identifier: "QueuedMessageCount")
+        XCTAssertTrue(queuedCount.firstMatch.exists)
     }
     
-    func testRetryButtonAppearsForFailedMessages() throws {
-        // Given: App is running with failed messages
-        // When: User views the chat
-        // Then: Retry button should be visible for failed messages
+    func testOfflineIndicator_RetryButtonWorks() throws {
+        // Given - App is offline with queued messages
         
-        // This test would need to be implemented with actual message failure simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Tap retry button
+        let retryButton = app.buttons["RetryButton"]
+        XCTAssertTrue(retryButton.exists)
+        retryButton.tap()
+        
+        // Then - Should attempt to sync messages
+        // Note: This would need proper test implementation
     }
     
-    // MARK: - Message Status Tests
+    // MARK: - Connection Status Tests
     
-    func testMessageStatusIndicatorsDisplayCorrectly() throws {
-        // Given: App is running with messages
-        // When: User views the chat
-        // Then: Message status indicators should display correctly
+    func testConnectionStatus_OnlineState() throws {
+        // Given - App is online
         
-        // This test would need to be implemented with actual message status simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check connection status
+        
+        // Then - Should show online status
+        let onlineStatus = app.staticTexts["Online"]
+        XCTAssertTrue(onlineStatus.exists)
     }
     
-    func testQueuedMessagesShowCorrectStatus() throws {
-        // Given: App is running and offline
-        // When: User sends messages
-        // Then: Messages should show queued status
+    func testConnectionStatus_OfflineState() throws {
+        // Given - App is offline
         
-        // This test would need to be implemented with actual offline simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check connection status
+        
+        // Then - Should show offline status
+        let offlineStatus = app.staticTexts["Offline"]
+        XCTAssertTrue(offlineStatus.exists)
     }
     
-    // MARK: - Offline Test Controls Tests
-    
-    func testOfflineTestControlsVisibleInDebugMode() throws {
-        // Given: App is running in debug mode
-        // When: User views the interface
-        // Then: Offline test controls should be visible (simulator only)
+    func testConnectionStatus_ConnectingState() throws {
+        // Given - App is connecting
         
-        // This test would need to be implemented with debug mode detection
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check connection status
+        
+        // Then - Should show connecting status
+        let connectingStatus = app.staticTexts["Connecting..."]
+        XCTAssertTrue(connectingStatus.exists)
     }
     
-    func testOfflineTestControlsAllowNetworkSimulation() throws {
-        // Given: App is running with offline test controls
-        // When: User uses test controls
-        // Then: Network simulation should work
+    func testConnectionStatus_SyncingState() throws {
+        // Given - App is syncing messages
         
-        // This test would need to be implemented with actual test control interaction
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check connection status
+        
+        // Then - Should show syncing status
+        let syncingStatus = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Sending'"))
+        XCTAssertTrue(syncingStatus.firstMatch.exists)
     }
     
-    // MARK: - Message Sync Tests
+    // MARK: - Message Queue Tests
     
-    func testMessagesSyncWhenBackOnline() throws {
-        // Given: App is running and offline with queued messages
-        // When: User comes back online
-        // Then: Queued messages should sync automatically
+    func testMessageQueue_ShowsQueueStatus() throws {
+        // Given - App has queued messages
         
-        // This test would need to be implemented with actual network state changes
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check queue status
+        
+        // Then - Should show queue information
+        let queueStatus = app.otherElements["MessageQueueStatus"]
+        XCTAssertTrue(queueStatus.exists)
     }
     
-    func testSyncProgressIndicatorShowsDuringSync() throws {
-        // Given: App is running with queued messages
-        // When: Sync process starts
-        // Then: Sync progress indicator should be visible
+    func testMessageQueue_ShowsQueueFullWarning() throws {
+        // Given - Queue is full (3 messages)
         
-        // This test would need to be implemented with actual sync simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Check queue status
+        
+        // Then - Should show queue full warning
+        let queueFullWarning = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Queue is full'"))
+        XCTAssertTrue(queueFullWarning.firstMatch.exists)
+    }
+    
+    func testMessageQueue_RetryButtonAvailable() throws {
+        // Given - App has queued messages
+        
+        // When - Check for retry button
+        
+        // Then - Retry button should be available
+        let retryButton = app.buttons["RetryNow"]
+        XCTAssertTrue(retryButton.exists)
+    }
+    
+    // MARK: - Message Input Tests
+    
+    func testMessageInput_DisabledWhenOffline() throws {
+        // Given - App is offline
+        
+        // When - Try to interact with message input
+        
+        // Then - Input should be disabled or show offline state
+        let messageInput = app.textFields["MessageInput"]
+        XCTAssertTrue(messageInput.exists)
+        // Note: Would need to check if input is disabled
+    }
+    
+    func testMessageInput_QueuesMessageWhenOffline() throws {
+        // Given - App is offline
+        let messageInput = app.textFields["MessageInput"]
+        let sendButton = app.buttons["SendButton"]
+        
+        // When - Type message and send
+        messageInput.tap()
+        messageInput.typeText("Test offline message")
+        sendButton.tap()
+        
+        // Then - Message should be queued
+        // Note: Would need to verify message is queued
+    }
+    
+    // MARK: - Sync Tests
+    
+    func testAutoSync_TriggersOnReconnection() throws {
+        // Given - App is offline with queued messages
+        
+        // When - Simulate reconnection
+        
+        // Then - Auto-sync should trigger
+        // Note: Would need to simulate network state changes
+    }
+    
+    func testSyncProgress_ShowsDuringSync() throws {
+        // Given - App is syncing messages
+        
+        // When - Check for progress indicator
+        
+        // Then - Progress indicator should be visible
+        let progressIndicator = app.progressIndicators.firstMatch
+        XCTAssertTrue(progressIndicator.exists)
     }
     
     // MARK: - Performance Tests
     
-    func testOfflinePerformanceWithManyMessages() throws {
-        // Given: App is running with many cached messages
-        // When: User scrolls through messages
-        // Then: Performance should be smooth (60fps)
+    func testOfflinePerformance_QueueOperations() throws {
+        // Given - App is offline
         
-        // This test would need to be implemented with actual performance measurement
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Perform multiple queue operations
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // Simulate adding multiple messages
+        for i in 1...10 {
+            let messageInput = app.textFields["MessageInput"]
+            let sendButton = app.buttons["SendButton"]
+            
+            messageInput.tap()
+            messageInput.typeText("Performance test message \(i)")
+            sendButton.tap()
+        }
+        
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let duration = endTime - startTime
+        
+        // Then - Operations should complete quickly
+        XCTAssertLessThan(duration, 5.0) // Should complete in less than 5 seconds
     }
     
-    func testCacheSizeLimitEnforced() throws {
-        // Given: App is running with cache size limit
-        // When: Cache reaches limit
-        // Then: Old messages should be cleaned up
+    // MARK: - Edge Case Tests
+    
+    func testOfflineEdgeCase_QueueFull() throws {
+        // Given - Queue is at capacity (3 messages)
         
-        // This test would need to be implemented with actual cache size measurement
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Try to add another message
+        
+        // Then - Oldest message should be removed
+        // Note: Would need to verify queue behavior
     }
     
-    // MARK: - Error Handling Tests
-    
-    func testNetworkFailureHandledGracefully() throws {
-        // Given: App is running
-        // When: Network failure occurs
-        // Then: App should handle failure gracefully without crashing
+    func testOfflineEdgeCase_AppRestart() throws {
+        // Given - App has queued messages
         
-        // This test would need to be implemented with actual network failure simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Force quit and restart app
+        
+        // Then - Messages should persist
+        // Note: Would need to test app lifecycle
     }
     
-    func testRetryLimitEnforced() throws {
-        // Given: App is running with failed messages
-        // When: Retry limit is reached
-        // Then: Messages should be removed from queue
+    func testOfflineEdgeCase_NetworkInterruption() throws {
+        // Given - App is syncing messages
         
-        // This test would need to be implemented with actual retry limit simulation
-        XCTAssertTrue(app.state == .runningForeground)
+        // When - Network is interrupted during sync
+        
+        // Then - Should handle interruption gracefully
+        // Note: Would need to simulate network interruptions
     }
 }
