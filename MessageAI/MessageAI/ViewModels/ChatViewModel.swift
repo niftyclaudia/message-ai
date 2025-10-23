@@ -182,7 +182,7 @@ class ChatViewModel: ObservableObject {
             do {
                 try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
             } catch {
-                print("Failed to mark chat as read: \(error)")
+                // Silently fail - read receipts are not critical
             }
         }
     }
@@ -195,7 +195,7 @@ class ChatViewModel: ObservableObject {
             do {
                 try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
             } catch {
-                print("Failed to mark all messages as read: \(error)")
+                // Silently fail - read receipts are not critical
             }
         }
     }
@@ -211,7 +211,7 @@ class ChatViewModel: ObservableObject {
                 do {
                     try await messageService.markMessageAsDelivered(messageID: message.id)
                 } catch {
-                    print("Failed to mark message as delivered: \(error)")
+                    // Silently fail - delivery status is not critical
                 }
             }
         }
@@ -331,12 +331,29 @@ class ChatViewModel: ObservableObject {
                 
                 if isOffline {
                     // PR-2: Use new offline system with 3-message queue
-                    _ = try await offlineViewModel.queueMessageOffline(
+                    let messageID = try await offlineViewModel.queueMessageOffline(
                         chatID: chat.id,
                         text: text,
                         senderID: currentUserID
                     )
+                    
+                    // Create optimistic message with queued status for UI display
                     await MainActor.run {
+                        let queuedMessage = Message(
+                            id: messageID,
+                            chatID: chat.id,
+                            senderID: currentUserID,
+                            text: text,
+                            timestamp: Date(),
+                            serverTimestamp: nil,
+                            readBy: [currentUserID],
+                            status: .queued,
+                            senderName: senderName,
+                            isOffline: true,
+                            retryCount: 0,
+                            isOptimistic: true
+                        )
+                        optimisticMessages.append(queuedMessage)
                         updateOfflineState()
                     }
                 } else {
@@ -347,12 +364,29 @@ class ChatViewModel: ObservableObject {
                     } catch {
                         // Send failed - automatically queue it for retry using offline system
                         do {
-                            _ = try await offlineViewModel.queueMessageOffline(
+                            let messageID = try await offlineViewModel.queueMessageOffline(
                                 chatID: chat.id,
                                 text: text,
                                 senderID: currentUserID
                             )
+                            
+                            // Create optimistic message with queued status for UI display
                             await MainActor.run {
+                                let queuedMessage = Message(
+                                    id: messageID,
+                                    chatID: chat.id,
+                                    senderID: currentUserID,
+                                    text: text,
+                                    timestamp: Date(),
+                                    serverTimestamp: nil,
+                                    readBy: [currentUserID],
+                                    status: .queued,
+                                    senderName: senderName,
+                                    isOffline: true,
+                                    retryCount: 0,
+                                    isOptimistic: true
+                                )
+                                optimisticMessages.append(queuedMessage)
                                 updateOfflineState()
                                 // Don't set errorMessage - ConnectionStatusBanner handles offline state
                             }
@@ -522,15 +556,20 @@ class ChatViewModel: ObservableObject {
     
     /// PR-2: Updates offline state from the offline view model
     func updateOfflineState() {
-        connectionState = offlineViewModel.getConnectionState()
-        queuedMessageCount = offlineViewModel.queuedMessageCount
-        isOffline = !offlineViewModel.isOnline()
+        let isOnline = offlineViewModel.isOnline()
+        let newConnectionState = offlineViewModel.getConnectionState()
+        let newQueuedCount = offlineViewModel.queuedMessageCount
+        
+        connectionState = newConnectionState
+        queuedMessageCount = newQueuedCount
+        isOffline = !isOnline
     }
     
     /// Monitors network status and updates offline state
     @MainActor
     func monitorNetworkStatus() {
-        isOffline = !networkMonitor.isConnected
+        // Use OfflineViewModel as the single source of truth for offline state
+        isOffline = !offlineViewModel.isOnline()
         connectionType = networkMonitor.connectionType
         
         // PR-2: Update offline state from offline view model
@@ -547,16 +586,22 @@ class ChatViewModel: ObservableObject {
     
     /// Sets up reactive network observer using Combine
     private func setupNetworkObserver() {
-        // Observe network connection changes
-        networkMonitor.$isConnected
-            .sink { [weak self] isConnected in
+        // Observe OfflineViewModel's connectionState changes (single source of truth)
+        offlineViewModel.$connectionState
+            .sink { [weak self] newState in
                 Task { @MainActor in
-                    self?.isOffline = !isConnected
+                    let isOnline = newState.isOnline
+                    let wasOffline = self?.isOffline ?? false
                     
-                    // When coming back online, update count first, then sync
+                    // Update both connectionState and isOffline from same source
+                    self?.connectionState = newState
+                    self?.isOffline = !isOnline
+                    
+                    // Update queued message count
                     self?.updateQueuedMessageCount()
                     
-                    if isConnected && (self?.queuedMessageCount ?? 0) > 0 {
+                    // Sync queued messages when coming back online
+                    if isOnline && wasOffline && (self?.queuedMessageCount ?? 0) > 0 {
                         self?.syncQueuedMessages()
                     }
                 }
@@ -698,7 +743,7 @@ class ChatViewModel: ObservableObject {
                 groupMembers = chat.members
             }
         } catch {
-            print("ChatViewModel: Error fetching group members: \(error.localizedDescription)")
+            // Silently fail - group member fetching is not critical
         }
     }
     
@@ -752,6 +797,7 @@ class ChatViewModel: ObservableObject {
             let user = try await userService.fetchUserProfile(userID: currentUserID)
             return user.displayName
         } catch {
+            // Silently fail - sender name is optional for group messages
             return nil
         }
     }

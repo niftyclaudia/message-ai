@@ -82,7 +82,7 @@ class OfflineViewModel: ObservableObject {
             _ = try await syncService.retryFailedMessages()
             updateQueueState()
         } catch {
-            print("OfflineViewModel: Failed to retry messages: \(error.localizedDescription)")
+            // Silently fail - retry is not critical
         }
     }
     
@@ -148,6 +148,7 @@ class OfflineViewModel: ObservableObject {
         // Observe network state changes
         Task {
             for await state in networkMonitorService.observeNetworkState() {
+                // State change already logged by NetworkMonitorService
                 connectionState = state
                 
                 // Start auto-sync when coming back online

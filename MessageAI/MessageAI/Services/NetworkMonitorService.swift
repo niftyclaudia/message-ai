@@ -31,7 +31,24 @@ class NetworkMonitorService: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        startMonitoring()
+        // Start monitoring immediately - this will trigger pathUpdateHandler very quickly
+        monitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                self?.updateConnectionStatus(path: path)
+            }
+        }
+        monitor.start(queue: queue)
+        
+        // Use a very short delay to let the path monitor get the actual status
+        // This happens almost immediately (< 10ms) after start()
+        queue.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+            guard let self = self else { return }
+            let currentPath = self.monitor.currentPath
+            
+            Task { @MainActor in
+                self.updateConnectionStatus(path: currentPath)
+            }
+        }
     }
     
     deinit {
@@ -83,13 +100,22 @@ class NetworkMonitorService: ObservableObject {
     }
     
     /// Observes network state changes
-    /// - Returns: AsyncStream of connection states
+    /// - Returns: AsyncStream of connection states (only yields on actual changes)
     func observeNetworkState() -> AsyncStream<ConnectionState> {
         return AsyncStream { continuation in
-            // Create a timer to periodically check state
-            let timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            var lastYieldedState = self.connectionState
+            
+            // Yield initial state
+            continuation.yield(lastYieldedState)
+            
+            // Create a timer to check for state changes (not constant polling)
+            let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 Task { @MainActor in
-                    continuation.yield(self.connectionState)
+                    let currentState = self.connectionState
+                    if currentState != lastYieldedState {
+                        continuation.yield(currentState)
+                        lastYieldedState = currentState
+                    }
                 }
             }
             
@@ -120,17 +146,6 @@ class NetworkMonitorService: ObservableObject {
         let wasConnected = isConnected
         isConnected = path.status == .satisfied
         isExpensive = path.isExpensive
-        
-        // Debug logging
-        print("🌐 Network Status: \(path.status == .satisfied ? "CONNECTED" : "DISCONNECTED")")
-        print("🌐 Path Status: \(path.status)")
-        if path.status == .satisfied {
-            if path.usesInterfaceType(.wifi) {
-                print("🌐 Connection Type: WiFi")
-            } else if path.usesInterfaceType(.cellular) {
-                print("🌐 Connection Type: Cellular")
-            }
-        }
         
         // Update connection type
         if path.status == .satisfied {

@@ -393,7 +393,7 @@ class MessageService {
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("MessageService: Error observing messages: \(error.localizedDescription)")
+                // Silently fail - real-time updates are not critical
                 completion([])
                 return
             }
@@ -410,7 +410,7 @@ class MessageService {
                     message.id = document.documentID
                     return message
                 } catch {
-                    print("MessageService: Error parsing message: \(error.localizedDescription)")
+                    // Skip malformed messages
                     return nil
                 }
             }
@@ -664,9 +664,6 @@ class MessageService {
             
             // Track burst completion
             PerformanceMonitor.shared.endSync(messageCount: messages.count)
-            
-            let burstDuration = Date().timeIntervalSince(burstStartTime) * 1000
-            print("MessageService: Burst of \(messages.count) messages sent in \(String(format: "%.1f", burstDuration))ms")
             
             return messageIDs
         } catch {

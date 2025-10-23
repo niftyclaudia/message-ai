@@ -36,7 +36,23 @@ class NetworkMonitor: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        startMonitoring()
+        // Start monitoring immediately
+        monitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                self?.updateConnectionStatus(path: path)
+            }
+        }
+        monitor.start(queue: queue)
+        
+        // Get actual status very quickly after monitor starts
+        queue.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+            guard let self = self else { return }
+            let currentPath = self.monitor.currentPath
+            
+            Task { @MainActor in
+                self.updateConnectionStatus(path: currentPath)
+            }
+        }
     }
     
     deinit {

@@ -86,8 +86,7 @@ struct MessageAttributionView: View {
                 isLoading = false
             }
         } catch {
-            print("MessageAttributionView: Error loading sender profile: \(error.localizedDescription)")
-            
+            // Silently fail - sender profile loading is not critical
             await MainActor.run {
                 isLoading = false
             }

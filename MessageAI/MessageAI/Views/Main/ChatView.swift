@@ -311,13 +311,13 @@ struct ChatView: View {
                     try await messageService.fetchMessages(
                         chatID: chat.id,
                         limit: count
-                    )
-                }
-            )
-        } catch {
-            print("Failed to initialize list windowing: \(error)")
-        }
+                )
+            }
+        )
+    } catch {
+        // Silently fail - list windowing is not critical
     }
+}
     
     // MARK: - Loading State
     

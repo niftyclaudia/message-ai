@@ -229,8 +229,7 @@ class OptimisticUI: ObservableObject {
                 maxRetries: operation.maxRetries
             )
         } catch {
-            // Retry failed - remove from queue
-            print("OptimisticUI: Retry failed for operation \(operation.id): \(error)")
+            // Retry failed - operation will be removed from queue
         }
     }
 }

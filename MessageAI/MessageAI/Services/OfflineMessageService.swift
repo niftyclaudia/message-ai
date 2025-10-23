@@ -188,7 +188,7 @@ class OfflineMessageService: ObservableObject {
             let data = try JSONEncoder().encode(queuedMessages)
             userDefaults.set(data, forKey: queueKey)
         } catch {
-            print("OfflineMessageService: Failed to save queued messages: \(error.localizedDescription)")
+            // Silently fail - queued messages will be lost but not critical
         }
     }
 }

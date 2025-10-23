@@ -207,7 +207,7 @@ class SyncService: ObservableObject {
                 do {
                     _ = try await syncOfflineMessages()
                 } catch {
-                    print("SyncService: Auto-sync failed: \(error.localizedDescription)")
+                    // Silently fail - auto-sync is not critical
                 }
             }
         }
