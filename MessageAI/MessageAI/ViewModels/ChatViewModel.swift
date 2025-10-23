@@ -351,7 +351,7 @@ class ChatViewModel: ObservableObject {
                             )
                             await MainActor.run {
                                 updateOfflineState()
-                                errorMessage = "Message queued - will send when online"
+                                // Don't set errorMessage - ConnectionStatusBanner handles offline state
                             }
                         } catch {
                             await MainActor.run {
@@ -411,7 +411,7 @@ class ChatViewModel: ObservableObject {
                         }
                         await MainActor.run {
                             updateQueuedMessageCount()
-                            errorMessage = "Messages queued - will send when online"
+                            // Don't set errorMessage - ConnectionStatusBanner handles offline state
                         }
                     }
                 }

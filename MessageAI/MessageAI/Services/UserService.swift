@@ -202,6 +202,30 @@ class UserService {
         return matchingUsers
     }
     
+    /// Observes a single user's profile in real-time
+    /// - Parameters:
+    ///   - userID: User ID to observe
+    ///   - completion: Closure called with updated user
+    /// - Returns: ListenerRegistration to remove listener when done
+    /// - Note: Updates sync < 100ms (shared-standards.md target)
+    func observeUser(userID: String, completion: @escaping (User?) -> Void) -> ListenerRegistration {
+        return usersCollection.document(userID).addSnapshotListener(includeMetadataChanges: false) { snapshot, error in
+            guard error == nil else {
+                completion(nil)
+                return
+            }
+            
+            guard let snapshot = snapshot, snapshot.exists else {
+                completion(nil)
+                return
+            }
+            
+            let data = snapshot.data() ?? [:]
+            let user = try? self.decodeUser(from: data, id: userID)
+            completion(user)
+        }
+    }
+    
     /// Sets up real-time listener for all users
     /// - Parameters:
     ///   - currentUserID: Current user ID to exclude from results

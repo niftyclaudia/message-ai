@@ -24,6 +24,7 @@ struct MessageRowView: View {
     let isGroupChat: Bool
     let groupMembers: [String]
     let currentUserID: String
+    let isLastMessageFromUser: Bool
     
     // MARK: - Initialization
     
@@ -39,6 +40,11 @@ struct MessageRowView: View {
         self.isGroupChat = viewModel.chat?.isGroupChat ?? false
         self.groupMembers = viewModel.groupMembers
         self.currentUserID = viewModel.currentUserID
+        
+        // Check if this is the last message from current user
+        let allMessages = viewModel.allMessages
+        let currentUserMessages = allMessages.filter { $0.senderID == viewModel.currentUserID }
+        self.isLastMessageFromUser = currentUserMessages.last?.id == message.id
     }
     
     // MARK: - Body
@@ -61,20 +67,23 @@ struct MessageRowView: View {
                     if isFromCurrentUser {
                         Spacer()
                         
-                        // Use ReadReceiptView for group chats, MessageStatusView for 1-on-1
-                        if let chat = chat, chat.isGroupChat {
-                            ReadReceiptView(
-                                message: message,
-                                chat: chat,
-                                chatMembers: chat.members,
-                                currentUserID: currentUserID
-                            )
-                        } else {
-                            MessageStatusView(
-                                status: message.status,
-                                isOptimistic: message.isOptimistic,
-                                retryCount: message.retryCount
-                            )
+                        // Only show status on the most recent message from current user
+                        if isLastMessageFromUser {
+                            // Use ReadReceiptView for group chats, MessageStatusView for 1-on-1
+                            if let chat = chat, chat.isGroupChat {
+                                ReadReceiptView(
+                                    message: message,
+                                    chat: chat,
+                                    chatMembers: chat.members,
+                                    currentUserID: currentUserID
+                                )
+                            } else {
+                                MessageStatusView(
+                                    status: message.status,
+                                    isOptimistic: message.isOptimistic,
+                                    retryCount: message.retryCount
+                                )
+                            }
                         }
                         
                         Text(timestamp)
@@ -89,8 +98,8 @@ struct MessageRowView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-            } else if isFromCurrentUser {
-                // Show status even without timestamp
+            } else if isFromCurrentUser && isLastMessageFromUser {
+                // Show status even without timestamp (only on most recent message)
                 HStack {
                     Spacer()
                     
