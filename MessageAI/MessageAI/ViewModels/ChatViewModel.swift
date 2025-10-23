@@ -326,6 +326,9 @@ class ChatViewModel: ObservableObject {
         
         Task {
             do {
+                // PR-3: Get current user's display name for group attribution
+                let senderName = chat.isGroupChat ? await getCurrentUserDisplayName() : nil
+                
                 if isOffline {
                     // PR-2: Use new offline system with 3-message queue
                     _ = try await offlineViewModel.queueMessageOffline(
@@ -337,9 +340,9 @@ class ChatViewModel: ObservableObject {
                         updateOfflineState()
                     }
                 } else {
-                    // Send message with optimized delivery
+                    // Send message with optimized delivery and sender name for groups
                     do {
-                        _ = try await messageService.sendMessage(chatID: chat.id, text: text)
+                        _ = try await messageService.sendMessage(chatID: chat.id, text: text, senderName: senderName)
                         
                     } catch {
                         // Send failed - automatically queue it for retry using offline system
@@ -396,9 +399,12 @@ class ChatViewModel: ObservableObject {
                         updateQueuedMessageCount()
                     }
                 } else {
-                    // Send burst messages with optimized delivery
+                    // PR-3: Get current user's display name for group attribution
+                    let senderName = chat.isGroupChat ? await getCurrentUserDisplayName() : nil
+                    
+                    // Send burst messages with optimized delivery and sender name for groups
                     do {
-                        _ = try await messageService.sendBurstMessages(chatID: chat.id, messages: messages)
+                        _ = try await messageService.sendBurstMessages(chatID: chat.id, messages: messages, senderName: senderName)
                         
                     } catch {
                         // Burst failed - queue individual messages
@@ -673,6 +679,80 @@ class ChatViewModel: ObservableObject {
             // In a real app, you'd fetch this from a user service
             // For now, return a simplified display name
             return "User \(userID.prefix(4))"
+        }
+    }
+    
+    // MARK: - PR-3: Group Chat Member Management
+    
+    /// Fetches group member profiles with caching
+    /// - Note: Uses UserService cache for optimal performance (PR-3 requirement)
+    /// - Performance: Target < 400ms for 10 members
+    func fetchGroupMembers() async {
+        guard let chat = chat, chat.isGroupChat else { return }
+        
+        do {
+            let userService = UserService()
+            let memberProfiles = try await userService.fetchMultipleUserProfiles(userIDs: chat.members)
+            
+            await MainActor.run {
+                groupMembers = chat.members
+            }
+        } catch {
+            print("ChatViewModel: Error fetching group members: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Observes presence for all group members
+    /// - Note: Uses PresenceService for real-time updates (PR-3 requirement)
+    /// - Performance: Presence updates propagate in < 500ms
+    func observeGroupMemberPresence() {
+        guard let chat = chat, chat.isGroupChat else { return }
+        
+        // Clean up existing observers
+        cleanupPresenceObservers()
+        
+        // Set up presence observers for all members
+        presenceHandles = presenceService.observeMultipleUsersPresence(userIDs: chat.members) { [weak self] presenceMap in
+            Task { @MainActor in
+                self?.groupMemberPresence = presenceMap
+            }
+        }
+    }
+    
+    /// Cleans up presence observers
+    func cleanupPresenceObservers() {
+        guard !presenceHandles.isEmpty else { return }
+        
+        presenceService.removeObservers(handles: presenceHandles)
+        presenceHandles.removeAll()
+    }
+    
+    /// Gets display name for a group member from cache or fallback
+    /// - Parameter userID: The user's ID
+    /// - Returns: Display name for the user
+    func getCachedMemberDisplayName(userID: String) async -> String {
+        if userID == currentUserID {
+            return "You"
+        }
+        
+        do {
+            let userService = UserService()
+            let user = try await userService.fetchUserProfile(userID: userID)
+            return user.displayName
+        } catch {
+            return "User \(userID.prefix(8))"
+        }
+    }
+    
+    /// Gets current user's display name for message attribution
+    /// - Returns: Current user's display name
+    private func getCurrentUserDisplayName() async -> String? {
+        do {
+            let userService = UserService()
+            let user = try await userService.fetchUserProfile(userID: currentUserID)
+            return user.displayName
+        } catch {
+            return nil
         }
     }
     
