@@ -117,7 +117,8 @@ final class AuthStateIntegrationTests: XCTestCase {
     /// Verifies that AuthViewModel properly integrates with AuthService
     func testAuthViewModel_IntegratesWithAuthService() async {
         // Given: AuthViewModel with real AuthService
-        let viewModel = AuthViewModel(authService: authService)
+        let mockNotificationService = MockNotificationService()
+        let viewModel = AuthViewModel(authService: authService, notificationService: mockNotificationService)
         
         // When: Attempt sign in with invalid data
         await viewModel.signIn(email: "invalid", password: "123")

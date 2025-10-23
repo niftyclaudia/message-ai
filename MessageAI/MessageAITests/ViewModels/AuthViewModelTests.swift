@@ -17,7 +17,8 @@ final class AuthViewModelTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         mockAuthService = MockAuthService()
-        viewModel = AuthViewModel(authService: mockAuthService)
+        let mockNotificationService = MockNotificationService()
+        viewModel = AuthViewModel(authService: mockAuthService, notificationService: mockNotificationService)
     }
     
     override func tearDown() async throws {
