@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseDatabase
+import FirebaseAuth
 import SwiftUI
 import Combine
 
@@ -31,6 +32,7 @@ class ChatViewModel: ObservableObject {
     @Published var connectionType: ConnectionType = .wifi
     @Published var isRetrying: Bool = false
     @Published var hasRetryableMessages: Bool = false
+    @Published var connectionState: ConnectionState = .online
     @Published var groupMemberPresence: [String: PresenceStatus] = [:]
     @Published var groupMembers: [String] = []
     @Published var readReceipts: [String: [String: Date]] = [:] // messageID -> [userID: readAt]
@@ -65,6 +67,9 @@ class ChatViewModel: ObservableObject {
     private var typingHandle: DatabaseHandle?
     private var typingTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
+    
+    // PR-2: Offline persistence system
+    private let offlineViewModel = OfflineViewModel()
     
     // MARK: - Initialization
     
@@ -123,10 +128,15 @@ class ChatViewModel: ObservableObject {
             Task { @MainActor in
                 self?.messages = newMessages
                 
-                // Track render latency for performance monitoring
+                // Track render latency for performance monitoring (only for messages sent by current user)
                 for message in newMessages {
-                    PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+                    if message.senderID == self?.currentUserID {
+                        PerformanceMonitor.shared.endMessageSend(messageID: message.id, phase: "rendered")
+                    }
                 }
+                
+                // Mark received messages as delivered for the sender
+                await self?.markReceivedMessagesAsDelivered(newMessages: newMessages)
                 
                 // Remove optimistic messages that now exist in real messages
                 self?.removeConfirmedOptimisticMessages(realMessages: newMessages)
@@ -172,6 +182,37 @@ class ChatViewModel: ObservableObject {
             do {
                 try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
             } catch {
+                print("Failed to mark chat as read: \(error)")
+            }
+        }
+    }
+    
+    /// Automatically marks all messages as read when chat is opened
+    func markAllMessagesAsReadOnOpen() {
+        guard let chat = chat else { return }
+        
+        Task {
+            do {
+                try await readReceiptService.markChatAsRead(chatID: chat.id, userID: currentUserID)
+            } catch {
+                print("Failed to mark all messages as read: \(error)")
+            }
+        }
+    }
+    
+    /// Marks received messages as delivered for the sender
+    /// - Parameter newMessages: Array of newly received messages
+    private func markReceivedMessagesAsDelivered(newMessages: [Message]) async {
+        guard let currentUserID = Auth.auth().currentUser?.uid else { return }
+        
+        for message in newMessages {
+            // Only process messages not sent by current user and with sent status
+            if message.senderID != currentUserID && message.status == .sent {
+                do {
+                    try await messageService.markMessageAsDelivered(messageID: message.id)
+                } catch {
+                    print("Failed to mark message as delivered: \(error)")
+                }
             }
         }
     }
@@ -187,6 +228,10 @@ class ChatViewModel: ObservableObject {
                     messages[i].status = .read
                 }
             } else {
+                // If message is delivered but not read, keep it as delivered
+                if message.status == .sent {
+                    messages[i].status = .delivered
+                }
             }
         }
         
@@ -196,6 +241,11 @@ class ChatViewModel: ObservableObject {
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
                 if message.status != .read {
                     optimisticMessages[i].status = .read
+                }
+            } else {
+                // If message is delivered but not read, keep it as delivered
+                if message.status == .sent {
+                    optimisticMessages[i].status = .delivered
                 }
             }
         }
@@ -277,10 +327,14 @@ class ChatViewModel: ObservableObject {
         Task {
             do {
                 if isOffline {
-                    // Queue message for offline delivery
-                    _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                    // PR-2: Use new offline system with 3-message queue
+                    _ = try await offlineViewModel.queueMessageOffline(
+                        chatID: chat.id,
+                        text: text,
+                        senderID: currentUserID
+                    )
                     await MainActor.run {
-                        updateQueuedMessageCount()
+                        updateOfflineState()
                     }
                 } else {
                     // Send message with optimized delivery
@@ -288,11 +342,15 @@ class ChatViewModel: ObservableObject {
                         _ = try await messageService.sendMessage(chatID: chat.id, text: text)
                         
                     } catch {
-                        // Send failed - automatically queue it for retry
+                        // Send failed - automatically queue it for retry using offline system
                         do {
-                            _ = try await messageService.queueMessage(chatID: chat.id, text: text)
+                            _ = try await offlineViewModel.queueMessageOffline(
+                                chatID: chat.id,
+                                text: text,
+                                senderID: currentUserID
+                            )
                             await MainActor.run {
-                                updateQueuedMessageCount()
+                                updateOfflineState()
                                 errorMessage = "Message queued - will send when online"
                             }
                         } catch {
@@ -456,11 +514,21 @@ class ChatViewModel: ObservableObject {
         queuedMessageCount = messageService.getQueuedMessages().count
     }
     
+    /// PR-2: Updates offline state from the offline view model
+    func updateOfflineState() {
+        connectionState = offlineViewModel.getConnectionState()
+        queuedMessageCount = offlineViewModel.queuedMessageCount
+        isOffline = !offlineViewModel.isOnline()
+    }
+    
     /// Monitors network status and updates offline state
     @MainActor
     func monitorNetworkStatus() {
         isOffline = !networkMonitor.isConnected
         connectionType = networkMonitor.connectionType
+        
+        // PR-2: Update offline state from offline view model
+        updateOfflineState()
         
         // Sync queued messages when connection is restored
         if !isOffline && queuedMessageCount > 0 {
@@ -648,7 +716,9 @@ class ChatViewModel: ObservableObject {
         
         // Set up auto-clear timer (3 seconds of inactivity)
         typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
-            self?.userStoppedTyping()
+            Task { @MainActor in
+                self?.userStoppedTyping()
+            }
         }
     }
     
@@ -683,7 +753,7 @@ class ChatViewModel: ObservableObject {
             // Also match by text if sent by current user (backup for race conditions)
             if optimisticMsg.senderID == currentUserID && realMessageTexts.contains(optimisticMsg.text) {
                 // Check if there's a real message with same text sent recently (within 5 seconds)
-                if let realMsg = realMessages.first(where: { 
+                if realMessages.contains(where: { 
                     $0.text == optimisticMsg.text && 
                     $0.senderID == currentUserID &&
                     abs($0.timestamp.timeIntervalSince(optimisticMsg.timestamp)) < 5
