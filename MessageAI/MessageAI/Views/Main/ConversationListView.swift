@@ -15,6 +15,7 @@ struct ConversationListView: View {
     
     @StateObject private var viewModel = ConversationListViewModel()
     @StateObject private var testDataService = TestDataService()
+    @StateObject private var performanceViewModel = PerformanceViewModel()
     let currentUserID: String
     
     // MARK: - Navigation State
@@ -32,7 +33,7 @@ struct ConversationListView: View {
             
             // Content based on state
             if viewModel.isLoading {
-                LoadingView(message: "Loading conversations...")
+                ChatListSkeletonView(count: 8)
             } else if viewModel.chats.isEmpty {
                 emptyStateView
             } else {
@@ -40,6 +41,12 @@ struct ConversationListView: View {
             }
         }
         .task {
+            // Start performance monitoring
+            performanceViewModel.startPerformanceMonitoring()
+            
+            // Optimize chat list view for performance
+            performanceViewModel.optimizeChatListView(chatCount: viewModel.chats.count)
+            
             // Create test data in Firestore for development
             do {
                 try await testDataService.createTestChatData(currentUserID: currentUserID)

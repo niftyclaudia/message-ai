@@ -16,12 +16,14 @@ struct ChatView: View {
     let chat: Chat
     let otherUser: User?
     @StateObject private var viewModel: ChatViewModel
+    @StateObject private var performanceViewModel: PerformanceViewModel
     @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
     @State private var showChatInfo: Bool = false
     @State private var showMemberList: Bool = false // PR-3: Show group member list
     @State private var currentUserName: String = ""
+    @State private var listWindowing: ListWindowing<Message>?
     
     
     // MARK: - Initialization
@@ -30,6 +32,7 @@ struct ChatView: View {
         self.chat = chat
         self.otherUser = otherUser
         self._viewModel = StateObject(wrappedValue: ChatViewModel(currentUserID: currentUserID))
+        self._performanceViewModel = StateObject(wrappedValue: PerformanceViewModel())
     }
     
     // MARK: - Body
@@ -58,17 +61,21 @@ struct ChatView: View {
                 TypingIndicatorView(typingUsers: viewModel.typingUsers)
             }
             
-            // Message input
+            // Message input with keyboard optimization
             MessageInputView(
                 messageText: $messageText,
                 isSending: $viewModel.isSending,
                 isOffline: $viewModel.isOffline,
                 onSend: {
+                    // Add haptic feedback for send action
+                    performanceViewModel.addHapticFeedback(for: .send)
+                    
                     viewModel.userStoppedTyping() // Clear typing indicator before sending
                     viewModel.sendMessage(text: messageText)
                     messageText = ""
                 }
             )
+            .keyboardOptimized(optimizer: KeyboardOptimizer())
             .onChange(of: messageText) { oldValue, newValue in
                 // Trigger typing indicator when user types
                 if !newValue.isEmpty && oldValue != newValue {
@@ -84,9 +91,24 @@ struct ChatView: View {
         }
         .navigationBarHidden(true)
         .task {
+            // Start performance monitoring
+            performanceViewModel.startPerformanceMonitoring()
+            
+            // Optimize chat view for performance
+            performanceViewModel.optimizeChatView(
+                messageCount: viewModel.allMessages.count,
+                isGroupChat: chat.isGroupChat
+            )
+            
             viewModel.chat = chat
             await viewModel.loadMessages(chatID: chat.id)
             viewModel.observeMessagesRealTime(chatID: chat.id)
+            
+            // Initialize list windowing for large message counts
+            if viewModel.allMessages.count > 100 {
+                listWindowing = ListWindowing<Message>()
+                await initializeListWindowing()
+            }
             
             // Mark all messages in chat as read when opening (PR-12)
             viewModel.markChatAsRead()
@@ -183,39 +205,44 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
-                        let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
-                        
-                        // Use optimistic message row for optimistic messages
-                        if message.isOptimistic {
-                            OptimisticMessageRowView(
-                                message: message,
-                                previousMessage: previousMessage,
-                                viewModel: viewModel,
-                                onRetry: {
-                                    viewModel.retryMessage(messageID: message.id)
+                    // Use list windowing for performance with 1000+ messages
+                    if let windowing = listWindowing, viewModel.allMessages.count > 100 {
+                        ForEach(Array(windowing.getCurrentWindow().enumerated()), id: \.element.id) { index, message in
+                            let previousMessage = index > 0 ? windowing.getCurrentWindow()[index - 1] : nil
+                            
+                            messageRowView(message: message, previousMessage: previousMessage)
+                                .id(message.id)
+                                .onAppear {
+                                    // Mark message as read when it appears
+                                    if !viewModel.isMessageFromCurrentUser(message: message) {
+                                        viewModel.markMessageAsRead(messageID: message.id)
+                                    }
+                                    
+                                    // Prefetch more messages if near end
+                                    if index >= windowing.getCurrentWindow().count - 10 {
+                                        Task {
+                                            await windowing.prefetchMessages(
+                                                chatID: chat.id,
+                                                currentIndex: index,
+                                                messageService: MessageService()
+                                            )
+                                        }
+                                    }
                                 }
-                            )
-                            .id(message.id)
-                            .onAppear {
-                                // Mark message as read when it appears
-                                if !viewModel.isMessageFromCurrentUser(message: message) {
-                                    viewModel.markMessageAsRead(messageID: message.id)
+                        }
+                    } else {
+                        // Fallback to regular list for smaller message counts
+                        ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
+                            let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
+                            
+                            messageRowView(message: message, previousMessage: previousMessage)
+                                .id(message.id)
+                                .onAppear {
+                                    // Mark message as read when it appears
+                                    if !viewModel.isMessageFromCurrentUser(message: message) {
+                                        viewModel.markMessageAsRead(messageID: message.id)
+                                    }
                                 }
-                            }
-                        } else {
-                            MessageRowView(
-                                message: message,
-                                previousMessage: previousMessage,
-                                viewModel: viewModel
-                            )
-                            .id(message.id)
-                            .onAppear {
-                                // Mark message as read when it appears
-                                if !viewModel.isMessageFromCurrentUser(message: message) {
-                                    viewModel.markMessageAsRead(messageID: message.id)
-                                }
-                            }
                         }
                     }
                 }
@@ -231,6 +258,30 @@ struct ChatView: View {
         }
     }
     
+    // MARK: - Message Row View Helper
+    
+    private func messageRowView(message: Message, previousMessage: Message?) -> some View {
+        Group {
+            // Use optimistic message row for optimistic messages
+            if message.isOptimistic {
+                OptimisticMessageRowView(
+                    message: message,
+                    previousMessage: previousMessage,
+                    viewModel: viewModel,
+                    onRetry: {
+                        viewModel.retryMessage(messageID: message.id)
+                    }
+                )
+            } else {
+                MessageRowView(
+                    message: message,
+                    previousMessage: previousMessage,
+                    viewModel: viewModel
+                )
+            }
+        }
+    }
+    
     // MARK: - Helper Methods
     
     /// Scrolls to the bottom (latest message)
@@ -241,18 +292,37 @@ struct ChatView: View {
         }
     }
     
+    /// Initializes list windowing for performance optimization
+    private func initializeListWindowing() async {
+        guard let windowing = listWindowing else { return }
+        
+        do {
+            let messageService = MessageService()
+            let totalCount = try await messageService.getMessageCount(chatID: chat.id)
+            
+            // Load initial window around the latest messages
+            let startIndex = max(0, totalCount - 50)
+            _ = try await windowing.loadWindow(
+                around: totalCount - 1,
+                totalCount: totalCount,
+                itemLoader: { startIndex, count in
+                    try await messageService.fetchMessages(
+                        chatID: chat.id,
+                        startIndex: startIndex,
+                        count: count
+                    )
+                }
+            )
+        } catch {
+            print("Failed to initialize list windowing: \(error)")
+        }
+    }
+    
     // MARK: - Loading State
     
     private var loadingState: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.2)
-            
-            Text("Loading messages...")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        MessageListSkeletonView(count: 5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Empty State
