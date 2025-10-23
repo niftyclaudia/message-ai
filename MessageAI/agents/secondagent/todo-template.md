@@ -17,7 +17,7 @@
 
 ## 1. Setup
 
-- [ ] Create branch `feat/pr-{n}-{feature-slug}` from secondagent
+- [ ] Create branch `feat/pr-{n}-{feature-slug}` from develop
 - [ ] Read PRD thoroughly
 - [ ] Read `MessageAI/agents/secondagent/shared-standards.md` for patterns
 - [ ] Confirm environment and test runner work
@@ -127,7 +127,7 @@ Check every gate from PRD Section 12:
 - [ ] Update README if needed
 - [ ] Create PR description (use format from MessageAI/agents/secondagent/cody-agent-template.md)
 - [ ] Verify with user before creating PR
-- [ ] Open PR targeting secondagent branch
+- [ ] Open PR targeting develop branch
 - [ ] Link PRD and TODO in PR description
 
 ---
@@ -135,7 +135,7 @@ Check every gate from PRD Section 12:
 ## Copyable Checklist (for PR description)
 
 ```markdown
-- [ ] Branch created from secondagent
+- [ ] Branch created from develop
 - [ ] All TODO tasks completed
 - [ ] Services implemented + unit tests (XCTest)
 - [ ] SwiftUI views implemented with state management

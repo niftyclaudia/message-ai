@@ -39,6 +39,7 @@ class ConversationListViewModel: ObservableObject {
     private let presenceService = PresenceService()
     private var currentUserID: String?
     private var presenceHandles: [String: DatabaseHandle] = [:]
+    private var userListeners: [String: ListenerRegistration] = [:] // Track user profile listeners
     
     // MARK: - Public Methods
     
@@ -85,6 +86,7 @@ class ConversationListViewModel: ObservableObject {
     func stopObserving() {
         listener?.remove()
         listener = nil
+        stopObservingUsers()
     }
     
     /// Observes presence for all chat participants
@@ -184,7 +186,7 @@ class ConversationListViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// Loads user data for all chats
+    /// Loads user data for all chats and sets up real-time observers
     /// - Parameter chats: Array of chats to load user data for
     private func loadUserDataForChats(_ chats: [Chat]) async {
         guard let currentUserID = currentUserID else { return }
@@ -198,16 +200,44 @@ class ConversationListViewModel: ObservableObject {
             }
         }
         
-        // Load user data for each user
+        // Load user data and set up observers for each user
         for userID in usersToLoad {
             if chatUsers[userID] == nil {
+                // Initial fetch
                 do {
                     let user = try await userService.fetchUser(userID: userID)
                     chatUsers[userID] = user
                 } catch {
+                    // User fetch failed - will retry on next chat update
+                }
+            }
+            
+            // Set up real-time observer if not already observing
+            if userListeners[userID] == nil {
+                observeUserProfile(userID: userID)
+            }
+        }
+    }
+    
+    /// Observes a user's profile for real-time updates
+    /// - Parameter userID: The user ID to observe
+    private func observeUserProfile(userID: String) {
+        let listener = userService.observeUser(userID: userID) { [weak self] updatedUser in
+            Task { @MainActor in
+                if let updatedUser = updatedUser {
+                    self?.chatUsers[userID] = updatedUser
                 }
             }
         }
+        userListeners[userID] = listener
+    }
+    
+    /// Stops observing all user profiles
+    private func stopObservingUsers() {
+        for (_, listener) in userListeners {
+            listener.remove()
+        }
+        userListeners.removeAll()
     }
     
     // MARK: - Deinitialization
@@ -216,6 +246,11 @@ class ConversationListViewModel: ObservableObject {
         // Clean up Firestore listener
         listener?.remove()
         listener = nil
+        
+        // Clean up user profile listeners
+        for (_, userListener) in userListeners {
+            userListener.remove()
+        }
         
         // Clean up presence observers - must be done synchronously in deinit
         for (userID, handle) in presenceHandles {

@@ -67,6 +67,21 @@ struct LoginView: View {
                     }
                     .padding(.top, AppTheme.mediumSpacing)
                     
+                    // Forgot password link
+                    HStack {
+                        Spacer()
+                        NavigationLink {
+                            ForgotPasswordView(prefillEmail: email)
+                                .environmentObject(authService)
+                                .environmentObject(notificationService)
+                        } label: {
+                            Text("Forgot Password?")
+                                .font(AppTheme.bodyFont)
+                                .foregroundColor(AppTheme.primaryColor)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    
                     // Sign in button
                     PrimaryButton(
                         title: "Sign In",

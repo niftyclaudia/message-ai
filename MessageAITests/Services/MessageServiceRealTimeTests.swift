@@ -49,19 +49,20 @@ struct MessageServiceRealTimeTests {
         #expect(queuedMessages.contains { $0.id == messageID2 })
     }
     
-    @Test("QueuedMessage Can Convert To Message")
-    func queuedMessageCanConvertToMessage() {
-        // Given: A QueuedMessage
-        let queuedMessage = QueuedMessage(
+    @Test("OfflineMessage Can Convert To Message")
+    func offlineMessageCanConvertToMessage() {
+        // Given: An OfflineMessage
+        let offlineMessage = OfflineMessage(
             id: "test-id",
             chatID: "test-chat",
             text: "Test message",
+            senderID: "test-user",
             timestamp: Date(),
-            senderID: "test-user"
+            status: .queued
         )
         
         // When: Converting to Message
-        let message = queuedMessage.toMessage()
+        let message = offlineMessage.toMessage()
         
         // Then: Should have correct properties
         #expect(message.id == "test-id")
@@ -72,8 +73,8 @@ struct MessageServiceRealTimeTests {
         #expect(message.isOffline == true)
     }
     
-    @Test("Message Can Convert To QueuedMessage")
-    func messageCanConvertToQueuedMessage() {
+    @Test("Message Can Convert To OfflineMessage")
+    func messageCanConvertToOfflineMessage() {
         // Given: A Message
         let message = Message(
             id: "test-id",
@@ -88,14 +89,14 @@ struct MessageServiceRealTimeTests {
             retryCount: 0
         )
         
-        // When: Converting to QueuedMessage
-        let queuedMessage = QueuedMessage.from(message: message)
+        // When: Converting to OfflineMessage
+        let offlineMessage = OfflineMessage.from(message: message)
         
         // Then: Should have correct properties
-        #expect(queuedMessage.id == "test-id")
-        #expect(queuedMessage.chatID == "test-chat")
-        #expect(queuedMessage.text == "Test message")
-        #expect(queuedMessage.senderID == "test-user")
+        #expect(offlineMessage.id == "test-id")
+        #expect(offlineMessage.chatID == "test-chat")
+        #expect(offlineMessage.text == "Test message")
+        #expect(offlineMessage.senderID == "test-user")
     }
     
     @Test("MessageService Error Cases Are Handled")

@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import FirebaseFirestore
 
 /// View model managing profile state and operations
 @MainActor
@@ -23,6 +24,7 @@ class ProfileViewModel: ObservableObject {
     
     private let userService: UserService
     private let photoService: PhotoService
+    private var profileListener: ListenerRegistration?
     
     // MARK: - Initialization
     
@@ -32,6 +34,10 @@ class ProfileViewModel: ObservableObject {
     ) {
         self.userService = userService
         self.photoService = photoService
+    }
+    
+    deinit {
+        profileListener?.remove()
     }
     
     // MARK: - Public Methods
@@ -50,6 +56,33 @@ class ProfileViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    /// Observes current user's profile for real-time updates
+    /// - Parameter authService: AuthService instance with current user
+    /// - Note: Updates sync < 100ms (shared-standards.md target)
+    func observeProfile(authService: AuthService) {
+        guard let userID = authService.currentUser?.uid else {
+            return
+        }
+        
+        // Remove existing listener if any
+        profileListener?.remove()
+        
+        // Set up real-time listener
+        profileListener = userService.observeUser(userID: userID) { [weak self] updatedUser in
+            Task { @MainActor in
+                if let updatedUser = updatedUser {
+                    self?.user = updatedUser
+                }
+            }
+        }
+    }
+    
+    /// Stops observing profile updates
+    func stopObserving() {
+        profileListener?.remove()
+        profileListener = nil
     }
     
     /// Updates user's display name

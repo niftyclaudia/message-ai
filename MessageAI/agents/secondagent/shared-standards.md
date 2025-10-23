@@ -172,14 +172,14 @@ func createChat(members: [String], isGroup: Bool) async throws -> String
 
 ## Git Branch Strategy
 
-**Base Branch**: Always branch from `secondagent`  
+**Base Branch**: Always branch from `develop`  
 **Branch Naming**: `feat/pr-{number}-{feature-name}`  
-**PR Target**: Always target `secondagent`, NEVER `main`
+**PR Target**: Always target `develop`, NEVER `main`
 
 Example:
 ```bash
-git checkout secondagent
-git pull origin secondagent
+git checkout develop
+git pull origin develop
 git checkout -b feat/pr-1-message-send
 ```
 

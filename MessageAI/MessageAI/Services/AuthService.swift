@@ -199,6 +199,24 @@ class AuthService: ObservableObject {
         }
     }
 
+    /// Send password reset email to user
+    /// - Parameter email: User's email address
+    /// - Throws: AuthError for validation or Firebase errors
+    /// - Performance: Should complete in < 2 seconds
+    /// - Note: Uses Firebase Auth sendPasswordReset()
+    func sendPasswordResetEmail(email: String) async throws {
+        // Validate email format before calling Firebase
+        try validateEmail(email)
+        
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: email)
+            // Firebase sends email successfully
+            
+        } catch {
+            throw mapAuthError(error)
+        }
+    }
+    
     /// Sign out the current user
     /// - Throws: AuthError if sign out fails
     /// - Note: Clears currentUser and isAuthenticated properties, also signs out from Google

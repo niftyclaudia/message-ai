@@ -35,6 +35,7 @@ struct AvatarView: View {
                     switch phase {
                     case .empty:
                         ProgressView()
+                            .frame(width: size, height: size)
                     case .success(let image):
                         image
                             .resizable()
@@ -45,6 +46,7 @@ struct AvatarView: View {
                         initialsView
                     }
                 }
+                .id(photoURL) // Force reload when URL changes
             } else {
                 // Show initials
                 initialsView

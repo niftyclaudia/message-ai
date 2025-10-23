@@ -16,21 +16,7 @@ class MessageService {
     // MARK: - Properties
     
     private let firestore: Firestore
-    private let userDefaults = UserDefaults.standard
     private let maxRetryCount = 3
-    private let maxQueueSize = 3 // PR-2 requirement: 3-message queue
-    
-    // Make queue key user-specific to prevent cross-device/simulator conflicts
-    private var queueKey: String {
-        guard let userID = Auth.auth().currentUser?.uid else {
-            return "queued_messages"
-        }
-        return "queued_messages_\(userID)"
-    }
-    
-    // NetworkMonitor needs to be accessed on main actor
-    @MainActor
-    private lazy var networkMonitor = NetworkMonitor()
     
     // MARK: - Initialization
     
@@ -150,11 +136,8 @@ class MessageService {
                 "lastMessageSenderID": currentUser.uid
             ], forDocument: chatRef)
             
-            // Commit batch atomically
+            // Commit batch atomically (message already has .sent status)
             try await batch.commit()
-            
-            // Update message status to sent after successful server commit
-            try await updateMessageStatus(messageID: messageID, status: .sent)
             
             // Track server ack latency
             PerformanceMonitor.shared.endMessageSend(messageID: messageID, phase: "serverAck")
@@ -167,89 +150,6 @@ class MessageService {
         }
     }
     
-    /// Queues a message for offline delivery
-    /// - Parameters:
-    ///   - chatID: The chat's ID
-    ///   - text: The message text
-    /// - Returns: Message ID
-    /// - Throws: MessageServiceError for various failure scenarios
-    func queueMessage(chatID: String, text: String) async throws -> String {
-        guard let currentUser = Auth.auth().currentUser else {
-            throw MessageServiceError.permissionDenied
-        }
-        
-        // Check queue size limit
-        let currentQueue = getQueuedMessages()
-        if currentQueue.count >= maxQueueSize {
-            throw MessageServiceError.offlineQueueFull
-        }
-        
-        let messageID = UUID().uuidString
-        let timestamp = Date()
-        
-        let queuedMessage = QueuedMessage(
-            id: messageID,
-            chatID: chatID,
-            text: text,
-            timestamp: timestamp,
-            senderID: currentUser.uid
-        )
-        
-        // Save to local storage
-        var queuedMessages = getQueuedMessages()
-        queuedMessages.append(queuedMessage)
-        saveQueuedMessages(queuedMessages)
-        
-        return messageID
-    }
-    
-    /// Syncs queued messages to Firestore
-    /// - Throws: MessageServiceError for various failure scenarios
-    func syncQueuedMessages() async throws {
-        let queuedMessages = getQueuedMessages()
-        
-        for queuedMessage in queuedMessages {
-            do {
-                let message = queuedMessage.toMessage()
-                
-                try firestore.collection("chats")
-                    .document(queuedMessage.chatID)
-                    .collection(Message.collectionName)
-                    .document(queuedMessage.id)
-                    .setData(from: message)
-                
-                // Remove from queue after successful sync
-                removeQueuedMessage(id: queuedMessage.id)
-                
-            } catch {
-                // Update retry count
-                var updatedMessage = queuedMessage
-                updatedMessage.retryCount += 1
-                updatedMessage.lastAttempt = Date()
-                
-                // Remove old and add updated
-                removeQueuedMessage(id: queuedMessage.id)
-                var updatedQueue = getQueuedMessages()
-                updatedQueue.append(updatedMessage)
-                saveQueuedMessages(updatedQueue)
-                
-                if updatedMessage.retryCount >= 3 {
-                    // Remove after max retries
-                    removeQueuedMessage(id: queuedMessage.id)
-                }
-            }
-        }
-    }
-    
-    /// Gets all queued messages
-    /// - Returns: Array of queued messages
-    func getQueuedMessages() -> [QueuedMessage] {
-        guard let data = userDefaults.data(forKey: queueKey),
-              let messages = try? JSONDecoder().decode([QueuedMessage].self, from: data) else {
-            return []
-        }
-        return messages
-    }
     
     /// Updates message status in Firestore
     /// - Parameters:
@@ -279,40 +179,6 @@ class MessageService {
         try await updateMessageStatus(messageID: messageID, status: .delivered)
     }
     
-    /// Retries a failed message
-    /// - Parameter messageID: The message's ID
-    /// - Throws: MessageServiceError for various failure scenarios
-    func retryFailedMessage(messageID: String) async throws {
-        // Find the message in queued messages
-        let queuedMessages = getQueuedMessages()
-        guard let queuedMessage = queuedMessages.first(where: { $0.id == messageID }) else {
-            throw MessageServiceError.messageNotFound
-        }
-        
-        // Remove from queue and try to send again
-        removeQueuedMessage(id: messageID)
-        
-        do {
-            _ = try await sendMessage(chatID: queuedMessage.chatID, text: queuedMessage.text)
-        } catch {
-            // If still fails, re-queue with updated retry count
-            var updatedMessage = queuedMessage
-            updatedMessage.retryCount += 1
-            updatedMessage.lastAttempt = Date()
-            
-            var updatedQueue = getQueuedMessages()
-            updatedQueue.append(updatedMessage)
-            saveQueuedMessages(updatedQueue)
-            
-            throw error
-        }
-    }
-    
-    /// Deletes a failed message
-    /// - Parameter messageID: The message's ID
-    func deleteFailedMessage(messageID: String) {
-        removeQueuedMessage(id: messageID)
-    }
     
     /// Updates a message with server timestamp
     /// - Parameters:
@@ -396,7 +262,7 @@ class MessageService {
         
         return query.addSnapshotListener { snapshot, error in
             if let error = error {
-                print("MessageService: Error observing messages: \(error.localizedDescription)")
+                // Silently fail - real-time updates are not critical
                 completion([])
                 return
             }
@@ -413,7 +279,7 @@ class MessageService {
                     message.id = document.documentID
                     return message
                 } catch {
-                    print("MessageService: Error parsing message: \(error.localizedDescription)")
+                    // Skip malformed messages
                     return nil
                 }
             }
@@ -497,104 +363,6 @@ class MessageService {
         }
     }
     
-    // MARK: - Private Methods
-    
-    /// Saves queued messages to local storage
-    /// - Parameter messages: Array of queued messages
-    private func saveQueuedMessages(_ messages: [QueuedMessage]) {
-        do {
-            let data = try JSONEncoder().encode(messages)
-            userDefaults.set(data, forKey: queueKey)
-        } catch {
-            // Silently fail - queued messages will be lost but not critical
-        }
-    }
-    
-    /// Removes a queued message by ID
-    /// - Parameter id: The message ID to remove
-    private func removeQueuedMessage(id: String) {
-        var queuedMessages = getQueuedMessages()
-        queuedMessages.removeAll { $0.id == id }
-        saveQueuedMessages(queuedMessages)
-    }
-    
-    // MARK: - Offline Persistence Methods
-    
-    /// Checks if the device is currently online
-    /// - Returns: True if online, false if offline
-    @MainActor
-    func isOnline() -> Bool {
-        return networkMonitor.isConnected
-    }
-    
-    /// Gets the current network connection type
-    /// - Returns: ConnectionType enum value
-    @MainActor
-    func getConnectionType() -> ConnectionType {
-        return networkMonitor.connectionType
-    }
-    
-    /// Starts automatic sync when network becomes available
-    func startAutoSync() {
-        // This would be called by the ChatViewModel when network status changes
-        Task { @MainActor in
-            if isOnline() {
-                try? await syncQueuedMessages()
-            }
-        }
-    }
-    
-    /// Clears all queued messages (for testing or user action)
-    func clearAllQueuedMessages() {
-        saveQueuedMessages([])
-    }
-    
-    /// Gets the count of queued messages
-    /// - Returns: Number of queued messages
-    func getQueuedMessageCount() -> Int {
-        return getQueuedMessages().count
-    }
-    
-    /// Checks if there are any failed messages that can be retried
-    /// - Returns: True if there are retryable messages
-    func hasRetryableMessages() -> Bool {
-        let queuedMessages = getQueuedMessages()
-        return queuedMessages.contains { $0.retryCount < maxRetryCount }
-    }
-    
-    /// Retries all failed messages with exponential backoff
-    func retryAllFailedMessages() async throws {
-        let queuedMessages = getQueuedMessages()
-        let retryableMessages = queuedMessages.filter { $0.retryCount < maxRetryCount }
-        
-        for queuedMessage in retryableMessages {
-            do {
-                let message = queuedMessage.toMessage()
-                
-                try firestore.collection("chats")
-                    .document(queuedMessage.chatID)
-                    .collection(Message.collectionName)
-                    .document(queuedMessage.id)
-                    .setData(from: message)
-                
-                // Remove from queue after successful sync
-                removeQueuedMessage(id: queuedMessage.id)
-                
-            } catch {
-                // Update retry count with exponential backoff
-                var updatedMessage = queuedMessage
-                updatedMessage.retryCount += 1
-                updatedMessage.lastAttempt = Date()
-                
-                // Remove old and add updated
-                removeQueuedMessage(id: queuedMessage.id)
-                var updatedQueue = getQueuedMessages()
-                updatedQueue.append(updatedMessage)
-                saveQueuedMessages(updatedQueue)
-            }
-        }
-    }
-    
     // MARK: - PR-1 Optimization Methods
     
     /// Sends multiple messages in a burst for optimized performance
@@ -668,9 +436,6 @@ class MessageService {
             // Track burst completion
             PerformanceMonitor.shared.endSync(messageCount: messages.count)
             
-            let burstDuration = Date().timeIntervalSince(burstStartTime) * 1000
-            print("MessageService: Burst of \(messages.count) messages sent in \(String(format: "%.1f", burstDuration))ms")
-            
             return messageIDs
         } catch {
             throw MessageServiceError.networkError(error)
@@ -697,18 +462,13 @@ class MessageService {
     /// - Returns: Number of messages synced
     /// - Throws: MessageServiceError for various failure scenarios
     func syncOnForeground(priorityChatID: String? = nil) async throws -> Int {
-        let startTime = Date()
         PerformanceMonitor.shared.startSync()
         
-        // First, sync any queued offline messages
-        try await syncQueuedMessages()
-        let queuedCount = getQueuedMessageCount()
-        
-        // If priority chat is specified, fetch its latest messages
-        var syncedCount = queuedCount
+        // Fetch latest messages for priority chat if specified
+        var syncedCount = 0
         if let priorityChatID = priorityChatID {
             let messages = try await fetchMessages(chatID: priorityChatID, limit: 50)
-            syncedCount += messages.count
+            syncedCount = messages.count
         }
         
         // Track sync duration
@@ -721,7 +481,7 @@ class MessageService {
     /// - PR #4: Ensures zero message loss during lifecycle transitions
     /// - Throws: MessageServiceError if state preservation fails
     func preserveState() async throws {
-        // Queued messages are already persisted in UserDefaults
+        // Message state is managed by Firebase and OfflineMessageService
         // This method ensures any pending operations are flushed
     }
     
@@ -729,18 +489,8 @@ class MessageService {
     /// - PR #4: Restores preserved state after lifecycle transitions
     /// - Throws: MessageServiceError if state restoration fails
     func restoreState() async throws {
-        // Queued messages are automatically loaded from UserDefaults
-        // Attempt to sync any queued messages
-        
-        let queuedMessages = getQueuedMessages()
-        if !queuedMessages.isEmpty {
-            // Sync queued messages if online
-            Task { @MainActor in
-                if isOnline() {
-                    try? await syncQueuedMessages()
-                }
-            }
-        }
+        // Message state restoration is handled by Firebase listeners
+        // and OfflineMessageService for queued messages
     }
 }
 

@@ -161,8 +161,7 @@ struct GroupMemberListView: View {
                 observeMemberPresence()
             }
         } catch {
-            print("GroupMemberListView: Error loading members: \(error.localizedDescription)")
-            
+            // Show error to user since this affects core functionality
             await MainActor.run {
                 self.error = error.localizedDescription
                 isLoading = false

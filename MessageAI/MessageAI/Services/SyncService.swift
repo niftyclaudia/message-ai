@@ -58,7 +58,7 @@ class SyncService: ObservableObject {
         
         do {
             // Update UI to show syncing state
-            await await networkMonitorService.updateToSyncing(messageCount: totalMessages)
+            await networkMonitorService.updateToSyncing(messageCount: totalMessages)
             
             for (index, offlineMessage) in offlineMessages.enumerated() {
                 do {
@@ -207,7 +207,7 @@ class SyncService: ObservableObject {
                 do {
                     _ = try await syncOfflineMessages()
                 } catch {
-                    print("SyncService: Auto-sync failed: \(error.localizedDescription)")
+                    // Silently fail - auto-sync is not critical
                 }
             }
         }
