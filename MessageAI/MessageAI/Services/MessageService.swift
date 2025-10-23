@@ -28,9 +28,9 @@ class MessageService {
         return "queued_messages_\(userID)"
     }
     
-    // NetworkMonitor needs to be accessed on main actor
+    // NetworkMonitorService needs to be accessed on main actor
     @MainActor
-    private lazy var networkMonitor = NetworkMonitor()
+    private lazy var networkMonitor = NetworkMonitorService()
     
     // MARK: - Initialization
     

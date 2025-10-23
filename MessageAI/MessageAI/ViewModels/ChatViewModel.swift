@@ -59,7 +59,7 @@ class ChatViewModel: ObservableObject {
     private let readReceiptService: ReadReceiptService
     private var listener: ListenerRegistration?
     private var readReceiptListener: ListenerRegistration?
-    private let networkMonitor = NetworkMonitor()
+    private let networkMonitor = NetworkMonitorService()
     let optimisticService = OptimisticUpdateService()
     private let presenceService = PresenceService()
     private let typingService = TypingService()
@@ -91,7 +91,7 @@ class ChatViewModel: ObservableObject {
         listener = nil
         readReceiptListener?.remove()
         readReceiptListener = nil
-        // NetworkMonitor cleanup is handled in its own deinit
+        // NetworkMonitorService cleanup is handled in its own deinit
     }
     
     // MARK: - Public Methods

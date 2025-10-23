@@ -10,7 +10,7 @@ import Network
 import SwiftUI
 
 /// Enhanced network monitoring service for offline persistence system
-/// - Note: Extends NetworkMonitor with connection state management and auto-sync
+/// - Note: Provides connection state management, auto-sync, and real-time network monitoring
 @MainActor
 class NetworkMonitorService: ObservableObject {
     
