@@ -11,25 +11,29 @@ When you see a message like "cody pr-3" or "pete pr-5", automatically use the ap
 
 ### Usage Pattern:
 ```
-[agent-name] pr-[number]  OR  [agent-name] p[number]
+[agent-name] pr-[number]  OR  [agent-name] p[number]  OR  [agent-name] s[number]  OR  [agent-name]2[number]  OR  [agent-name]2 pr[number]
 ```
 
-**Both formats work:**
-- `cody pr-3` or `cody p3` → Same result
-- `pete pr-5` or `pete p5` → Same result  
-- `brad pr-1` or `brad p1` → Same result
+**All formats work (for maximum flexibility across branches):**
+- `cody pr-3` or `cody p3` or `cody s3` or `cody2 3` or `cody2 pr3` → Same result
+- `pete pr-5` or `pete p5` or `pete s5` or `pete2 5` or `pete2 pr5` → Same result  
+- `brad pr-1` or `brad p1` or `brad s1` or `brad2 1` or `brad2 pr1` → Same result
 
 ### Template Location:
-Use the prompt from `MessageAI/agents/agent-prompt-template.md` under "General Agent Call" section, replacing:
+Use the appropriate agent prompt template based on your current branch:
+- **secondagent branch**: `MessageAI/agents/secondagent/agent-prompt-template.md`
+- **develop branch**: `MessageAI/agents/agent-prompt-template.md`
+
+Replace in the template:
 - `[AGENT_NAME]` with the agent name (Cody, Pete, Brad)
 - `[AGENT_ROLE]` with their role description
 - `[agent-type]` with the agent type (cody, pete, brad)
 - `[NUMBER]` with the PR number
 
 ### Examples:
-- "cody pr-3" or "cody p3" → Cody agent for PR #3 implementation
-- "pete pr-5" or "pete p5" → Pete agent for PR #5 planning
-- "brad pr-1" or "brad p1" → Brad agent for PR #1 brief creation
+- "cody pr-3", "cody p3", or "cody s3" → Cody agent for PR #3 implementation
+- "pete pr-5", "pete p5", or "pete s5" → Pete agent for PR #5 planning
+- "brad pr-1", "brad p1", or "brad s1" → Brad agent for PR #1 brief creation
 
 Always reference the specific agent template file for detailed instructions.
 
