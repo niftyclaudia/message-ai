@@ -17,3 +17,6 @@ export { onMessageCreatedTrigger as onMessageCreated } from './triggers/onMessag
 
 // Export Memory Management functions (PR-004)
 export { memoryCleanup, memoryCleanupManual } from './cleanup/memoryCleanup';
+
+// Export Function Calling framework
+export { executeFunctionCallFunction as executeFunctionCall } from './functionCalling/orchestrator';
