@@ -56,6 +56,9 @@ export interface SearchResult {
 export interface CategorizeMessageParams {
   messageId: string;
   userId: string;
+  text?: string;
+  metadata?: any;
+  context?: any;
 }
 
 export type CategoryType = 'urgent' | 'canWait' | 'aiHandled';

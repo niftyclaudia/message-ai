@@ -15,11 +15,13 @@ export async function categorizeMessageHandler(
   userId: string,
   context: functions.https.CallableContext
 ): Promise<MessageCategory> {
-  const { messageId } = params;
+  const { messageId, text, metadata, context: messageContext } = params;
 
   logger.info('categorizeMessage handler started', {
     userId,
     messageId,
+    hasText: !!text,
+    hasMetadata: !!metadata
   });
 
   // Verify user is making request for themselves
@@ -27,24 +29,25 @@ export async function categorizeMessageHandler(
     throw new Error('permission_denied: Cannot categorize message for another user');
   }
 
-  // Verify user has access to this message
-  const hasAccess = await checkUserAccess(userId, messageId, 'message');
-  if (!hasAccess) {
-    throw new Error('permission_denied: You do not have access to this message');
-  }
-
   try {
-    // Fetch message from Firestore
-    const db = admin.firestore();
-    const messageDoc = await db.collection('messages').doc(messageId).get();
+    // Use the text from params if available, otherwise fetch from Firestore
+    let messageText = text;
+    
+    if (!messageText) {
+      // Fallback: Fetch message from Firestore
+      const db = admin.firestore();
+      const messageDoc = await db.collection('messages').doc(messageId).get();
 
-    if (!messageDoc.exists) {
-      throw new Error('Message not found');
-    }
+      if (!messageDoc.exists) {
+        throw new Error('Message not found');
+      }
 
-    const message = messageDoc.data();
-    if (!message || !message.text) {
-      throw new Error('Message has no text content');
+      const message = messageDoc.data();
+      if (!message || !message.text) {
+        throw new Error('Message has no text content');
+      }
+      
+      messageText = message.text;
     }
 
     // Use OpenAI to categorize the message
@@ -69,7 +72,7 @@ Format as JSON.`;
       model: 'gpt-4',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Categorize this message: "${message.text}"` },
+        { role: 'user', content: `Categorize this message: "${messageText}"` },
       ],
       temperature: 0.3,
       max_tokens: 200,
