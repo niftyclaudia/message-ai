@@ -39,7 +39,7 @@ class ErrorLogger {
             "requestContext": [
                 "messageId": context.messageId as Any,
                 "threadId": context.threadId as Any,
-                "query": context.query != nil ? hashForPrivacy(context.query!) : NSNull(), // Privacy: hashed
+                "query": context.query != nil ? hashForPrivacy(context.query!) as Any : NSNull(), // Privacy: hashed
             ],
             "errorDetails": [
                 "message": error.message,
