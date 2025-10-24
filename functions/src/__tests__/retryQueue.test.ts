@@ -5,7 +5,7 @@
 
 import {describe, it, expect, beforeEach, afterEach} from "@jest/globals";
 import {processRetryQueue} from "../jobs/retryQueue";
-import * as admin from "firebase-admin";
+// import * as admin from "firebase-admin";
 
 // Mock Firestore
 const mockBatch = {
@@ -50,7 +50,7 @@ describe("Retry Queue Processing", () => {
   });
   
   it("should skip requests with max retry count exceeded", async () => {
-    const now = admin.firestore.Timestamp.now();
+    // const now = admin.firestore.Timestamp.now();
     
     mockCollection.get.mockResolvedValue({
       docs: [

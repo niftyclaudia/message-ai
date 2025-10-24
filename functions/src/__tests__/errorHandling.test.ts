@@ -3,7 +3,7 @@
  * PR-AI-005: Unit tests for error handling utilities
  */
 
-import {describe, it, expect, beforeEach} from "@jest/globals";
+import {describe, it, expect} from "@jest/globals";
 import {
   classifyError,
   shouldRetry,

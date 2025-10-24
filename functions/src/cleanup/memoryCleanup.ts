@@ -6,7 +6,7 @@
  * AI memory data older than 90 days while preserving important items.
  */
 
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { logger } from '../utils/logger';
 
@@ -27,7 +27,7 @@ const db = admin.firestore();
 export const memoryCleanup = functions.pubsub
   .schedule('0 0 * * *') // Daily at midnight UTC
   .timeZone('UTC')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     logger.info('Starting memory cleanup job');
     
     try {
@@ -205,7 +205,8 @@ export const memoryCleanupManual = functions.https.onRequest(async (req, res) =>
       resource: {}
     } as any;
     
-    const result = await memoryCleanup.run(mockContext);
+    // Trigger the cleanup function manually
+    const result = await memoryCleanup(mockContext, {} as any);
     
     res.status(200).json({
       success: true,

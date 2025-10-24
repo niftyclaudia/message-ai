@@ -6,10 +6,10 @@
  * Runs every 5 minutes via Cloud Scheduler.
  */
 
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import {firestore} from "../config/env";
-import {AIContext, AIFeature, shouldRetry, classifyError} from "../utils/errorHandling";
+import {shouldRetry} from "../utils/errorHandling";
 
 /**
  * Process the retry queue for failed AI requests
@@ -144,7 +144,7 @@ export async function processRetryQueue(): Promise<{
  */
 export const retryQueueScheduled = functions.pubsub
   .schedule("every 5 minutes")
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     console.log("Starting retry queue processing...");
     
     try {
