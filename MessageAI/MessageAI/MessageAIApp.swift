@@ -86,6 +86,9 @@ struct MessageAIApp: App {
     /// Notification service - handles push notifications and device tokens
     @StateObject private var notificationService = NotificationService()
     
+    /// Memory service - manages AI state, context, and learning data (PR-004)
+    @StateObject private var memoryService = MemoryService()
+    
     /// Notification delegate for handling push notifications
     @State private var notificationDelegate: NotificationDelegate?
     
@@ -109,6 +112,7 @@ struct MessageAIApp: App {
                 .environmentObject(authService)
                 .environmentObject(notificationService)
                 .environmentObject(lifecycleManager)
+                .environmentObject(memoryService)
                 .onAppear {
                     configureNotificationDelegates()
                 }

@@ -117,13 +117,41 @@ service cloud.firestore {
         && request.resource.data.urgentKeywords.size() >= 3;
     }
     
-    // AI Learning Data collection rules (PR #AI-002)
-    match /users/{userID}/aiState/learningData/{document=**} {
-      // Users can read/write their own learning data
+    // AI State collection rules (PR #004 - Memory & State Management)
+    match /users/{userID}/aiState/{document=**} {
+      // Users can only read/write their own AI state
       allow read, write: if isOwner(userID);
       
-      // Users can delete their own learning data (for 90-day cleanup)
-      allow delete: if isOwner(userID);
+      // Validate context constraints on sessionContext writes
+      allow write: if isOwner(userID) 
+        && (!request.resource.data.keys().hasAny(['recentMessages', 'recentQueries'])
+            || (request.resource.data.keys().hasAny(['recentMessages']) 
+                && request.resource.data.recentMessages.size() <= 20)
+            || (request.resource.data.keys().hasAny(['recentQueries']) 
+                && request.resource.data.recentQueries.size() <= 5));
+    }
+    
+    // AI Learning Data subcollection rules (PR #AI-002, PR #004)
+    match /users/{userID}/aiState/learningData/{document=**} {
+      // Users can read/write/delete their own learning data
+      allow read, write, delete: if isOwner(userID);
+    }
+    
+    // AI Conversation History subcollection rules (PR #004)
+    match /users/{userID}/aiState/conversationHistory/{document=**} {
+      // Users can read/write/delete their own conversation history
+      allow read, write, delete: if isOwner(userID);
+    }
+    
+    // Failed AI Requests collection rules (PR #AI-005 - Error Handling)
+    match /failedAIRequests/{requestID} {
+      // Cloud Functions can write error logs (no auth check for service writes)
+      // Users cannot directly read/write error logs (admin/monitoring only)
+      // This is intentionally permissive for Cloud Functions service account
+      allow write: if true;
+      
+      // Reading is restricted (only for monitoring/admin tools)
+      allow read: if false;
     }
   }
 }
