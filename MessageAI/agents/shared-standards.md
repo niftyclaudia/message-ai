@@ -398,3 +398,215 @@ ScrollView {
 3. Implement proper UI indicators ("Queued", "Sending X...")
 4. Test force-quit and recovery scenarios
 5. Measure sync completion time (< 1s target)
+
+---
+
+## AI Error Handling Standards (PR-AI-005)
+
+All AI features MUST use the centralized error handling system for consistent UX and graceful degradation.
+
+### Core Principles
+
+**Calm Intelligence Error UX:**
+- ✅ Blue/gray background (#F0F4F8), never red
+- ✅ Info icon (ℹ️), never error icon (❌)
+- ✅ First-person messaging ("I'm having trouble..." not "Error occurred")
+- ✅ Actionable fallbacks (retry, view full content, use basic mode)
+
+**Graceful Degradation:**
+- ✅ Core messaging ALWAYS works (send, receive, read)
+- ✅ AI features fail gracefully with fallback options
+- ✅ No crashes or blocking errors from AI failures
+
+**Performance:**
+- ✅ Error handling overhead: <10ms per AI request
+- ✅ Error UI display: <50ms
+- ✅ Retry start: <100ms
+- ✅ Fallback activation: <200ms
+
+### Error Handling Pattern
+
+**Step 1: Wrap AI operations with error handling**
+```swift
+import MessageAI
+
+let handler = AIErrorHandler.shared
+let context = AIContext(
+    feature: .summarization,
+    userId: currentUserId,
+    threadId: threadId
+)
+
+do {
+    // Attempt AI operation
+    let result = try await aiService.summarizeThread(threadId)
+    
+    // Record success (resets fallback mode)
+    handler.recordSuccess(for: .summarization)
+    
+    // Use result
+    displaySummary(result)
+    
+} catch let error as AIError {
+    // Handle AI error with calm UX
+    let response = handler.handle(error: error, context: context)
+    
+    // Show calm error view
+    showCalmError(response)
+    
+} catch {
+    // Convert generic errors to AIError
+    let aiError = AIError.from(error, context: "Thread summarization")
+    let response = handler.handle(error: aiError, context: context)
+    showCalmError(response)
+}
+```
+
+**Step 2: Display calm error UI**
+```swift
+// In your SwiftUI view
+@State private var errorResponse: ErrorResponse?
+@State private var showingError = false
+
+// Show error
+CalmErrorView(
+    errorResponse: errorResponse!,
+    onRetry: {
+        // Retry the operation
+        Task {
+            await retryOperation()
+        }
+    },
+    onFallback: {
+        // Execute fallback action
+        if let fallback = errorResponse?.fallbackAction {
+            executeFallback(fallback)
+        }
+    }
+)
+
+// Or use toast for background errors
+CalmErrorToast(
+    message: errorResponse?.userMessage ?? "",
+    isShowing: $showingError
+)
+```
+
+**Step 3: Check fallback mode before operations**
+```swift
+let handler = AIErrorHandler.shared
+
+if handler.shouldUseFallbackMode(feature: .semanticSearch) {
+    // Use fallback: keyword search instead of semantic search
+    performKeywordSearch(query)
+} else {
+    // Try semantic search
+    performSemanticSearch(query)
+}
+```
+
+### Error Types & Handling
+
+| Error Type | Retryable? | Delay | User Message |
+|------------|-----------|-------|--------------|
+| `.timeout` | ✓ | 1s | "I'm having trouble right now. Want to try again?" |
+| `.rateLimit` | ✗ | 30s | "I need a moment to catch up. Try again in 30 seconds?" |
+| `.serviceUnavailable` | ✓ | 2s | "Taking longer than expected. Want to try the full version?" |
+| `.networkFailure` | ✓ | 1s | "I can't reach my AI assistant right now. Check your connection?" |
+| `.invalidRequest` | ✗ | 0s | "Something doesn't look quite right. Let me know if this keeps happening." |
+| `.quotaExceeded` | ✗ | 0s | "AI features are temporarily limited. I'll be back soon!" |
+
+### Fallback Actions by Feature
+
+| Feature | Fallback Action |
+|---------|----------------|
+| Thread Summarization | Open full thread |
+| Action Item Extraction | Show last 10 messages |
+| Smart Search | Fall back to keyword search |
+| Priority Detection | Show all in neutral inbox |
+| Decision Tracking | Show raw message history |
+| Proactive Scheduling | Prompt manual calendar check |
+
+### Retry Logic
+
+**Exponential Backoff:**
+- Attempt 1: 1s delay
+- Attempt 2: 2s delay
+- Attempt 3: 4s delay
+- Attempt 4: 8s delay (max)
+- After 4 attempts: Permanent failure
+
+**Fallback Mode:**
+- Triggered after 3 consecutive failures
+- Shows banner: "🔵 [Feature fallback mode description]"
+- Exits automatically on successful operation
+
+### Cloud Functions Error Handling
+
+```typescript
+import { withErrorHandling, AIContext } from './utils/errorHandling';
+
+const context: AIContext = {
+  requestId: uuid(),
+  feature: 'summarization',
+  userId: request.auth.uid,
+  timestamp: admin.firestore.Timestamp.now(),
+  retryCount: 0
+};
+
+const result = await withErrorHandling(
+  async () => {
+    // Your AI operation here
+    return await openai.createCompletion(/* ... */);
+  },
+  context,
+  10000 // 10s timeout
+);
+
+if (result.success) {
+  return result.data;
+} else {
+  // Error logged to Firestore automatically
+  return { error: result.error };
+}
+```
+
+### Testing Requirements
+
+**All AI features must test:**
+- ✅ Error classification (all 6 types)
+- ✅ Retry mechanism (exponential backoff)
+- ✅ Fallback options work correctly
+- ✅ Error logging (Crashlytics + Firestore)
+- ✅ Graceful degradation (messaging works when AI down)
+- ✅ UI displays calm error view (blue/gray, first-person)
+- ✅ Performance targets (<10ms overhead, <50ms UI)
+
+**Test files:**
+- Unit tests: `AIErrorHandlerTests.swift`, `FallbackModeManagerTests.swift`
+- UI tests: `AIErrorUITests.swift`
+- Integration: `GracefulDegradationTests.swift`
+- Performance: `AIErrorHandlerPerformanceTests.swift`
+
+### Privacy & Logging
+
+**What gets logged:**
+- ✅ Error type, feature, timestamp
+- ✅ Hashed user ID (SHA256 first 16 chars)
+- ✅ Hashed query (if applicable)
+- ✅ Request context (messageId, threadId)
+
+**What does NOT get logged:**
+- ❌ Message content
+- ❌ Unhashed user IDs
+- ❌ Unhashed search queries
+- ❌ Any PII (personally identifiable information)
+
+### Related Files
+
+- **Models:** `Models/AIError.swift`, `AIFeature.swift`, `FallbackAction.swift`, `ErrorResponse.swift`, `AIContext.swift`
+- **Services:** `Services/AI/AIErrorHandler.swift`, `ErrorLogger.swift`, `RetryQueue.swift`, `FallbackModeManager.swift`
+- **Views:** `Views/AIError/CalmErrorView.swift`, `CalmErrorToast.swift`, `FallbackModeIndicator.swift`
+- **Components:** `Components/LoadingWithTimeout.swift`
+- **Cloud Functions:** `functions/src/utils/errorHandling.ts`, `functions/src/jobs/retryQueue.ts`
+- **Schema:** `MessageAI/docs/schemas/failedAIRequests-schema.md`
