@@ -4,16 +4,24 @@
   "description": "MessageAI - Real-time messaging app with Firebase backend and iOS frontend",
   "private": true,
   "scripts": {
-    "setup": "npm install && cd functions && npm install && cd ..",
+    "setup": "./setup.sh",
+    "setup:legacy": "npm install && cd functions && npm install && cd ..",
     "setup:functions": "cd functions && npm install",
+    "validate:config": "./validate-config.sh",
+    "open:xcode": "open MessageAI/MessageAI.xcodeproj",
     "dev": "firebase emulators:start",
     "dev:functions": "firebase emulators:start --only functions",
     "dev:firestore": "firebase emulators:start --only firestore",
     "deploy": "firebase deploy",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules,storage:rules,database:rules",
+    "deploy:dev": "firebase use dev && firebase deploy",
+    "deploy:prod": "firebase use production && firebase deploy",
     "build:functions": "cd functions && npm run build",
-    "test:functions": "cd functions && npm test"
+    "test:functions": "cd functions && npm test",
+    "test:ios": "xcodebuild test -scheme MessageAI -destination 'platform=iOS Simulator,name=iPhone 15'",
+    "test:all": "npm run test:functions && npm run test:ios",
+    "health-check": "./validate-config.sh && echo '\n✓ Health check passed!'"
   },
   "devDependencies": {
     "firebase-tools": "^13.0.0"

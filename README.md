@@ -2,6 +2,133 @@
 
 A modern iOS messaging application built with SwiftUI and Firebase.
 
+---
+
+## 🚀 Quick Start (10 Minutes)
+
+New to the project? Get up and running in under 10 minutes:
+
+### Prerequisites Checklist
+
+Before starting, ensure you have:
+- ✅ **macOS Monterey (12.0)** or later
+- ✅ **Xcode 15.0+** ([Download from App Store](https://apps.apple.com/app/xcode/id497799835))
+- ✅ **Node.js 18.0+** ([Download from nodejs.org](https://nodejs.org/))
+- ✅ **Git** (install with: `xcode-select --install`)
+- ✅ **Firebase account** ([Sign up free](https://console.firebase.google.com/))
+
+### Setup Steps
+
+#### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/niftyclaudia/message-ai.git
+cd MessagingApp
+```
+
+#### 2️⃣ Run One-Command Setup
+```bash
+npm run setup
+```
+
+This script will:
+- ✓ Check your system requirements (macOS, Xcode, Node.js)
+- ✓ Install all npm dependencies (root + Cloud Functions)
+- ✓ Install Firebase CLI globally
+- ✓ Verify your environment is ready
+
+**Expected output**: Green checkmarks (✓) for all checks. Yellow warnings (⚠️) are okay for optional AI features.
+
+#### 3️⃣ Configure Firebase
+
+**Get your Firebase credentials:**
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project (or use existing)
+3. Click **Project Settings** (gear icon)
+4. Under "Your apps", click **Add app** → **iOS**
+5. Register your app (Bundle ID: `gauntlet.MessageAI`)
+6. **Download GoogleService-Info.plist**
+
+**Add credentials to the project:**
+```bash
+# Copy template (if you haven't downloaded the file directly)
+cp MessageAI/MessageAI/GoogleService-Info.template.plist MessageAI/MessageAI/GoogleService-Info.plist
+
+# Or move your downloaded file:
+mv ~/Downloads/GoogleService-Info.plist MessageAI/MessageAI/GoogleService-Info.plist
+```
+
+**Important**: If you copied the template, open the file and replace **all** `REPLACE_WITH_YOUR_*` placeholders with values from Firebase Console.
+
+#### 4️⃣ Validate Configuration
+```bash
+npm run validate:config
+```
+
+**Expected output**: "Validation Passed!" with all green checkmarks.
+
+**If you see errors**: Check `TROUBLESHOOTING.md` or run the validation script again after fixing issues.
+
+#### 5️⃣ Open Xcode and Build
+```bash
+npm run open:xcode
+```
+
+In Xcode:
+1. Select **MessageAI** scheme (top left, next to Run button)
+2. Select **iPhone 15** simulator (or any iOS 18.5+ device)
+3. Press **Cmd+R** (or click Run button)
+
+**Expected result**: 🎉 App launches and shows the login screen!
+
+### What's Next?
+
+**Core Features (No additional setup needed)**:
+- ✅ Sign up / Sign in
+- ✅ Send and receive messages
+- ✅ Real-time chat
+- ✅ Offline message queue
+- ✅ Group chats
+- ✅ Read receipts
+- ✅ Typing indicators
+
+**Optional: AI Features** (requires additional API keys):
+- 🤖 Thread summarization
+- 🔍 Semantic search
+- 📋 Action item extraction
+- 📅 Smart scheduling
+
+To enable AI features, see: `functions/README.md` and copy `functions/.env.template` to `functions/.env.local` with your OpenAI and Pinecone API keys.
+
+### Troubleshooting
+
+**Setup failed?** See common issues:
+- 📖 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Comprehensive troubleshooting guide
+- 🔧 Run health check: `npm run health-check`
+- 💬 Ask for help: [GitHub Issues](https://github.com/niftyclaudia/message-ai/issues)
+
+**Most common issues**:
+1. **Xcode not installed**: Install from [App Store](https://apps.apple.com/app/xcode/id497799835)
+2. **Node version too old**: Install [Node.js 18+](https://nodejs.org/)
+3. **GoogleService-Info.plist has placeholders**: Replace with actual Firebase values
+4. **Code signing errors**: Use "Automatically manage signing" in Xcode
+
+### npm Scripts Reference
+
+Quick commands for development:
+
+| Command | Description |
+|---------|-------------|
+| `npm run setup` | One-command setup (run this first!) |
+| `npm run validate:config` | Validate configuration files |
+| `npm run open:xcode` | Open Xcode project |
+| `npm run dev` | Start Firebase emulators (for backend dev) |
+| `npm run test:all` | Run all tests (iOS + Cloud Functions) |
+| `npm run health-check` | Verify your environment is ready |
+
+For full command list, see `package.json` or [Development Workflow](#development-workflow) section below.
+
+---
+
 ## Architecture
 
 ### App Structure
