@@ -35,5 +35,18 @@ struct MessageContext: Codable, Equatable {
         self.hadMention = hadMention
         self.matchedKeywords = matchedKeywords
     }
+    
+    // MARK: - Dictionary Conversion
+    
+    /// Convert to dictionary for Firestore/API calls
+    func toDictionary() -> [String: Any] {
+        return [
+            "senderUserId": senderUserId,
+            "messagePreview": messagePreview,
+            "hadDeadline": hadDeadline,
+            "hadMention": hadMention,
+            "matchedKeywords": matchedKeywords
+        ]
+    }
 }
 

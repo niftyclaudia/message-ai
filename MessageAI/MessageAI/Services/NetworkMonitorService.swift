@@ -52,9 +52,7 @@ class NetworkMonitorService: ObservableObject {
     }
     
     deinit {
-        Task { @MainActor in
-            stopMonitoring()
-        }
+        stopMonitoring()
     }
     
     // MARK: - Public Methods
@@ -70,10 +68,13 @@ class NetworkMonitorService: ObservableObject {
     }
     
     /// Stops monitoring network connectivity
-    func stopMonitoring() {
+    nonisolated func stopMonitoring() {
         monitor.cancel()
-        connectionStateTimer?.invalidate()
-        connectionStateTimer = nil
+        // Timer cleanup will be handled on main actor
+        Task { @MainActor in
+            connectionStateTimer?.invalidate()
+            connectionStateTimer = nil
+        }
     }
     
     /// Checks if the device is currently online
@@ -108,8 +109,13 @@ class NetworkMonitorService: ObservableObject {
             // Yield initial state
             continuation.yield(lastYieldedState)
             
-            // Create a timer to check for state changes (not constant polling)
-            let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            // Create a timer to check for state changes (reduced frequency for better performance)
+            let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self = self else {
+                    continuation.finish()
+                    return
+                }
+                
                 Task { @MainActor in
                     let currentState = self.connectionState
                     if currentState != lastYieldedState {
@@ -124,9 +130,7 @@ class NetworkMonitorService: ObservableObject {
             
             // Cleanup when stream is cancelled
             continuation.onTermination = { _ in
-                Task { @MainActor in
-                    timer.invalidate()
-                }
+                timer.invalidate()
             }
         }
     }

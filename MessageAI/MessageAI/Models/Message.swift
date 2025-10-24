@@ -60,6 +60,17 @@ struct Message: Codable, Identifiable {
     /// Whether this is an optimistic update (not yet confirmed by server)
     var isOptimistic: Bool = false
     
+    // MARK: - AI Categorization Fields
+    
+    /// AI categorization prediction for this message
+    var categoryPrediction: CategoryPrediction?
+    
+    /// Whether AI embedding has been generated for this message
+    var embeddingGenerated: Bool = false
+    
+    /// Searchable metadata extracted from this message
+    var searchableMetadata: SearchableMetadata?
+    
     /// Firestore collection name
     static let collectionName = "messages"
     
@@ -79,11 +90,14 @@ struct Message: Codable, Identifiable {
         case isOffline
         case retryCount
         case isOptimistic
+        case categoryPrediction
+        case embeddingGenerated
+        case searchableMetadata
     }
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false, categoryPrediction: CategoryPrediction? = nil, embeddingGenerated: Bool = false, searchableMetadata: SearchableMetadata? = nil) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
@@ -97,6 +111,9 @@ struct Message: Codable, Identifiable {
         self.isOffline = isOffline
         self.retryCount = retryCount
         self.isOptimistic = isOptimistic
+        self.categoryPrediction = categoryPrediction
+        self.embeddingGenerated = embeddingGenerated
+        self.searchableMetadata = searchableMetadata
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -115,6 +132,9 @@ struct Message: Codable, Identifiable {
         isOffline = try container.decodeIfPresent(Bool.self, forKey: .isOffline) ?? false
         retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
         isOptimistic = try container.decodeIfPresent(Bool.self, forKey: .isOptimistic) ?? false
+        categoryPrediction = try container.decodeIfPresent(CategoryPrediction.self, forKey: .categoryPrediction)
+        embeddingGenerated = try container.decodeIfPresent(Bool.self, forKey: .embeddingGenerated) ?? false
+        searchableMetadata = try container.decodeIfPresent(SearchableMetadata.self, forKey: .searchableMetadata)
         
         // Handle readAt dictionary with Timestamp conversion
         if let readAtTimestamps = try? container.decodeIfPresent([String: Timestamp].self, forKey: .readAt) {
@@ -157,6 +177,9 @@ struct Message: Codable, Identifiable {
         try container.encode(isOffline, forKey: .isOffline)
         try container.encode(retryCount, forKey: .retryCount)
         try container.encode(isOptimistic, forKey: .isOptimistic)
+        try container.encodeIfPresent(categoryPrediction, forKey: .categoryPrediction)
+        try container.encode(embeddingGenerated, forKey: .embeddingGenerated)
+        try container.encodeIfPresent(searchableMetadata, forKey: .searchableMetadata)
         
         // Convert date to Firestore Timestamp
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)

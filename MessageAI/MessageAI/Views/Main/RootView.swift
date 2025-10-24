@@ -42,8 +42,8 @@ struct RootView: View {
         }
         .animation(AppTheme.springAnimation, value: authService.isAuthenticated)
         .onAppear {
-            // Give Firebase a moment to check auth state
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Give Firebase a moment to check auth state (reduced delay for faster startup)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isInitializing = false
             }
         }

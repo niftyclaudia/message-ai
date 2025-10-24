@@ -95,12 +95,14 @@ struct MessageAIApp: App {
     // MARK: - Initialization
     
     init() {
-        // Configure Firebase on app launch
-        do {
-            try FirebaseService.shared.configure()
-        } catch {
-            // Firebase configuration failed - app features won't work
-            // Consider implementing proper error handling/user notification
+        // Configure Firebase on background thread to avoid blocking main thread
+        Task.detached(priority: .high) {
+            do {
+                try FirebaseService.shared.configure()
+            } catch {
+                // Firebase configuration failed - app features won't work
+                // Consider implementing proper error handling/user notification
+            }
         }
     }
     
