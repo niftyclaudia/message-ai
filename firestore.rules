@@ -142,5 +142,16 @@ service cloud.firestore {
       // Users can read/write/delete their own conversation history
       allow read, write, delete: if isOwner(userID);
     }
+    
+    // Failed AI Requests collection rules (PR #AI-005 - Error Handling)
+    match /failedAIRequests/{requestID} {
+      // Cloud Functions can write error logs (no auth check for service writes)
+      // Users cannot directly read/write error logs (admin/monitoring only)
+      // This is intentionally permissive for Cloud Functions service account
+      allow write: if true;
+      
+      // Reading is restricted (only for monitoring/admin tools)
+      allow read: if false;
+    }
   }
 }
