@@ -14,3 +14,6 @@ export { sendMessageNotification } from './sendMessageNotification';
 export { generateEmbeddingFunction as generateEmbedding } from './generateEmbedding';
 export { semanticSearchFunction as semanticSearch } from './semanticSearch';
 export { onMessageCreatedTrigger as onMessageCreated } from './triggers/onMessageCreated';
+
+// Export Memory Management functions (PR-004)
+export { memoryCleanup, memoryCleanupManual } from './cleanup/memoryCleanup';
