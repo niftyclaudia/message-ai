@@ -1,4 +1,4 @@
-# Agent A: UI/UX Polish Agent
+# Posh: UI/UX Polish Agent
 
 **Mission**: Essential messaging features with Calm Intelligence principles  
 **Branch**: `develop`  

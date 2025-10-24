@@ -19,8 +19,8 @@ This is a parallel dual-agent sprint to rapidly build UI/UX polish features and 
 ### Work Tree A (UI/UX)
 - **Location**: `messagingapp` (main work tree)
 - **Branch**: `develop`
-- **Agent**: Agent A (UI/UX Polish Agent)
-- **Template**: `MessageAI/agents/develop/agent-a-ui-polish-template.md`
+- **Agent**: Posh (UI/UX Polish Agent)
+- **Template**: `MessageAI/agents/develop/posh-agent-template.md`
 
 ### Work Tree B (AI Infrastructure)
 - **Location**: `messagingapp/secondagent` 
@@ -35,7 +35,7 @@ This is a parallel dual-agent sprint to rapidly build UI/UX polish features and 
 
 ---
 
-## Flow A: UI/UX Polish (Agent A)
+## Flow A: UI/UX Polish (Posh)
 
 **Mission**: Essential messaging features with Calm Intelligence principles
 
@@ -147,7 +147,7 @@ This is a parallel dual-agent sprint to rapidly build UI/UX polish features and 
 ### Checkpoints
 Both agents check in at these milestones:
 
-**Agent A**:
+**Posh**:
 1. After "All Caught Up" state complete
 2. After image upload complete
 3. After notifications working
@@ -166,7 +166,7 @@ Both agents can reference:
 - `MessageAI/docs/sprints/tomorrow-night-checklist.md` - Task list
 
 ### No Conflicts Expected
-- Agent A works in `MessageAI/Services/`, `MessageAI/Views/` (non-AI)
+- Posh works in `MessageAI/Services/`, `MessageAI/Views/` (non-AI)
 - Agent B works in `functions/src/ai/`, `MessageAI/Services/AI/`, `MessageAI/Views/AI/`
 - Minimal overlap
 
@@ -177,20 +177,20 @@ Both agents can reference:
 Both flows MUST integrate these principles:
 
 ### 1. Silence by Design
-- **Agent A**: Gentle notifications, smart bundling, quiet hours
+- **Posh**: Gentle notifications, smart bundling, quiet hours
 - **Agent B**: Don't over-alert, summarize instead of constant pings
 
 ### 2. Ambient Reassurance
-- **Agent A**: "All caught up" states, calm empty states
+- **Posh**: "All caught up" states, calm empty states
 - **Agent B**: "You're up to date" from AI, celebrate completion
 
 ### 3. Adaptive Prioritization
-- **Agent A**: Notification bundling based on context
+- **Posh**: Notification bundling based on context
 - **Agent B**: Priority based on emotional/temporal context, not just frequency
 
 ### 4. Transparency-First AI
 - **Agent B**: Every AI decision includes reasoning, confidence, signals
-- **Agent A**: Clear feedback on all actions
+- **Posh**: Clear feedback on all actions
 
 ---
 
@@ -215,7 +215,7 @@ Both flows MUST integrate these principles:
 
 ## Testing Strategy
 
-### Agent A Testing
+### Posh Testing
 - Swift Testing (@Test) for services
 - XCTest for UI flows
 - Test offline behavior for all features
@@ -280,7 +280,7 @@ git merge secondagent
 - [ ] All features work offline
 
 ### Technical
-- [ ] All tests pass (Agent A + Agent B)
+- [ ] All tests pass (Posh + Agent B)
 - [ ] Performance maintained (60fps, < 3s AI responses)
 - [ ] Error handling graceful
 - [ ] Cost per AI call reasonable
@@ -301,13 +301,13 @@ git merge secondagent
 **Available time**: ~24 hours with breaks
 
 **Realistic schedule**:
-- Agent A: 10-12 hours of work (image upload is biggest chunk)
+- Posh: 10-12 hours of work (image upload is biggest chunk)
 - Agent B: 10-12 hours of work (infrastructure setup is biggest chunk)
 - Buffer: 2-4 hours for testing, integration, unexpected issues
 
 **Critical path**:
 1. Both agents start simultaneously
-2. Agent A: Quick win ("All caught up") → Image upload → Notifications → Rest
+2. Posh: Quick win ("All caught up") → Image upload → Notifications → Rest
 3. Agent B: Infrastructure → Summarization → Action items → (Bonus if time)
 4. Integration and final testing
 
@@ -331,7 +331,7 @@ Agent: A or B
 
 ## References
 
-- **Agent A Template**: `MessageAI/agents/develop/agent-a-ui-polish-template.md`
+- **Posh Template**: `MessageAI/agents/develop/posh-agent-template.md`
 - **Agent B Template**: `MessageAI/agents/secondagent/agent-b-ai-infra-template.md`
 - **Checklist**: `MessageAI/docs/sprints/tomorrow-night-checklist.md`
 - **Vision**: `MessageAI/docs/calm-intelligence-vision.md`

@@ -1,10 +1,10 @@
-# Agent A — UI/UX Polish & Essential Features PR Brief
+# Posh — UI/UX Polish & Essential Features PR Brief
 
 ---
 
 ## Overview
 
-Agent A focuses on transforming the MVP into a production-ready messaging app by addressing critical reliability issues, adding essential media features, and implementing professional polish throughout. This initiative applies Calm Intelligence principles to every user interaction while ensuring 100% reliability and seamless offline functionality.
+Posh focuses on transforming the MVP into a production-ready messaging app by addressing critical reliability issues, adding essential media features, and implementing professional polish throughout. This initiative applies Calm Intelligence principles to every user interaction while ensuring 100% reliability and seamless offline functionality.
 
 **Status:** 🔄 READY FOR IMPLEMENTATION  
 **Target Outcome:** Production-ready app with professional polish and essential features
@@ -13,7 +13,7 @@ Agent A focuses on transforming the MVP into a production-ready messaging app by
 
 ## PR Breakdown
 
-Agent A is broken down into **6 individual feature PRs** for maximum flexibility and incremental delivery.
+Posh is broken down into **6 individual feature PRs** for maximum flexibility and incremental delivery.
 
 ---
 
@@ -211,7 +211,7 @@ Agent A is broken down into **6 individual feature PRs** for maximum flexibility
 
 ## Calm Intelligence Integration
 
-All features in Agent A strictly follow the four core principles:
+All features in Posh strictly follow the four core principles:
 
 ### 1. Silence by Design
 - Failed message UI: Clear red exclamation, not aggressive alerts
@@ -420,7 +420,7 @@ messages/{chatID}/{messageID}/{filename}
 
 ## Out of Scope
 
-The following features are explicitly **not** included in Agent A:
+The following features are explicitly **not** included in Posh:
 
 - ❌ Video messaging (future)
 - ❌ Audio messages (future)
@@ -435,7 +435,7 @@ The following features are explicitly **not** included in Agent A:
 
 ## Reference Documents
 
-- **Full PRD:** `MessageAI/docs/prds/agent-a-ui-features-prd.md`
+- **Full PRD:** `MessageAI/docs/prds/posh-ui-features-prd.md`
 - **Shared Standards:** `MessageAI/agents/shared-standards.md`
 - **Calm Intelligence Philosophy:** `MessageAI/docs/calm-intelligence-vision.md`
 - **Sprint Plan:** `MessageAI/docs/sprints/tomorrow-night-sprint-plan.md`

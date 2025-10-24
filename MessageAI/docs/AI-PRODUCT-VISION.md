@@ -176,68 +176,137 @@ We use a **hybrid AI approach** combining contextual features with a dedicated A
 - "Find the budget decision from last week"
 - "Show me all priority messages from the last 2 days"
 
-### Core AI Features (3 Focus Features)
+### Core AI Features (6 Required Features)
 
-**1. Thread Summarization**
+**1. Thread Summarization 💬**
 - **Problem Solved:** Overwhelming Re-entry (200+ messages after focus time)
-- **Solution:** AI-powered summaries: "Team debated REST vs GraphQL. Decided on REST because it's simpler. Dave is updating the architecture doc."
-- **Demo Impact:** 50 messages → 2 sentence digest
-- **Implementation:** Long-press conversation → "Summarize Thread" → AI analyzes and provides digest
+- **AI Requirements:** RAG Pipeline, Function Calling, Memory/State, Error Handling
+- **Solution:** Long-press conversation → "Summarize Thread" → AI returns 2-3 sentence digest
+- **Example:** "Team debated REST vs GraphQL. Decided on REST because it's simpler. Dave is updating the architecture doc."
+- **Value:** Process 50 messages in 5 seconds instead of 5 minutes
 
-**2. Priority Detection**
+**2. Action Item Extraction 📋**
+- **Problem Solved:** Overwhelming Re-entry (missing tasks buried in message flood)
+- **AI Requirements:** RAG Pipeline, Function Calling, Memory/State, Error Handling
+- **Solution:** Tap toolbar → "Action items?" → AI scans all conversations and extracts tasks
+- **Example:** "Review Q4 roadmap by Friday (from Jamie), Approve $15K marketing budget (from Chris)"
+- **Value:** Never miss a task, instant clarity on what requires action
+
+**3. Smart Search 🔍**
+- **Problem Solved:** Impossible Prioritization (can't find information without endless scrolling)
+- **AI Requirements:** RAG Pipeline, Function Calling, Memory/State, User Preferences, Error Handling
+- **Solution:** Natural language query → Semantic search across all conversations
+- **Example:** "Find the payment processor decision" → "You decided on Stripe last Tuesday. Chris approved $5K/month pricing."
+- **Value:** Entire message history becomes instantly searchable in <2 seconds
+
+**4. Priority Message Detection 🚨**
 - **Problem Solved:** Impossible Prioritization (can't distinguish urgent from noise)
-- **Solution:** Smart categorization into Urgent/Can Wait/AI Handled buckets
-- **Demo Impact:** Visual dashboard: "2 Urgent, 8 Can Wait, 15 AI Handled"
-- **Implementation:** AI analyzes message content, sender, and context to categorize automatically
+- **AI Requirements:** RAG Pipeline, User Preferences, Function Calling, Memory/State, Error Handling
+- **Solution:** Auto-categorize all messages into Urgent/Can Wait/AI Handled with transparent reasoning
+- **Example Dashboard:** "2 Urgent, 8 Can Wait, 15 AI Handled" → Handle only urgent, safely ignore rest
+- **Value:** Check phone 3 times/day instead of 30, trusted prioritization
 
-**3. Action Item Extraction**
-- **Problem Solved:** Overwhelming Re-entry (missing tasks in message flood)
-- **Solution:** Automated task detection: "Review Q4 roadmap by Friday (from Jamie), Approve $15K marketing budget (from Chris)"
-- **Demo Impact:** One-tap query: "Action items?" provides instant list
-- **Implementation:** Button in chat → AI extracts tasks with assignee and deadlines
+**5. Decision Tracking ✅**
+- **Problem Solved:** Digital FOMO (anxiety about missing key decisions while offline)
+- **AI Requirements:** RAG Pipeline, Function Calling, Memory/State, Error Handling
+- **Solution:** AI detects decision patterns, logs decisions in queryable history
+- **Example:** "What decisions were made?" → "Team decided Stripe (payment), Launch postponed to Q1, Dave approved for promotion"
+- **Value:** Disconnect confidently, instantly catch up on what matters
 
-### Advanced AI Capability (1 Feature)
+**6. Proactive Assistant (Meeting Time Suggestions) 🤖**
+- **Problem Solved:** Notification Fatigue (constant interruptions for scheduling back-and-forth)
+- **AI Requirements:** All 5 (RAG, User Preferences, Function Calling, Memory/State, Error Handling)
+- **Solution:** Detects "let's meet" → Checks calendars → Suggests optimal times respecting focus hours
+- **Example:** "Dave wants to meet. I found 3 times: Tomorrow 3pm, Friday 10am, Friday 4pm"
+- **Value:** Reduce scheduling from 5+ messages to 1, save 100 min/week, protect focus hours
 
-**Proactive Assistant (Meeting Time Suggestions)**
-- **Problem Solved:** Notification Fatigue (constant interruptions for scheduling)
-- **Solution:** Detects "let's meet" in conversations, suggests meeting times based on calendar availability
-- **Demo Impact:** "AI detected you need to schedule a meeting with Sarah" → Shows optimal time slots
-- **Implementation:** Background monitoring of conversations, calendar integration, intelligent suggestions
+### How Features Work Together
+
+**Maya's Daily Workflow:**
+- **8:00 AM:** Priority Detection shows "3 Urgent, 12 Can Wait, 25 AI Handled" → Handles urgent (5 min)
+- **8:05 AM:** Decision Tracking + Action Items → Catches up on decisions and tasks (2 min)
+- **10:00 AM:** Focus Mode (Proactive Assistant respects 10am-2pm focus hours)
+- **2:00 PM:** Thread Summarization → 40 messages → 2-sentence digest
+- **2:05 PM:** Smart Search → "Find Stripe pricing" → Instant answer
+- **3:00 PM:** Proactive Assistant → Meeting suggestion → Booked in 30 seconds
+
+**Result:** 80 messages processed in 15 minutes. 7 hours uninterrupted deep work. Feels in control.
 
 ### Future Enhancements (Post-MVP)
-- Smart Search Across Conversation History
-- Decision Tracking
-- Advanced transparency features
+- Voice interface for hands-free operation
+- Cross-platform sync (iOS + web/desktop)
+- Team features (shared focus time)
+- Advanced transparency analytics
+- Calendar integration for deep work protection
+- Batching mode (respond to multiple messages at once)
 
-### Technical Foundation
+### Technical Foundation: The 5 AI Requirements
 
-**RAG Pipeline (Retrieval Augmented Generation):**
-- Store all user messages in searchable database (Firestore)
+**1. RAG Pipeline (Retrieval Augmented Generation):**
+```
+Message Input → Firestore Storage → OpenAI Embeddings → Pinecone Vector DB
+                                                              ↓
+User Query → Semantic Search → Retrieve Relevant Messages → LLM Context → Response
+```
+- Store all messages in Firestore with searchable metadata
 - Generate vector embeddings using OpenAI text-embedding-3-small
-- Store embeddings in vector database (Pinecone/Weaviate)
-- Convert user questions into semantic search queries
-- Find relevant messages and feed to AI for context-aware responses
-- Enables thread summarization, action item extraction, and priority detection
-- Performance target: <2s for retrieval and processing
+- Store embeddings in Pinecone/Weaviate for semantic search
+- Enable Thread Summarization, Action Items, Smart Search, Decision Tracking, Priority Detection
+- **Performance Targets:** Message indexing <500ms, Semantic search <1s, Full response <2s
 
-**User Preference Storage:**
-- Focus hours: When user wants to be protected from interruptions
-- Urgent contacts: Who should always get through
-- Urgent keywords: What content triggers priority
-- Personalization makes all features work better for specific needs
+**2. User Preference Storage:**
+- **Focus Hours:** 10am-2pm daily (protect deep work time)
+- **Urgent Contacts:** Manager, CTO, select clients
+- **Urgent Keywords:** "production down", "critical", "urgent", "ASAP"
+- **Priority Rules:** @mentions with deadlines = urgent, FYIs = can wait
+- **Learning:** System learns from manual overrides, improves over time
+- **Storage:** Firestore user profile, 90-day auto-cleanup for privacy
 
-**Function Calling Capabilities:**
-- AI can actually DO tasks, not just give advice
-- Functions: searchMessages(), summarizeThread(), extractActionItems(), checkCalendar(), suggestMeetingTimes()
-- Enables proactive assistance and automated task management
-- Available functions for Proactive Assistant: detectSchedulingNeeds(), findOptimalTimes(), learnFromFeedback()
+**3. Function Calling Capabilities:**
+```
+User Action → AI Analyzes Intent → Selects Function → Extracts Parameters
+                                                              ↓
+                                       Execute Function → Return Result → Display to User
+```
+**Available Functions:**
+- `summarizeThread(threadId)` - Thread Summarization
+- `extractActionItems(threadId, userId)` - Action Item Extraction
+- `searchMessages(query, filters)` - Smart Search
+- `categorizeMessage(messageId)` - Priority Detection
+- `trackDecisions(threadId)` - Decision Tracking
+- `detectSchedulingNeed(threadId)` - Proactive Assistant (Part 1)
+- `checkCalendar(startDate, endDate)` - Calendar integration
+- `suggestMeetingTimes(participants, duration)` - Proactive Assistant (Part 2)
 
-**Memory/State Management:**
-- AI remembers conversation context across interactions
-- Enables natural follow-up questions and multi-step requests
-- Builds relationship and trust over time
-- Context preservation across app sessions and device switches
-- User preference learning and adaptation over time
+**4. Memory/State Management:**
+```
+/users/{userId}/
+  - preferences/ (focus hours, urgent contacts, keywords)
+  - sessionContext/ (current AI conversation, recent queries)
+  - taskState/ (action items tracked, decisions logged)
+  - learningData/ (categorization overrides, meeting preferences)
+```
+- **Session Memory:** Remembers last active time, current conversation context
+- **Context Preservation:** Enables follow-up questions ("Who made that decision?")
+- **Learning Over Time:** Improves from user behavior and manual overrides
+- **Cross-Session:** Maya's tasks and preferences persist across app sessions
+- **Privacy:** User-specific data, never shared, transparent about what's remembered
+
+**5. Error Handling & Recovery:**
+```
+Try AI Feature → Success? → Return Result
+                      ↓ No
+              Detect Error Type → Log for Debug
+                      ↓
+              Show Calm Message → Offer Fallback → User Continues
+```
+**Design Principles:**
+- No red "ERROR" text (use calm blue/gray colors)
+- First-person language: "I'm having trouble..." (not "System error")
+- Transparent explanations in plain language
+- Always provide fallback action or retry option
+- Core messaging works even if AI features fail
+- **Example:** "Taking longer than expected. Want to try again or open the full thread?"
 
 ### Why Transparency Matters
 
@@ -269,32 +338,46 @@ Signals: 'we've decided', 'approved', 'let's move forward'"
 
 ### Phased Evolution
 
-**Phase 1: Foundation**
-- Gentle notifications with smart bundling
-- "All caught up" states and ambient reassurance
-- Basic AI summarization and action item extraction
-- Foundation of Calm Intelligence principles
+**Phase 1: MVP - Core AI Features (Current Build)**
+- All 6 core AI features implemented:
+  - Thread Summarization (long-press → digest)
+  - Action Item Extraction (toolbar button)
+  - Smart Search (natural language queries)
+  - Priority Message Detection (Urgent/Can Wait/AI Handled)
+  - Decision Tracking (queryable decision log)
+  - Proactive Assistant (meeting time suggestions)
+- All 5 AI requirements implemented:
+  - RAG Pipeline (semantic search with vector embeddings)
+  - User Preference Storage (focus hours, urgent contacts, keywords)
+  - Function Calling (8 core functions)
+  - Memory/State Management (context preservation, learning)
+  - Error Handling (calm, transparent, fallback options)
+- Calm Intelligence foundation (gentle notifications, transparency-first)
+- Basic "All caught up" states
 
-**Phase 2: AI Intelligence**
-- Focus Mode (blocks non-urgent for X hours)
-- Priority sections with transparent filtering
-- Advanced thread summarization
-- Smart search across conversation history
-- Insights dashboard showing interruption reduction
+**Phase 2: Enhanced Intelligence & Polish**
+- Voice interface for hands-free operation
+- Advanced transparency analytics ("You've saved 5 hours this week")
+- Improved learning from user behavior
+- Enhanced Focus Mode with scheduled summaries
+- Wellbeing dashboard showing interruption reduction metrics
+- Onboarding flow teaching Calm Intelligence principles
 
-**Phase 3: Advanced AI**
-- RAG pipeline for conversation history retrieval
-- Function calling for proactive assistance
-- Cross-platform (iOS + web/desktop)
-- Team features (shared focus time)
-- Wellbeing analytics and progress tracking
-
-**Phase 4: Ecosystem**
-- Calendar integration (protect deep work time)
-- Smart scheduling ("Best time to respond")
+**Phase 3: Cross-Platform & Team Features**
+- Web/desktop apps with seamless sync
+- Team features (shared focus time, team urgency rules)
+- Calendar integration (deeper protection of deep work blocks)
+- Advanced meeting scheduling with team availability
 - Batching mode (respond to 10 messages at once)
-- Mindfulness integration
-- B2B team accounts and enterprise features
+- Team analytics (collective focus preservation)
+
+**Phase 4: Ecosystem & Enterprise**
+- B2B team accounts and admin dashboards
+- Enterprise security and compliance features
+- Mindfulness integration (Headspace-style)
+- Smart coaching ("You've been checking messages every 5 minutes—take a break?")
+- API for third-party integrations
+- White-label options for enterprise clients
 
 ### Testing Requirements
 
@@ -306,6 +389,18 @@ Signals: 'we've decided', 'approved', 'let's move forward'"
 - Poor network conditions (airplane mode, throttled connection)
 - Rapid-fire messages (20+ messages sent quickly)
 - Group chat with 3+ participants
+
+**AI Feature Testing:**
+- **Thread Summarization:** Test with 10, 50, 100+ message threads
+- **Action Item Extraction:** Test with embedded deadlines, multiple assignees, ambiguous tasks
+- **Smart Search:** Test semantic search vs keyword matching, query variations
+- **Priority Detection:** Test with different message types, verify transparency reasoning
+- **Decision Tracking:** Test decision pattern detection, query historical decisions
+- **Proactive Assistant:** Test scheduling detection, calendar integration, focus hour respect
+- **RAG Pipeline:** Test embedding generation, vector search accuracy, retrieval speed (<2s)
+- **Error Handling:** Test API timeouts, rate limits, network failures, fallback behaviors
+- **Memory/State:** Test context preservation across sessions, learning from overrides
+- **User Preferences:** Test preference storage, application to categorization, learning adaptation
 
 ### North Star
 
@@ -361,6 +456,41 @@ We measure success by:
 
 ---
 
+## Assignment Demonstration Scenarios
+
+### Demo 1: Overwhelming Re-entry Recovery
+**Scenario:** Maya returns from 4-hour focus session to 150 unread messages across 8 conversations.
+
+**Features Demonstrated:**
+- Thread Summarization (47 messages → 2-sentence digest)
+- Action Item Extraction (3 tasks from 150 messages)
+
+**AI Requirements Showcased:**
+- RAG Pipeline (retrieves and analyzes 150 messages)
+- Function Calling (`summarizeThread()` + `extractActionItems()`)
+- Memory/State (tracks summaries requested, action item completion)
+- Error Handling (fallback if AI timeout)
+
+**Success Metric:** 150 messages processed in <1 minute (vs 20+ minutes manual reading)
+
+### Demo 2: Impossible Prioritization Solved
+**Scenario:** Maya receives 20 messages while in meeting—some urgent (production issue), most noise (FYIs).
+
+**Features Demonstrated:**
+- Priority Message Detection (1 Urgent, 5 Can Wait, 14 AI Handled)
+- Smart Search ("Find Q4 roadmap conversation" → instant result)
+
+**AI Requirements Showcased:**
+- RAG Pipeline (analyzes message content + conversation history)
+- User Preferences (urgent contacts and keywords)
+- Function Calling (`categorizeMessage()` + `searchMessages()`)
+- Memory/State (learns from manual overrides)
+- Error Handling (manual categorization if confidence low)
+
+**Success Metric:** 1 interruption instead of 20, <2s search time, 95%+ prioritization accuracy
+
+---
+
 ## Rally Cry
 
 **We're not building a messaging app.**  
@@ -375,7 +505,18 @@ If the answer is less, we don't ship it.
 
 ---
 
-*Target user: Maya (remote worker, overwhelmed by messages)*  
-*Market: $19B digital wellness by 2032*  
-*Inspiration: Cosmos.com (visual), Headspace (philosophy), Superhuman (polish)*  
-*Philosophy: Cal Newport's "Digital Minimalism", Tristan Harris's "Time Well Spent"*
+---
+
+**Last Updated:** October 24, 2025  
+**Status:** Ready for assignment submission  
+**Target User:** Maya (Digital Detox Seeker)  
+**Product Category:** Digital Wellness Communication  
+**Market Opportunity:** $19B digital wellness by 2032  
+**Product Vision:** Focus rehabilitation tool, not productivity accelerator  
+
+**Inspiration:**  
+- Visual: Cosmos.com (sophisticated dark mode aesthetic)  
+- Philosophy: Headspace (calm, supportive tone), Cal Newport's "Digital Minimalism", Tristan Harris's "Time Well Spent"  
+- Polish: Superhuman (keyboard shortcuts, speed, attention to detail)
+
+**Core Principle:** Users spend LESS time in app but feel MORE in control.

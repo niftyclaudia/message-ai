@@ -4,7 +4,7 @@ Quick reference checklist for both agents. Check off tasks as completed.
 
 ---
 
-## Agent A: UI/UX Polish (develop branch)
+## Posh: UI/UX Polish (develop branch)
 
 ### Quick Win
 - [ ] "All Caught Up" state with green checkmark
@@ -142,7 +142,7 @@ Quick reference checklist for both agents. Check off tasks as completed.
 ## Integration (After Both Complete)
 
 ### Testing
-- [ ] Agent A features work in isolation
+- [ ] Posh features work in isolation
 - [ ] Agent B features work in isolation
 - [ ] No performance degradation from AI
 - [ ] All features work offline
@@ -150,7 +150,7 @@ Quick reference checklist for both agents. Check off tasks as completed.
 - [ ] Overall app feels calm and supportive
 
 ### Merge
-- [ ] Review Agent A code (develop branch)
+- [ ] Review Posh code (develop branch)
 - [ ] Review Agent B code (secondagent branch)
 - [ ] Create integration branch
 - [ ] Merge both branches
@@ -163,7 +163,7 @@ Quick reference checklist for both agents. Check off tasks as completed.
 
 ## Quick Status Check
 
-**Agent A Progress**: ____ / 5 major features complete  
+**Posh Progress**: ____ / 5 major features complete  
 **Agent B Progress**: Phase ____ / 5 complete  
 **Blockers**: ________________  
 **ETA**: _____ hours remaining

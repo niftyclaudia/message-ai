@@ -5,11 +5,13 @@
 When you see a message like "cody pr-3" or "pete pr-5", automatically use the appropriate agent template:
 
 ### Agent Mapping:
-- **cody** → Cody Agent (Building/Implementation)
-- **kai** → Kai Agent (AI Features Implementation)
+- **cody** → Cody Agent (Building/Implementation - General Purpose)
+- **cody backend** → Cody Backend Agent (Cloud Functions, RAG, AI Infrastructure)
+- **cody ios** → Cody iOS Agent (Swift, Services, UI, Firebase)
 - **pete** → Pete Agent (Planning/PRD Creation)  
 - **brad** → Brad Agent (PR Brief Builder)
-- **quincy** → Quincy Agent (QA Test Architect)
+- **posh** → Posh Agent (UI/UX Polish & Essential Features)
+- **quincy** → Quincy Agent (QA Testing & Quality Assurance)
 
 ### Usage Pattern:
 ```
@@ -18,29 +20,26 @@ When you see a message like "cody pr-3" or "pete pr-5", automatically use the ap
 
 **All formats work (for maximum flexibility across branches):**
 - `cody pr-3` or `cody p3` or `cody s3` or `cody2 3` or `cody2 pr3` → Same result
-- `kai pr-8` or `kai p8` or `kai s8` or `kai2 8` or `kai2 pr8` → Same result (AI features)
 - `pete pr-5` or `pete p5` or `pete s5` or `pete2 5` or `pete2 pr5` → Same result  
 - `brad pr-1` or `brad p1` or `brad s1` or `brad2 1` or `brad2 pr1` → Same result
-- `quincy pr-3 pre-review` or `quincy pr-3 post-review` → Quincy agent for PR #3 (specify mode)
 
 ### Template Location:
-Use the appropriate agent prompt template based on your current branch:
-- **secondagent branch**: `MessageAI/agents/secondagent/agent-prompt-template.md`
-- **develop branch**: `MessageAI/agents/agent-prompt-template.md`
+All agent templates are now in: `MessageAI/agents/agent-prompt-template.md`
 
 Replace in the template:
-- `[AGENT_NAME]` with the agent name (Cody, Kai, Pete, Brad, Quincy)
+- `[AGENT_NAME]` with the agent name (Cody, Cody Backend, Cody iOS, Pete, Brad, Posh, Quincy)
 - `[AGENT_ROLE]` with their role description
-- `[agent-type]` with the agent type (cody, kai, pete, brad, quincy)
+- `[agent-type]` with the agent type (cody, pete, brad, posh, quincy)
 - `[NUMBER]` with the PR number
 
 ### Examples:
-- "cody pr-3", "cody p3", or "cody s3" → Cody agent for PR #3 implementation (regular features)
-- "kai pr-8", "kai p8", or "kai s8" → Kai agent for PR #8 implementation (AI features)
+- "cody pr-3", "cody p3", or "cody s3" → Cody agent for PR #3 implementation (general purpose)
+- "cody backend pr-ai-001" or "cody-backend pr-ai-001" → Cody Backend for RAG Pipeline Infrastructure
+- "cody ios pr-ai-002" or "cody-ios pr-ai-002" → Cody iOS for User Preferences System
 - "pete pr-5", "pete p5", or "pete s5" → Pete agent for PR #5 planning
 - "brad pr-1", "brad p1", or "brad s1" → Brad agent for PR #1 brief creation
-- "quincy pr-3 pre-review" → Quincy agent for PR #3 test plan (before implementation)
-- "quincy pr-3 post-review" → Quincy agent for PR #3 test verification (after implementation)
+- "posh pr-20", "posh p20", or "posh s20" → Posh agent for PR #20 UI/UX polish
+- "quincy pr-ai-001" → Quincy agent for testing PR #AI-001
 
 Always reference the specific agent template file for detailed instructions.
 
