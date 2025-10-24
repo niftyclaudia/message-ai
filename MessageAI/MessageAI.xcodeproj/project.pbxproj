@@ -86,6 +86,8 @@
 				E45981152EA7246E00628BB0 /* FirebaseAuth in Frameworks */,
 				E45981192EA7246E00628BB0 /* FirebaseFirestore in Frameworks */,
 				E459811B2EA7246E00628BB0 /* FirebaseDatabase in Frameworks */,
+				E4D5ED9A2EA84944005FDC1D /* FirebaseCrashlytics in Frameworks */,
+				E4D5ED9C2EA84944005FDC1D /* FirebaseFunctions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
