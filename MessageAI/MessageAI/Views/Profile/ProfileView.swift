@@ -119,6 +119,34 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, AppTheme.largeSpacing)
                 
+                // AI Preferences Navigation
+                NavigationLink {
+                    if let userID = authService.currentUser?.uid {
+                        PreferencesSettingsView(userID: userID)
+                            .environmentObject(authService)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "brain")
+                            .foregroundColor(AppTheme.primaryColor)
+                            .frame(width: 32)
+                        
+                        Text("AI Preferences")
+                            .font(AppTheme.bodyFont)
+                            .foregroundColor(AppTheme.primaryTextColor)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(AppTheme.secondaryTextColor)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(AppTheme.secondaryBackgroundColor)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal, AppTheme.largeSpacing)
+                
                 Spacer()
             }
         }
