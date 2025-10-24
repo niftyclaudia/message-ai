@@ -37,10 +37,13 @@ class PhotoService {
         userID: String,
         progressHandler: @escaping (Double) -> Void
     ) async throws -> String {
-        // Compress image before upload
-        guard let imageData = compressImage(image: image, maxSizeBytes: Constants.Photo.targetPhotoSizeBytes) else {
-            throw PhotoServiceError.imageCompressionFailed
-        }
+        // Compress image before upload on background thread to avoid UI freeze
+        let imageData = try await Task.detached(priority: .userInitiated) {
+            guard let data = self.compressImage(image: image, maxSizeBytes: Constants.Photo.targetPhotoSizeBytes) else {
+                throw PhotoServiceError.imageCompressionFailed
+            }
+            return data
+        }.value
         
         // Check file size
         guard imageData.count <= Constants.Photo.maxPhotoSizeBytes else {

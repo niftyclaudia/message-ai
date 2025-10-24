@@ -70,15 +70,6 @@ class AIErrorHandler: ObservableObject {
         case .smartSearch:
             return context.query != nil ? .useKeywordSearch(query: context.query!) : nil
             
-        case .summarization:
-            return context.threadId != nil ? .openFullThread(threadId: context.threadId!) : nil
-            
-        case .actionItemExtraction:
-            return .showRecentMessages(count: 10)
-            
-        case .semanticSearch:
-            return context.query != nil ? .useKeywordSearch(query: context.query!) : nil
-            
         case .priorityDetection:
             return .showInbox
             
@@ -86,9 +77,6 @@ class AIErrorHandler: ObservableObject {
             return .skipDetection
             
         case .proactiveAssistant:
-            return .showInbox
-            
-        case .proactiveScheduling:
             return .manualScheduling
         }
     }
@@ -146,7 +134,7 @@ class AIErrorHandler: ObservableObject {
         do {
             try await ErrorLogger.shared.logToFirestore(error: error, context: context)
         } catch {
-            print("Failed to log error to Firestore: \(error.localizedDescription)")
+            // Silently fail - don't block on logging errors
         }
     }
     
@@ -175,7 +163,6 @@ class AIErrorHandler: ObservableObject {
         // Enter fallback mode after 3 consecutive failures
         if count >= 3 {
             isInFallbackMode[feature] = true
-            print("⚠️ Feature \(feature.rawValue) entering fallback mode after \(count) failures")
         }
     }
     
@@ -184,7 +171,6 @@ class AIErrorHandler: ObservableObject {
         consecutiveFailures[feature] = 0
         if isInFallbackMode[feature] == true {
             isInFallbackMode[feature] = false
-            print("✅ Feature \(feature.rawValue) exiting fallback mode")
         }
     }
 }

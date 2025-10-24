@@ -16,10 +16,6 @@ enum AIFeature: String, Codable, CaseIterable {
     case priorityDetection = "priorityDetection"
     case decisionTracking = "decisionTracking"
     case proactiveAssistant = "proactiveAssistant"
-    case summarization = "summarization"
-    case actionItemExtraction = "actionItemExtraction"
-    case semanticSearch = "semanticSearch"
-    case proactiveScheduling = "proactiveScheduling"
     
     /// Display name for UI
     var displayName: String {
@@ -36,40 +32,24 @@ enum AIFeature: String, Codable, CaseIterable {
             return "Decision Tracking"
         case .proactiveAssistant:
             return "Proactive Assistant"
-        case .summarization:
-            return "Summarization"
-        case .actionItemExtraction:
-            return "Action Item Extraction"
-        case .semanticSearch:
-            return "Semantic Search"
-        case .proactiveScheduling:
-            return "Proactive Scheduling"
         }
     }
     
-    /// Fallback mode description for error handling
+    /// Description shown when in fallback mode
     var fallbackModeDescription: String {
         switch self {
         case .threadSummary:
-            return "Using manual thread review"
+            return "Using full thread view instead of AI summary"
         case .actionItems:
-            return "Using manual action tracking"
+            return "Showing recent messages instead of extracted tasks"
         case .smartSearch:
-            return "Using basic keyword search"
+            return "Using keyword search instead of semantic search"
         case .priorityDetection:
-            return "Using manual priority review"
+            return "Showing all messages in neutral inbox"
         case .decisionTracking:
-            return "Using manual decision tracking"
+            return "Decision detection temporarily disabled"
         case .proactiveAssistant:
-            return "Using manual assistance"
-        case .summarization:
-            return "Using manual summarization"
-        case .actionItemExtraction:
-            return "Using manual action extraction"
-        case .semanticSearch:
-            return "Using basic keyword search"
-        case .proactiveScheduling:
-            return "Using manual scheduling"
+            return "Manual scheduling instead of AI suggestions"
         }
     }
 }
