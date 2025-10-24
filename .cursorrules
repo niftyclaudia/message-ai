@@ -8,6 +8,7 @@ When you see a message like "cody pr-3" or "pete pr-5", automatically use the ap
 - **cody** → Cody Agent (Building/Implementation)
 - **pete** → Pete Agent (Planning/PRD Creation)  
 - **brad** → Brad Agent (PR Brief Builder)
+- **posh** → Posh Agent (UI/UX Polish & Essential Features)
 
 ### Usage Pattern:
 ```
@@ -25,15 +26,16 @@ Use the appropriate agent prompt template based on your current branch:
 - **develop branch**: `MessageAI/agents/agent-prompt-template.md`
 
 Replace in the template:
-- `[AGENT_NAME]` with the agent name (Cody, Pete, Brad)
+- `[AGENT_NAME]` with the agent name (Cody, Pete, Brad, Posh)
 - `[AGENT_ROLE]` with their role description
-- `[agent-type]` with the agent type (cody, pete, brad)
+- `[agent-type]` with the agent type (cody, pete, brad, posh)
 - `[NUMBER]` with the PR number
 
 ### Examples:
 - "cody pr-3", "cody p3", or "cody s3" → Cody agent for PR #3 implementation
 - "pete pr-5", "pete p5", or "pete s5" → Pete agent for PR #5 planning
 - "brad pr-1", "brad p1", or "brad s1" → Brad agent for PR #1 brief creation
+- "posh pr-20", "posh p20", or "posh s20" → Posh agent for PR #20 UI/UX polish
 
 Always reference the specific agent template file for detailed instructions.
 

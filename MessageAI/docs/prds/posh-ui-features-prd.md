@@ -1,4 +1,4 @@
-# Agent A — UI/UX Polish & Essential Features
+# Posh — UI/UX Polish & Essential Features
 
 ---
 
@@ -361,7 +361,7 @@ struct Chat {
 
 ## 📌 Reference Documents
 
-- **PR Brief:** `MessageAI/docs/pr-brief/agent-a-ui-features-brief.md`
+- **PR Brief:** `MessageAI/docs/pr-brief/posh-ui-features-brief.md`
 - **Shared Standards:** `MessageAI/agents/shared-standards.md`
 - **Calm Intelligence:** `MessageAI/docs/calm-intelligence-vision.md`
 - **Phase 2 Context:** `MessageAI/docs/prd-full-features.md` (Flow A)

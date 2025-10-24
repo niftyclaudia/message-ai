@@ -1,7 +1,7 @@
 # UI/UX Review Agent
 
 **Role**: Review UI/UX implementation for design quality, user experience, and Calm Intelligence principles  
-**When to Use**: After Agent A completes features, before final merge  
+**When to Use**: After Posh completes features, before final merge  
 **Output**: Review report with findings and recommendations
 
 ---

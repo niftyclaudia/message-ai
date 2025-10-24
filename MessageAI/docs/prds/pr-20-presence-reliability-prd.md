@@ -1,6 +1,6 @@
 # PRD: Presence Indicator Reliability (PR #20)
 
-**Status**: Ready for Development | **Agent**: Pete | **Phase**: Agent A - P0
+**Status**: Ready for Development | **Agent**: Pete | **Phase**: Posh - P0
 
 ---
 
