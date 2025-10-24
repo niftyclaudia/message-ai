@@ -15,16 +15,16 @@ NC='\033[0m' # No Color
 
 # Files that should never be committed
 FORBIDDEN_FILES=(
-    "GoogleService-Info.plist"
-    "*.p8"
-    "*.pem"
-    "AuthKey_*.p8"
-    "*APNs*.p8"
-    "firebase-adminsdk-*.json"
-    "service-account-key.json"
-    ".env$"
-    ".env.local$"
-    ".env.production$"
+    "GoogleService-Info\.plist$"
+    "\.p8$"
+    "\.pem$"
+    "AuthKey_.*\.p8$"
+    "APNs.*\.p8$"
+    "firebase-adminsdk-.*\.json$"
+    "service-account-key\.json$"
+    "\.env$"
+    "\.env\.local$"
+    "\.env\.production$"
 )
 
 # Check if any forbidden files are staged
@@ -32,7 +32,8 @@ FOUND_FORBIDDEN=false
 
 for pattern in "${FORBIDDEN_FILES[@]}"; do
     # Find files matching the pattern in the staging area
-    files=$(git diff --cached --name-only --diff-filter=ACM | grep -E "$pattern" || true)
+    # Exclude .template files as they are safe to commit
+    files=$(git diff --cached --name-only --diff-filter=ACM | grep -v "\.template" | grep -E "$pattern" || true)
     
     if [ -n "$files" ]; then
         if [ "$FOUND_FORBIDDEN" = false ]; then
