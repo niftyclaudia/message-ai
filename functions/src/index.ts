@@ -14,3 +14,6 @@ export { sendMessageNotification } from './sendMessageNotification';
 export { generateEmbeddingFunction as generateEmbedding } from './generateEmbedding';
 export { semanticSearchFunction as semanticSearch } from './semanticSearch';
 export { onMessageCreatedTrigger as onMessageCreated } from './triggers/onMessageCreated';
+
+// Export Function Calling framework
+export { executeFunctionCallFunction as executeFunctionCall } from './functionCalling/orchestrator';
