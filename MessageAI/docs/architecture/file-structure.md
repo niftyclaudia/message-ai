@@ -55,14 +55,13 @@ MessagingApp-secondagent/
 │   ├── ChatViewUITests.swift
 │   └── ...                             # Other UI tests
 │
-├── docs/                               # Documentation
+├── MessageAI/docs/                     # Documentation
 │   ├── architecture/                   # Architecture docs
 │   │   ├── file-structure.md           # This file
 │   │   ├── message-flow.md             # Data flow diagram
 │   │   ├── adr-001-firebase.md         # ADR: Why Firebase
 │   │   └── adr-002-mvvm.md             # ADR: Why MVVM
 │   └── ai-integration/                 # AI integration docs (Phase 3)
-│       ├── README.md                   # AI integration guide
 │       └── function-schemas.json       # OpenAI function definitions
 │
 ├── functions/                          # Firebase Cloud Functions
@@ -127,7 +126,7 @@ End-to-end UI tests using XCTest
 - Navigation testing
 - Accessibility testing
 
-### `/docs/`
+### `/MessageAI/docs/`
 Project documentation
 - Architecture decisions (ADRs)
 - Diagrams and flow charts

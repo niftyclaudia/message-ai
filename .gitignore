@@ -106,7 +106,10 @@ firestore-debug.log*
 .firebase/
 GoogleService-Info.plist
 
-# Firebase Functions
+# Node modules (root and functions)
+node_modules/
 functions/node_modules/
+
+# Firebase Functions
 functions/lib/
 functions/.runtimeconfig.json

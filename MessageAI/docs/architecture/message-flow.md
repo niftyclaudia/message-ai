@@ -292,7 +292,7 @@ sequenceDiagram
 - **Sender validation** - Message senderID must match authenticated user
 - **Data validation** - Text length, content type validation
 
-See [firestore.rules](../../firestore.rules) for full rule definitions.
+See [firestore.rules](../../../firestore.rules) for full rule definitions.
 
 ## Error Handling
 

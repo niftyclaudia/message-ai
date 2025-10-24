@@ -61,7 +61,7 @@ MessageAI iOS app needs an architecture pattern that supports:
              ↓
 ┌─────────────────────────────────────────────┐
 │  Firebase (Backend)                         │
-│  - Firestore, Auth, Storage, RTDB           │
+│  (Firestore, Auth, Storage, RTDB, Functions)│
 └─────────────────────────────────────────────┘
 ```
 

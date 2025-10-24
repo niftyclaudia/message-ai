@@ -1,0 +1,25 @@
+{
+  "name": "messaging-app",
+  "version": "1.0.0",
+  "description": "MessageAI - Real-time messaging app with Firebase backend and iOS frontend",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && cd functions && npm install && cd ..",
+    "setup:functions": "cd functions && npm install",
+    "dev": "firebase emulators:start",
+    "dev:functions": "firebase emulators:start --only functions",
+    "dev:firestore": "firebase emulators:start --only firestore",
+    "deploy": "firebase deploy",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage:rules,database:rules",
+    "build:functions": "cd functions && npm run build",
+    "test:functions": "cd functions && npm test"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
