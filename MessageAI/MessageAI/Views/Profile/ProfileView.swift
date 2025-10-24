@@ -147,6 +147,43 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, AppTheme.largeSpacing)
                 
+                // Slack Integration Demo (PR-011 Phase 1)
+                NavigationLink {
+                    MockSlackThreadView()
+                } label: {
+                    HStack {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                            .foregroundColor(.purple)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Slack Integration Demo")
+                                .font(AppTheme.bodyFont)
+                                .foregroundColor(AppTheme.primaryTextColor)
+                            
+                            Text("AI-powered thread summaries")
+                                .font(AppTheme.captionFont)
+                                .foregroundColor(AppTheme.secondaryTextColor)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(AppTheme.secondaryTextColor)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.1), Color.blue.opacity(0.1)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal, AppTheme.largeSpacing)
+                
                 Spacer()
             }
         }
