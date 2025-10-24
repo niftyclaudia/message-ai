@@ -20,3 +20,6 @@ export { memoryCleanup, memoryCleanupManual } from './cleanup/memoryCleanup';
 
 // Export Function Calling framework
 export { executeFunctionCallFunction as executeFunctionCall } from './functionCalling/orchestrator';
+
+// Export Error Handling & Retry Queue (PR-AI-005)
+export { retryQueueScheduled } from './jobs/retryQueue';
