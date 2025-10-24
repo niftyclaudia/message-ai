@@ -61,6 +61,15 @@ class AIErrorHandler: ObservableObject {
     /// Get fallback action for a specific feature
     func getFallbackOption(feature: AIFeature, context: AIContext) -> FallbackAction? {
         switch feature {
+        case .threadSummary:
+            return context.threadId != nil ? .openFullThread(threadId: context.threadId!) : nil
+            
+        case .actionItems:
+            return .showRecentMessages(count: 10)
+            
+        case .smartSearch:
+            return context.query != nil ? .useKeywordSearch(query: context.query!) : nil
+            
         case .summarization:
             return context.threadId != nil ? .openFullThread(threadId: context.threadId!) : nil
             
@@ -75,6 +84,9 @@ class AIErrorHandler: ObservableObject {
             
         case .decisionTracking:
             return .skipDetection
+            
+        case .proactiveAssistant:
+            return .showInbox
             
         case .proactiveScheduling:
             return .manualScheduling
