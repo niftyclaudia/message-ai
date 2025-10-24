@@ -104,5 +104,26 @@ service cloud.firestore {
     match /chats/{chatID}/messages {
       allow list: if isChatMember(chatID);
     }
+    
+    // AI Preferences collection rules (PR #AI-002)
+    match /users/{userID}/preferences/{document=**} {
+      // Users can only read/write their own preferences
+      allow read, write: if isOwner(userID);
+      
+      // Validate preference constraints on write
+      allow write: if isOwner(userID) 
+        && request.resource.data.urgentContacts.size() <= 20
+        && request.resource.data.urgentKeywords.size() <= 50
+        && request.resource.data.urgentKeywords.size() >= 3;
+    }
+    
+    // AI Learning Data collection rules (PR #AI-002)
+    match /users/{userID}/aiState/learningData/{document=**} {
+      // Users can read/write their own learning data
+      allow read, write: if isOwner(userID);
+      
+      // Users can delete their own learning data (for 90-day cleanup)
+      allow delete: if isOwner(userID);
+    }
   }
 }

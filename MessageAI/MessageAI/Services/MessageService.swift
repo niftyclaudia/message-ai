@@ -61,7 +61,7 @@ class MessageService {
                 timestamp: timestamp,
                 serverTimestamp: nil, // Will be set by server
                 readBy: [currentUser.uid],
-                status: .sending,
+                status: .sending, // Start as sending, will be updated to sent
                 senderName: senderName, // PR-3: Include sender name for group chat attribution
                 isOffline: false,
                 retryCount: 0,
