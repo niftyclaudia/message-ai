@@ -22,9 +22,9 @@ FORBIDDEN_FILES=(
     "*APNs*.p8"
     "firebase-adminsdk-*.json"
     "service-account-key.json"
-    ".env"
-    ".env.local"
-    ".env.production"
+    ".env$"
+    ".env.local$"
+    ".env.production$"
 )
 
 # Check if any forbidden files are staged

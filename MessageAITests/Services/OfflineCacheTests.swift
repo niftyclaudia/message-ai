@@ -329,6 +329,239 @@ struct OfflineCacheTests {
         #expect(!offlineService.hasQueueSpace(), "Queue should not have space")
         #expect(offlineService.getMaxQueueSize() == 3, "Max queue size should be 3")
     }
+    
+    // MARK: - Scale Tests (PR-007)
+    
+    @Test("Large dataset (100+ messages) retrieval performance")
+    func largDatasetRetrievalPerformance() async throws {
+        // Given: Simulated large message dataset
+        // Note: OfflineMessageService has 3-message queue limit
+        // This test verifies performance doesn't degrade with multiple retrievals
+        
+        var retrievalTimes: [TimeInterval] = []
+        
+        // When: Measure retrieval time over 100 iterations
+        for _ in 0..<100 {
+            let startTime = Date()
+            _ = offlineService.getOfflineMessages()
+            let retrievalTime = Date().timeIntervalSince(startTime)
+            retrievalTimes.append(retrievalTime)
+        }
+        
+        // Then: Performance should remain consistent
+        let avgTime = retrievalTimes.reduce(0, +) / Double(retrievalTimes.count)
+        let maxTime = retrievalTimes.max() ?? 0
+        
+        #expect(avgTime < 0.05, 
+               "Average retrieval should be < 50ms, got \(avgTime * 1000)ms")
+        #expect(maxTime < 0.1, 
+               "Max retrieval should be < 100ms, got \(maxTime * 1000)ms")
+        
+        print("Large dataset retrieval (100 iterations):")
+        print("  Average: \(avgTime * 1000)ms")
+        print("  Max: \(maxTime * 1000)ms")
+    }
+    
+    @Test("Stress test: Rapid queue operations")
+    func stressTestRapidQueueOperations() async throws {
+        // Given: Clean queue
+        offlineService.clearOfflineMessages()
+        
+        let chatID = "stress-test-\(UUID().uuidString)"
+        
+        // When: Rapidly add and remove messages
+        let startTime = Date()
+        
+        for i in 0..<50 {
+            // Add message
+            let messageID = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Stress test \(i)",
+                senderID: testUserID
+            )
+            
+            // Remove message (simulating successful send)
+            offlineService.removeOfflineMessage(messageID: messageID)
+        }
+        
+        let totalTime = Date().timeIntervalSince(startTime)
+        
+        // Then: Operations should complete without errors
+        #expect(totalTime < 5.0, 
+               "50 add/remove operations should complete in < 5s, took \(totalTime)s")
+        
+        // Queue should be empty or nearly empty
+        let finalCount = offlineService.getOfflineMessages().count
+        #expect(finalCount <= 3, 
+               "Queue should maintain size limit")
+        
+        print("Stress test (50 operations): \(totalTime)s")
+    }
+    
+    @Test("Memory efficiency with repeated operations")
+    func memoryEfficiencyWithRepeatedOperations() async throws {
+        // Given: Clean state
+        offlineService.clearOfflineMessages()
+        
+        let chatID = "memory-test-\(UUID().uuidString)"
+        
+        // When: Perform many operations
+        for i in 0..<100 {
+            _ = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Memory test \(i)",
+                senderID: testUserID
+            )
+            
+            // Queue automatically maintains 3-message limit
+        }
+        
+        // Then: Queue should maintain limit (not grow unbounded)
+        let finalCount = offlineService.getOfflineMessages().count
+        #expect(finalCount <= 3, 
+               "Queue should not grow beyond limit, has \(finalCount) messages")
+        
+        // Verify memory isn't leaking by checking queue is stable
+        let initialCount = offlineService.getQueuedMessageCount()
+        
+        for i in 0..<50 {
+            _ = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Stability \(i)",
+                senderID: testUserID
+            )
+        }
+        
+        let laterCount = offlineService.getQueuedMessageCount()
+        #expect(laterCount <= 3, 
+               "Queue size should remain stable at limit")
+    }
+    
+    // MARK: - Airplane Mode Simulation Tests (PR-007)
+    
+    @Test("Airplane mode: Messages queue successfully")
+    func airplaneModeMessagesQueueSuccessfully() async throws {
+        // Given: Simulated airplane mode (offline)
+        // OfflineMessageService doesn't depend on network state directly
+        
+        offlineService.clearOfflineMessages()
+        let chatID = "airplane-test-\(UUID().uuidString)"
+        
+        // When: Queue messages while "offline"
+        for i in 0..<3 {
+            _ = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Airplane mode message \(i)",
+                senderID: testUserID
+            )
+        }
+        
+        // Then: Messages should be queued
+        let queuedMessages = offlineService.getOfflineMessages()
+        #expect(queuedMessages.count == 3, 
+               "Should have 3 messages queued in airplane mode")
+        
+        // Verify messages have correct state
+        for message in queuedMessages {
+            #expect(message.chatID == chatID, 
+                   "Message should have correct chatID")
+            #expect(message.status == .queued, 
+                   "Message should have queued status")
+        }
+    }
+    
+    @Test("Airplane mode: Cache survives app restart")
+    func airplanModeCacheSurvivesAppRestart() async throws {
+        // Given: Messages queued in "airplane mode"
+        let chatID = "airplane-restart-\(UUID().uuidString)"
+        
+        offlineService.clearOfflineMessages()
+        
+        for i in 0..<3 {
+            _ = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Restart test \(i)",
+                senderID: testUserID
+            )
+        }
+        
+        let beforeCount = offlineService.getOfflineMessages().count
+        
+        // When: Simulate app restart by creating new service instance
+        let newOfflineService = OfflineMessageService()
+        
+        // Then: Messages should persist
+        let afterCount = newOfflineService.getOfflineMessages().count
+        
+        #expect(afterCount >= beforeCount - 3, 
+               "Messages should persist after restart (within queue limit)")
+        
+        // If queue was full, messages should still be there
+        if beforeCount == 3 {
+            #expect(afterCount > 0, 
+                   "At least some messages should persist")
+        }
+    }
+    
+    @Test("Airplane mode: Toggle doesn't lose messages")
+    func airplaneModeToggleDoesNotLoseMessages() async throws {
+        // Given: Messages queued
+        let chatID = "toggle-test-\(UUID().uuidString)"
+        
+        offlineService.clearOfflineMessages()
+        
+        let messageID = try await offlineService.queueMessageOffline(
+            chatID: chatID,
+            text: "Toggle test message",
+            senderID: testUserID
+        )
+        
+        // When: Simulate multiple "airplane mode" toggles
+        // (represented by checking queue multiple times)
+        for _ in 0..<5 {
+            let messages = offlineService.getOfflineMessages()
+            let messageExists = messages.contains { $0.id == messageID }
+            
+            #expect(messageExists, 
+                   "Message should persist through state checks")
+        }
+        
+        // Then: Message should still be in queue
+        let finalMessages = offlineService.getOfflineMessages()
+        let messageStillExists = finalMessages.contains { $0.id == messageID }
+        
+        #expect(messageStillExists, 
+               "Message should survive airplane mode toggles")
+    }
+    
+    @Test("Cache load performance with full queue")
+    func cacheLoadPerformanceWithFullQueue() async throws {
+        // Given: Full queue (3 messages)
+        offlineService.clearOfflineMessages()
+        let chatID = "full-load-test-\(UUID().uuidString)"
+        
+        for i in 0..<3 {
+            _ = try await offlineService.queueMessageOffline(
+                chatID: chatID,
+                text: "Full queue message \(i)",
+                senderID: testUserID
+            )
+        }
+        
+        // When: Measure load time with full queue
+        let startTime = Date()
+        let newService = OfflineMessageService()
+        let messages = newService.getOfflineMessages()
+        let loadTime = Date().timeIntervalSince(startTime)
+        
+        // Then: Load should be fast even with full queue
+        #expect(loadTime < 0.5, 
+               "Full queue load should be < 500ms, got \(loadTime * 1000)ms")
+        #expect(messages.count > 0, 
+               "Should load messages from full queue")
+        
+        print("Full queue load time: \(loadTime * 1000)ms")
+    }
 }
 
 

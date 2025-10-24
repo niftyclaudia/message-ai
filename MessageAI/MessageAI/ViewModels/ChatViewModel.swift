@@ -71,6 +71,12 @@ class ChatViewModel: ObservableObject {
     // PR-2: Offline persistence system
     private let offlineViewModel = OfflineViewModel()
     
+    // PR-009: Priority detection system
+    private let priorityDetectionService = PriorityDetectionService()
+    
+    // Track messages being categorized to prevent duplicate processing
+    private var categorizingMessages: Set<String> = []
+    
     // MARK: - Initialization
     
     init(currentUserID: String, messageService: MessageService = MessageService(), readReceiptService: ReadReceiptService? = nil) {
@@ -137,6 +143,9 @@ class ChatViewModel: ObservableObject {
                 
                 // Mark received messages as delivered for the sender
                 await self?.markReceivedMessagesAsDelivered(newMessages: newMessages)
+                
+                // PR-009: Categorize new messages for priority detection
+                await self?.categorizeNewMessages(newMessages: newMessages)
                 
                 // Remove optimistic messages that now exist in real messages
                 self?.removeConfirmedOptimisticMessages(realMessages: newMessages)
@@ -895,8 +904,6 @@ class ChatViewModel: ObservableObject {
     ///   - messageID: The message ID to scroll to
     ///   - shouldHighlight: Whether to highlight the message with animation
     func scrollToMessage(messageID: String, shouldHighlight: Bool = true) {
-        let startTime = Date()
-        
         // Set scroll target
         scrollToMessageID = messageID
         
@@ -918,6 +925,166 @@ class ChatViewModel: ObservableObject {
     func clearScrollTarget() {
         scrollToMessageID = nil
         highlightedMessageID = nil
+    }
+    
+    // MARK: - PR-009: Priority Detection Methods
+    
+    /// Categorizes new messages for priority detection
+    /// - Parameter newMessages: Array of new messages to categorize
+    private func categorizeNewMessages(newMessages: [Message]) async {
+        // Only categorize messages that don't already have categorization and aren't being processed
+        let messagesToCategorize = newMessages.filter { message in
+            message.categoryPrediction == nil && !categorizingMessages.contains(message.id)
+        }
+        
+        guard !messagesToCategorize.isEmpty else { return }
+        
+        // Mark messages as being categorized to prevent duplicates
+        for message in messagesToCategorize {
+            categorizingMessages.insert(message.id)
+        }
+        
+        // Categorize messages in background to avoid blocking UI
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            
+            for message in messagesToCategorize {
+                do {
+                    // Create message context for categorization
+                    let context = MessageContext(
+                        senderUserId: message.senderID,
+                        messagePreview: message.text,
+                        hadDeadline: ["urgent", "asap", "deadline", "today", "tomorrow"].contains(where: { message.text.lowercased().contains($0) }),
+                        hadMention: message.text.contains("@"),
+                        matchedKeywords: extractKeywords(from: message.text)
+                    )
+                    
+                    // Debug: Log message details
+                    print("🧪 Categorizing message: \"\(message.text)\"")
+                    print("🔍 Context: hadDeadline=\(context.hadDeadline), hadMention=\(context.hadMention)")
+                    print("📝 Keywords: \(context.matchedKeywords)")
+                    
+                    // Categorize the message
+                    let prediction = try await self.priorityDetectionService.categorizeMessage(message, context: context)
+                    
+                    print("✅ Categorization result: \(prediction.category.displayName) (confidence: \(Int(prediction.confidence * 100))%)")
+                    
+                    // Update the message with categorization (this will trigger UI update)
+                    await MainActor.run {
+                        self.updateMessageWithCategorization(messageID: message.id, prediction: prediction)
+                        // Remove from categorizing set
+                        self.categorizingMessages.remove(message.id)
+                    }
+                    
+                } catch {
+                    // Log error but don't block message display
+                    print("Failed to categorize message \(message.id): \(error)")
+                    
+                    // Remove from categorizing set even on error
+                    await MainActor.run {
+                        self.categorizingMessages.remove(message.id)
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Updates a message with categorization prediction
+    /// - Parameters:
+    ///   - messageID: The message ID to update
+    ///   - prediction: The categorization prediction
+    private func updateMessageWithCategorization(messageID: String, prediction: CategoryPrediction) {
+        // Check if message already has categorization to prevent flickering
+        if let existingMessage = messages.first(where: { $0.id == messageID }),
+           existingMessage.categoryPrediction != nil {
+            print("⚠️ Message \(messageID) already has categorization, skipping update to prevent flickering")
+            return
+        }
+        
+        print("🔄 Updating message \(messageID) with categorization: \(prediction.category.displayName)")
+        
+        // Update in main messages array
+        if let index = messages.firstIndex(where: { $0.id == messageID }) {
+            let existingMessage = messages[index]
+            messages[index] = Message(
+                id: existingMessage.id,
+                chatID: existingMessage.chatID,
+                senderID: existingMessage.senderID,
+                text: existingMessage.text,
+                timestamp: existingMessage.timestamp,
+                serverTimestamp: existingMessage.serverTimestamp,
+                readBy: existingMessage.readBy,
+                readAt: existingMessage.readAt,
+                status: existingMessage.status,
+                senderName: existingMessage.senderName,
+                isOffline: existingMessage.isOffline,
+                retryCount: existingMessage.retryCount,
+                isOptimistic: existingMessage.isOptimistic,
+                categoryPrediction: prediction,
+                embeddingGenerated: true,
+                searchableMetadata: existingMessage.searchableMetadata
+            )
+        }
+        
+        // Update in optimistic messages array if present
+        if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
+            let existingMessage = optimisticMessages[index]
+            optimisticMessages[index] = Message(
+                id: existingMessage.id,
+                chatID: existingMessage.chatID,
+                senderID: existingMessage.senderID,
+                text: existingMessage.text,
+                timestamp: existingMessage.timestamp,
+                serverTimestamp: existingMessage.serverTimestamp,
+                readBy: existingMessage.readBy,
+                readAt: existingMessage.readAt,
+                status: existingMessage.status,
+                senderName: existingMessage.senderName,
+                isOffline: existingMessage.isOffline,
+                retryCount: existingMessage.retryCount,
+                isOptimistic: existingMessage.isOptimistic,
+                categoryPrediction: prediction,
+                embeddingGenerated: true,
+                searchableMetadata: existingMessage.searchableMetadata
+            )
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    /// Extract keywords from message text for categorization
+    private nonisolated func extractKeywords(from text: String) -> [String] {
+        let urgencyKeywords = ["urgent", "asap", "deadline", "today", "tomorrow", "immediately", "critical", "emergency"]
+        let questionKeywords = ["?", "how", "what", "when", "where", "why", "who"]
+        let actionKeywords = ["please", "need", "request", "ask", "help"]
+        
+        let lowercasedText = text.lowercased()
+        var keywords: [String] = []
+        
+        // Check for urgency keywords
+        for keyword in urgencyKeywords {
+            if lowercasedText.contains(keyword) {
+                keywords.append(keyword)
+            }
+        }
+        
+        // Check for question indicators
+        for keyword in questionKeywords {
+            if lowercasedText.contains(keyword) {
+                keywords.append("question")
+                break
+            }
+        }
+        
+        // Check for action keywords
+        for keyword in actionKeywords {
+            if lowercasedText.contains(keyword) {
+                keywords.append("action")
+                break
+            }
+        }
+        
+        return keywords
     }
     
 }

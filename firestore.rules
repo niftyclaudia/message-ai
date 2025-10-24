@@ -44,7 +44,7 @@ service cloud.firestore {
       // Only the user can create their own profile with valid data
       allow create: if isOwner(userID) && validUserData();
       
-      // Users can update their own profile OR update FCM token
+      // Users can update their own profile OR update FCM token OR priority preferences
       allow update: if isAuthenticated() && (
         // Own profile update with immutable fields preserved
         (isOwner(userID) && immutableFields())
@@ -53,6 +53,11 @@ service cloud.firestore {
         (request.auth.uid == userID 
          && request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['fcmToken', 'lastTokenUpdate']))
+        ||
+        // Priority preferences update (for AI categorization)
+        (request.auth.uid == userID 
+         && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['priorityPreferences']))
       );
       
       // No one can delete user documents (admin only, not implemented here)

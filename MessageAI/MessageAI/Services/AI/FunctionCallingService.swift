@@ -14,7 +14,7 @@ public protocol FunctionCallingServiceProtocol {
     func summarizeThread(threadId: String, maxLength: Int?) async throws -> ThreadSummary
     func extractActionItems(threadId: String) async throws -> [ActionItem]
     func searchMessages(query: String, chatId: String?, limit: Int?) async throws -> [SearchResult]
-    func categorizeMessage(messageId: String) async throws -> MessageCategory
+    func categorizeMessage(messageId: String) async throws -> MessageCategoryResult
     func trackDecisions(threadId: String) async throws -> [Decision]
     func detectSchedulingNeed(threadId: String) async throws -> SchedulingNeed
     func checkCalendar(startDate: Date, endDate: Date) async throws -> [CalendarEvent]
@@ -77,7 +77,7 @@ public class FunctionCallingService: FunctionCallingServiceProtocol {
     
     // MARK: - 4. Categorize Message
     
-    public func categorizeMessage(messageId: String) async throws -> MessageCategory {
+    public func categorizeMessage(messageId: String) async throws -> MessageCategoryResult {
         let params: [String: Any] = [
             "messageId": messageId,
             "userId": currentUserId
@@ -289,8 +289,8 @@ public class MockFunctionCallingService: FunctionCallingServiceProtocol {
         ]
     }
     
-    public func categorizeMessage(messageId: String) async throws -> MessageCategory {
-        return MessageCategory(category: .canWait, confidence: 0.85, reasoning: "Not time-sensitive", signals: ["question", "inquiry"])
+    public func categorizeMessage(messageId: String) async throws -> MessageCategoryResult {
+        return MessageCategoryResult(category: .canWait, confidence: 0.85, reasoning: "Not time-sensitive", signals: ["question", "inquiry"])
     }
     
     public func trackDecisions(threadId: String) async throws -> [Decision] {

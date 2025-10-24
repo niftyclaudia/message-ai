@@ -112,7 +112,7 @@ public enum CategoryType: String, Codable {
     case aiHandled = "aiHandled"
 }
 
-public struct MessageCategory: Codable {
+public struct MessageCategoryResult: Codable {
     public let category: CategoryType
     public let confidence: Double
     public let reasoning: String

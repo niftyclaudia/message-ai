@@ -123,10 +123,10 @@ struct FallbackModeExplanationSheet: View {
 // MARK: - Previews
 
 #Preview("Banner") {
-    FallbackModeIndicator(feature: .semanticSearch)
+    FallbackModeIndicator(feature: .smartSearch)
 }
 
 #Preview("Explanation Sheet") {
-    FallbackModeExplanationSheet(feature: .summarization)
+    FallbackModeExplanationSheet(feature: .threadSummary)
 }
 
