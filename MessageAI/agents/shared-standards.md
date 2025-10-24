@@ -63,11 +63,73 @@ Every feature involving messaging MUST address:
 - ✅ Keep functions small and focused
 - ✅ Meaningful variable names
 
+### Threading & Concurrency Rules
+
+**Always Use Background Threads For:**
+- Network requests (URLSession, API calls)
+- File I/O operations (reading/writing files)
+- Database operations (Core Data, Realm, SQLite, Firestore)
+- Heavy computations or data processing
+- Image processing or resizing
+- JSON parsing of large data
+
+**Always Use Main Thread For:**
+- Updating UI elements (labels, buttons, views)
+- Presenting/dismissing view controllers
+- Reloading table views or collection views
+- Any UIKit or SwiftUI view updates
+
+**Code Patterns:**
+
+```swift
+// For async work returning to main thread:
+DispatchQueue.global(qos: .userInitiated).async {
+    // Heavy work here
+    let result = performExpensiveOperation()
+    
+    DispatchQueue.main.async {
+        // Update UI here
+        self.label.text = result
+    }
+}
+
+// For network calls:
+URLSession.shared.dataTask(with: url) { data, response, error in
+    // Already on background thread
+    guard let data = data else { return }
+    
+    // Parse data on background
+    let parsed = parseData(data)
+    
+    // Switch to main for UI updates
+    DispatchQueue.main.async {
+        self.updateUI(with: parsed)
+    }
+}.resume()
+```
+
+**Quality of Service (QoS) Guide:**
+- `.userInteractive` — UI updates, animations (main thread)
+- `.userInitiated` — User-requested tasks (e.g., loading data after tap)
+- `.utility` — Long-running tasks with progress (downloads)
+- `.background` — Non-urgent maintenance (cleanup, sync)
+
+**Common Mistakes to Avoid:**
+- ❌ Don't use `.sync` on main queue (causes deadlock)
+- ❌ Don't forget to weakly capture `self` in closures: `[weak self]`
+- ❌ Don't access UI elements from background threads
+- ❌ Don't block main thread with `sleep()` or long loops
+
 ### Architecture
 - ✅ Service layer methods are deterministic
 - ✅ SwiftUI views are thin wrappers around services
 - ✅ No business logic in UI views
 - ✅ State management follows SwiftUI patterns
+- ✅ Everything goes through the database — GRDB transactions are central
+- ✅ Dependency injection preferred — Avoid global singletons when possible
+- ✅ Protocol-oriented — Heavy use of Swift protocols
+- ✅ Async/await everywhere — Modern Swift concurrency
+- ✅ Thread safety — Always consider which queue/thread you're on
 
 ### Documentation
 - ✅ Complex logic has comments
@@ -76,6 +138,137 @@ Every feature involving messaging MUST address:
 - ✅ No hardcoded values (use constants)
 - ✅ No magic numbers
 - ✅ No TODO comments without tickets
+
+### Firebase Integration Patterns
+
+**Firestore Listeners (Real-Time Sync):**
+```swift
+// Service layer - proper listener management
+func observeMessages(chatID: String, completion: @escaping ([Message]) -> Void) -> ListenerRegistration {
+    let listener = db.collection("chats").document(chatID)
+        .collection("messages")
+        .order(by: "timestamp")
+        .addSnapshotListener { snapshot, error in
+            guard let documents = snapshot?.documents else { return }
+            let messages = documents.compactMap { try? $0.data(as: Message.self) }
+            
+            DispatchQueue.main.async {
+                completion(messages)
+            }
+        }
+    return listener
+}
+
+// ViewModel - store and cleanup listener
+class ChatViewModel: ObservableObject {
+    private var messageListener: ListenerRegistration?
+    
+    func startListening() {
+        messageListener = messageService.observeMessages(chatID: chatID) { [weak self] messages in
+            self?.messages = messages
+        }
+    }
+    
+    deinit {
+        messageListener?.remove()
+    }
+}
+```
+
+**Error Handling:**
+```swift
+// Define app-specific errors
+enum AppError: LocalizedError {
+    case networkFailure(String)
+    case authenticationFailed
+    case invalidData
+    
+    var errorDescription: String? {
+        switch self {
+        case .networkFailure(let message): return "Network error: \(message)"
+        case .authenticationFailed: return "Authentication failed"
+        case .invalidData: return "Invalid data received"
+        }
+    }
+}
+
+// Service method with proper error handling
+func sendMessage(text: String, chatID: String) async throws -> String {
+    do {
+        let messageData: [String: Any] = [
+            "text": text,
+            "senderID": currentUserID,
+            "timestamp": FieldValue.serverTimestamp()
+        ]
+        
+        let docRef = try await db.collection("chats").document(chatID)
+            .collection("messages")
+            .addDocument(data: messageData)
+        
+        return docRef.documentID
+    } catch {
+        throw AppError.networkFailure(error.localizedDescription)
+    }
+}
+```
+
+**Offline Persistence:**
+```swift
+// Enable Firestore offline persistence in app initialization
+let db = Firestore.firestore()
+let settings = FirestoreSettings()
+settings.isPersistenceEnabled = true
+settings.cacheSizeBytes = FirestoreCacheSizeUnlimited
+db.settings = settings
+```
+
+### Code Review Checklist
+
+Use this checklist for all PRs:
+
+#### Threading & Performance
+- [ ] No network calls on main thread
+- [ ] UI updates wrapped in `DispatchQueue.main.async` or `@MainActor`
+- [ ] Heavy operations use background queues
+- [ ] No synchronous file operations on main thread
+- [ ] Table/collection view reloads on main thread
+- [ ] Scrolling maintains 60 FPS with 1000+ items
+
+#### Architecture & Clean Code
+- [ ] Views have no business logic
+- [ ] ViewModels don't import SwiftUI
+- [ ] Services are protocol-based and stateless
+- [ ] No hardcoded values (use constants)
+- [ ] Proper use of `@State`, `@StateObject`, `@ObservedObject`
+- [ ] Dependency injection used (no global singletons)
+
+#### Firebase Integration
+- [ ] Listeners properly stored and cleaned up (`deinit`)
+- [ ] Firestore queries use proper indexing
+- [ ] Server timestamps used (not client time)
+- [ ] Batch operations for multiple writes
+- [ ] Security rules match client logic
+
+#### Error Handling
+- [ ] All async operations have try/catch
+- [ ] User-friendly error messages
+- [ ] Graceful degradation on failures
+- [ ] Network errors handled properly
+- [ ] Loading states shown during async operations
+
+#### Testing
+- [ ] Happy path tests pass
+- [ ] Edge cases covered (empty, nil, errors)
+- [ ] Multi-user scenarios tested
+- [ ] Performance targets met
+- [ ] Offline scenarios tested
+
+#### Documentation
+- [ ] Complex logic has comments
+- [ ] Public APIs documented
+- [ ] No commented-out code
+- [ ] README updated if needed
+- [ ] Architecture docs updated if structure changed
 
 ---
 

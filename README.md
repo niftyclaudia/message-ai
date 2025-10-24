@@ -487,6 +487,42 @@ swiftlint autocorrect       # Fix auto-correctable issues
 
 **Xcode integration**: SwiftLint runs automatically on build (if installed)
 
+### 🤖 AI Error Handling (PR-AI-005)
+
+**Calm Intelligence Error UX:**
+All AI features use a unified error handling system with calm, first-person messaging:
+
+```swift
+import MessageAI
+
+// Wrap AI operations
+let handler = AIErrorHandler.shared
+let context = AIContext(feature: .summarization, userId: userId, threadId: threadId)
+
+do {
+    let result = try await aiService.summarizeThread(threadId)
+    handler.recordSuccess(for: .summarization)
+    displaySummary(result)
+} catch let error as AIError {
+    let response = handler.handle(error: error, context: context)
+    showCalmError(response)  // Blue/gray UI, not red
+}
+```
+
+**Key Principles:**
+- ✅ Blue/gray backgrounds (#F0F4F8), never red errors
+- ✅ First-person messaging ("I'm having trouble..." not "Error occurred")
+- ✅ Actionable fallbacks (retry, view full content, use basic mode)
+- ✅ Core messaging ALWAYS works (AI failures never block basic chat)
+- ✅ Graceful degradation with automatic fallback modes
+
+**Error Types:**
+- Timeout, rate limit, network failure → Auto-retry with exponential backoff
+- Service unavailable → Fallback options (e.g., keyword search instead of semantic)
+- Quota exceeded → Graceful degradation message
+
+See `MessageAI/agents/shared-standards.md` for complete AI error handling standards.
+
 ## Code Standards
 
 See `MessageAI/agents/shared-standards.md` for detailed coding standards.
