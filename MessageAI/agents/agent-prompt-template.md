@@ -84,6 +84,51 @@ Key reminders:
 
 Branch pattern: feat/ai-XXX-feature-name
 
+**OAuth & Secrets Management:**
+When working with third-party APIs (Google Calendar, etc.):
+
+1. **OAuth Setup (Google Cloud Console)**
+   - Enable required API (e.g., Google Calendar API)
+   - Create OAuth consent screen (External, add required scopes)
+   - Create OAuth 2.0 Client ID (Web application type, even for iOS)
+   - Redirect URI: `https://{project-id}.firebaseapp.com/__/auth/handler`
+   - Download Client ID + Client Secret
+
+2. **Secrets Storage (ALWAYS use Firebase Secrets for production)**
+   ```bash
+   # For production (recommended - uses Secret Manager)
+   firebase functions:secrets:set API_CLIENT_ID
+   firebase functions:secrets:set API_CLIENT_SECRET
+   
+   # For local dev only (create functions/.env.local, already in .gitignore)
+   API_CLIENT_ID=your-id
+   API_CLIENT_SECRET=your-secret
+   ```
+
+3. **Using Secrets in Code**
+   ```typescript
+   import { defineSecret } from 'firebase-functions/params';
+   
+   const clientId = defineSecret('API_CLIENT_ID');
+   const clientSecret = defineSecret('API_CLIENT_SECRET');
+   
+   export const myFunction = onCall(
+     { secrets: [clientId, clientSecret] },
+     async (request) => {
+       const id = clientId.value();
+       const secret = clientSecret.value();
+       // Use for OAuth flow
+     }
+   );
+   ```
+
+4. **Security Rules**
+   - ✅ Use Firebase Secrets (Secret Manager) for production
+   - ✅ Use .env.local for local development only
+   - ❌ NEVER commit secrets to git
+   - ❌ NEVER put secrets in iOS/frontend code
+   - ❌ NEVER use firebase functions:config:set (deprecated)
+
 Start by reading your instruction file, then begin.
 ```
 
