@@ -15,5 +15,8 @@ export { generateEmbeddingFunction as generateEmbedding } from './generateEmbedd
 export { semanticSearchFunction as semanticSearch } from './semanticSearch';
 export { onMessageCreatedTrigger as onMessageCreated } from './triggers/onMessageCreated';
 
+// Export Memory Management functions (PR-004)
+export { memoryCleanup, memoryCleanupManual } from './cleanup/memoryCleanup';
+
 // Export Function Calling framework
 export { executeFunctionCallFunction as executeFunctionCall } from './functionCalling/orchestrator';
