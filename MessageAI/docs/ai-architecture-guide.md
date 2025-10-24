@@ -82,22 +82,21 @@ Quick contextual features WHERE she needs them, PLUS a dedicated AI assistant fo
 
 ---
 
-## **Recommendation for Maya's Persona: Hybrid Approach**
+## **Recommended Architecture: 3 Core + 1 Advanced Feature**
 
-Here's why:
+**3 Core Contextual Features (Quick Actions in Chat):**
+1. **Thread Summarization** → Long-press on thread (contextual)
+2. **Priority Detection** → Background categorization with visual dashboard
+3. **Action Item Extraction** → Button in conversation
 
-1. **Priority Message Detection** needs proactive alerts → Works best with AI assistant checking in background
-2. **Thread Summarization** needs to be quick → Long-press on thread (contextual)
-3. **Action Item Extraction** could be either → Button in conversation OR ask AI assistant
-4. **Smart Search** needs conversation → AI assistant chat
-5. **Decision Tracking** needs overview → AI assistant dashboard
-6. **Proactive Assistant** needs to work in background → AI monitors calendar/messages
+**1 Advanced Proactive Feature (Background Monitoring):**
+4. **Proactive Assistant** → AI monitors conversations for scheduling needs, suggests meeting times
 
 **The ideal flow:**
-- Maya wakes up, opens the AI assistant: "What did I miss?" → Gets priority messages, decision summary, action items
+- Maya wakes up, sees dashboard: "2 Urgent, 8 Can Wait, 15 AI Handled"
 - During the day: Long-press messages for quick summaries
-- When confused: Ask AI assistant "Find the budget decision from last week"
-- Background: AI automatically protects her focus time
+- AI detects "let's meet" in conversation → Suggests optimal meeting times
+- Background: AI automatically categorizes messages and learns preferences
 
 ---
 
@@ -116,19 +115,22 @@ Think of it like this:
 - The AI needs to search those 10,000 messages, find relevant ones about budgets from Sarah, and then answer you
 - RAG is the system that does this searching + answering
 
-**How it works:**
-1. Store all Maya's messages in a searchable database (Firestore)
-2. When she asks a question, convert her question into a search query
-3. Find relevant messages
-4. Feed those messages to the AI
-5. AI uses them to answer her question
+**How it works (Full RAG Implementation):**
+1. Store all Maya's messages in Firestore database
+2. Generate vector embeddings using OpenAI text-embedding-3-small
+3. Store embeddings in vector database (Pinecone/Weaviate)
+4. When she asks a question, convert to semantic search query
+5. Find relevant messages using vector similarity search
+6. Feed retrieved messages to AI for context-aware responses
+7. Performance target: <2s for retrieval and processing
 
 **Maya's features this helps:**
-- ✅ **Smart Search** - Core requirement! Find specific conversations
-- ✅ **Decision Tracking** - Search for messages containing decisions
 - ✅ **Thread Summarization** - Retrieve full thread before summarizing
 - ✅ **Priority Message Detection** - Look at message history to understand what's truly urgent
 - ✅ **Action Item Extraction** - Find messages with tasks assigned to Maya
+- ✅ **Proactive Assistant** - Monitor conversations for scheduling patterns
+- ✅ **Future: Smart Search** - Semantic search across conversation history
+- ✅ **Future: Decision Tracking** - Search for messages containing decisions
 
 ---
 
@@ -218,11 +220,11 @@ functions = [
 Then you tell the AI: "You can use these functions to help the user."
 
 **Maya's features this helps:**
-- ✅ **Smart Search** - Calls `searchMessages()` function
 - ✅ **Thread Summarization** - Calls `summarizeThread()` function
 - ✅ **Action Item Extraction** - Calls `extractActionItems()` function
 - ✅ **Priority Message Detection** - Calls `analyzeMessageUrgency()` function
-- ✅ **Proactive Assistant** - Calls `checkCalendar()` and `suggestMeetingTimes()` functions
+- ✅ **Proactive Assistant** - Calls `checkCalendar()`, `suggestMeetingTimes()`, `detectSchedulingNeeds()` functions
+- ✅ **Future: Smart Search** - Calls `searchMessages()` function
 
 ---
 
@@ -253,8 +255,10 @@ Store conversation context:
 
 **Maya's features this helps:**
 - ✅ **All features** - Makes conversations natural
-- ✅ **Smart Search** - Follow-up questions work smoothly
-- ✅ **Decision Tracking** - "Show me more details about that decision" works
+- ✅ **Thread Summarization** - Follow-up questions work smoothly
+- ✅ **Proactive Assistant** - Learns from user feedback on suggestions
+- ✅ **Future: Smart Search** - Follow-up questions work smoothly
+- ✅ **Future: Decision Tracking** - "Show me more details about that decision" works
 
 ---
 
@@ -294,3 +298,99 @@ try {
 **Maya's features this helps:**
 - ✅ **All features** - Keeps Maya's experience smooth even when things break
 - ✅ **Priority Message Detection** - Critical this doesn't fail! If it does, show ALL messages rather than risk hiding something important
+- ✅ **Proactive Assistant** - Graceful degradation when calendar integration fails
+- ✅ **Thread Summarization** - Fallback to basic keyword extraction if AI fails
+- ✅ **Action Item Extraction** - Manual override when AI misses tasks
+
+---
+
+## **Proactive Assistant Architecture**
+
+### **Background Conversation Monitoring**
+
+**What it does:**
+Continuously monitors all conversations for scheduling-related patterns and triggers.
+
+**Pattern Detection:**
+- Keywords: "meet", "call", "schedule", "tomorrow", "next week"
+- Context: User is mentioned, meeting requests, calendar conflicts
+- Temporal signals: "urgent", "ASAP", "deadline"
+
+**Implementation:**
+```typescript
+class ProactiveAssistant {
+  async detectSchedulingNeeds(messages: Message[]): Promise<Suggestion[]> {
+    // Monitor for scheduling patterns
+    // Check if user is mentioned
+    // Analyze temporal urgency
+    // Return ranked suggestions with confidence
+  }
+}
+```
+
+### **Calendar Integration Architecture**
+
+**What it does:**
+Integrates with user's calendar to suggest optimal meeting times.
+
+**Features:**
+- Check availability across participants
+- Consider time zones and work hours
+- Avoid conflicts with existing meetings
+- Suggest multiple time options
+
+**Implementation:**
+```typescript
+class CalendarIntegration {
+  async findOptimalTimes(participants: User[], duration: number): Promise<TimeSlot[]> {
+    // Check everyone's calendar
+    // Find overlapping free time
+    // Consider time zones
+    // Return ranked suggestions
+  }
+}
+```
+
+### **Suggestion Triggering Logic**
+
+**When to trigger:**
+- High confidence scheduling need detected
+- User is mentioned in scheduling context
+- No recent similar suggestions
+- User hasn't dismissed similar suggestions recently
+
+**How to present:**
+- Gentle notification: "I noticed you might need to schedule something"
+- Show suggested times with reasoning
+- Allow one-tap acceptance
+- Learn from user responses
+
+### **Learning from User Feedback**
+
+**What to learn:**
+- User's preferred meeting times
+- Which suggestions are helpful vs annoying
+- Optimal notification timing
+- User's work patterns and availability
+
+**Implementation:**
+```typescript
+class LearningSystem {
+  async learnFromFeedback(suggestion: Suggestion, accepted: Bool): Promise<void> {
+    // Update user preferences
+    // Adjust confidence thresholds
+    // Improve future suggestions
+    // Store context for better recommendations
+  }
+}
+```
+
+### **Required Capabilities Summary**
+
+**All 5 agent requirements clearly documented:**
+
+1. **Conversation history retrieval (RAG pipeline)** - Full implementation with vector embeddings
+2. **User preference storage** - Firestore schema for focus hours, urgent contacts, keywords
+3. **Function calling capabilities** - Available functions list for all AI features
+4. **Memory/state management** - Context preservation across interactions and sessions
+5. **Error handling and recovery** - Retry logic, fallbacks, graceful degradation
