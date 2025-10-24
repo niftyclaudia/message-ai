@@ -80,6 +80,23 @@ struct ConversationRowView: View {
                     
                     Spacer()
                     
+                    // Priority indicator (if last message has categorization)
+                    if let lastMessageCategory = chat.lastMessageCategory {
+                        HStack(spacing: 4) {
+                            Image(systemName: lastMessageCategory.iconName)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(lastMessageCategory.iconColor)
+                            
+                            Text(lastMessageCategory.displayName)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(lastMessageCategory.textColor)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(lastMessageCategory.backgroundColor)
+                        .cornerRadius(8)
+                    }
+                    
                     Text(timestamp)
                         .font(.system(size: 14, weight: .regular))
                         .foregroundColor(.secondary)

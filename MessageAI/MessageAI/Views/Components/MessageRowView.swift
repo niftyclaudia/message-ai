@@ -94,6 +94,27 @@ struct MessageRowView: View {
                 }
             }
             
+            // Priority badge (if message has categorization)
+            if let categoryPrediction = message.categoryPrediction {
+                HStack {
+                    if !isFromCurrentUser {
+                        Spacer()
+                            .frame(width: isGroupChat ? 36 : 0)
+                    }
+                    
+                    PriorityBadge(
+                        category: categoryPrediction.category,
+                        confidence: categoryPrediction.confidence,
+                        showConfidence: true
+                    )
+                    
+                    if isFromCurrentUser {
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            
             // Timestamp and status
             if shouldShowTimestamp {
                 HStack {

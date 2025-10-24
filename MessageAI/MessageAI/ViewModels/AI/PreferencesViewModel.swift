@@ -126,8 +126,11 @@ class PreferencesViewModel: ObservableObject {
         return await withCheckedContinuation { continuation in
             let monitor = NWPathMonitor()
             let queue = DispatchQueue(label: "NetworkMonitor")
+            var hasResumed = false
             
             monitor.pathUpdateHandler = { path in
+                guard !hasResumed else { return }
+                hasResumed = true
                 let isConnected = path.status == .satisfied
                 monitor.cancel()
                 continuation.resume(returning: isConnected)
@@ -137,6 +140,8 @@ class PreferencesViewModel: ObservableObject {
             
             // Timeout after 1 second
             DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+                guard !hasResumed else { return }
+                hasResumed = true
                 monitor.cancel()
                 continuation.resume(returning: true) // Assume online if check times out
             }

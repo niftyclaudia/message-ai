@@ -44,19 +44,22 @@ struct ConversationListView: View {
             // Start performance monitoring
             performanceViewModel.startPerformanceMonitoring()
             
-            // Optimize chat list view for performance
-            performanceViewModel.optimizeChatListView(chatCount: viewModel.chats.count)
-            
-            // Create test data in Firestore for development
-            do {
-                try await testDataService.createTestChatData(currentUserID: currentUserID)
-            } catch {
-            }
-            
-            // Load chats from Firestore
+            // Load chats from Firestore first (priority)
             await viewModel.loadChats(userID: currentUserID)
             viewModel.observeChatsRealTime(userID: currentUserID)
             viewModel.observePresence()
+            
+            // Optimize chat list view for performance
+            performanceViewModel.optimizeChatListView(chatCount: viewModel.chats.count)
+            
+            // Create test data in background (non-blocking)
+            Task.detached(priority: .low) {
+                do {
+                    try await testDataService.createTestChatData(currentUserID: currentUserID)
+                } catch {
+                    // Test data creation failed - not critical
+                }
+            }
         }
         .onDisappear {
             viewModel.stopObserving()
