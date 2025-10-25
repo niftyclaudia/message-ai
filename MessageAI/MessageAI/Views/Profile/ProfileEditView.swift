@@ -28,6 +28,7 @@ struct ProfileEditView: View {
     @State private var showPhotoPickerSheet = false
     @State private var showErrorAlert = false
     @State private var errorMessage: String = ""
+    @State private var selectedPhotoItem: PhotosPickerItem?
     
     // MARK: - Computed Properties
     
@@ -63,7 +64,7 @@ struct ProfileEditView: View {
                         } else {
                             ProfilePhotoView(
                                 photoURL: viewModel.user?.profilePhotoURL,
-                                displayName: displayName.isEmpty ? "?" : displayName,
+                                displayName: displayName.isEmpty ? (viewModel.user?.displayName ?? "?") : displayName,
                                 size: 120
                             ) {
                                 showPhotoPickerSheet = true
@@ -137,7 +138,15 @@ struct ProfileEditView: View {
                 }
             }
             .sheet(isPresented: $showPhotoPickerSheet) {
-                photoPickerView
+                ProfilePhotoPicker(selectedImage: $selectedImage)
+            }
+            .onChange(of: selectedImage) { oldValue, newValue in
+                if let newValue = newValue {
+                    print("🔄 ProfileEditView: Image selected, starting auto-save...")
+                    Task {
+                        await autoSaveProfilePhoto(newValue)
+                    }
+                }
             }
             .alert("Error", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {}
@@ -172,36 +181,79 @@ struct ProfileEditView: View {
     /// Photo picker view
     private var photoPickerView: some View {
         PhotosPicker(
-            selection: Binding(
-                get: { nil },
-                set: { _ in }
-            ),
-            matching: .images
+            selection: $selectedPhotoItem,
+            matching: .images,
+            photoLibrary: .shared()
         ) {
             Text("Select Photo")
         }
         .photosPickerStyle(.inline)
-        .photosPickerDisabledCapabilities(.selectionActions)
-        .onChange(of: showPhotoPickerSheet) { oldValue, newValue in
-            if !newValue {
-                // Photo picker was dismissed
+        .onChange(of: selectedPhotoItem) { oldValue, newValue in
+            Task {
+                if let newValue = newValue {
+                    print("📸 Photo item selected, loading image...")
+                    // Load the selected image
+                    if let data = try? await newValue.loadTransferable(type: Data.self),
+                       let uiImage = UIImage(data: data) {
+                        print("✅ Image loaded successfully, size: \(uiImage.size)")
+                        selectedImage = uiImage
+                        
+                        // Auto-save the profile photo
+                        await autoSaveProfilePhoto(uiImage)
+                    } else {
+                        print("❌ Failed to load image from selected item")
+                    }
+                }
             }
         }
     }
     
     // MARK: - Private Methods
     
+    /// Auto-saves profile photo when selected and closes the picker
+    private func autoSaveProfilePhoto(_ image: UIImage) async {
+        print("🔄 Starting auto-save profile photo...")
+        do {
+            // Upload the profile photo
+            try await viewModel.uploadProfilePhoto(image: image, authService: authService)
+            print("✅ Profile photo uploaded successfully, closing picker...")
+            
+            // Close the photo picker sheet first
+            showPhotoPickerSheet = false
+            
+            // Small delay to ensure view model is updated, then clear selected image
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            selectedImage = nil
+            
+        } catch {
+            print("❌ Failed to upload profile photo: \(error.localizedDescription)")
+            // Show error but don't close the picker so user can try again
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+    
     /// Saves profile changes
     private func saveProfile() async {
         do {
-            // Upload photo if selected
+            // Only upload photo if selected and not already auto-saved
+            // (auto-save clears selectedImage, so if it's still set, we need to upload)
             if let image = selectedImage {
+                print("🔄 Save: Uploading selected image...")
                 try await viewModel.uploadProfilePhoto(image: image, authService: authService)
+                // Small delay to ensure view model is updated, then clear selected image
+                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                selectedImage = nil
+            } else {
+                print("✅ Save: No new image to upload (already auto-saved)")
             }
             
             // Update display name if changed
             if let user = viewModel.user, displayName != user.displayName {
+                print("🔄 Save: Updating display name...")
                 try await viewModel.updateProfile(displayName: displayName, authService: authService)
+            } else {
+                print("✅ Save: Display name unchanged")
             }
             
             // Dismiss on success
@@ -245,14 +297,31 @@ struct ProfilePhotoPicker: UIViewControllerRepresentable {
         }
         
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            parent.dismiss()
+            print("📸 ProfilePhotoPicker: Photo selection completed")
             
             guard let provider = results.first?.itemProvider,
-                  provider.canLoadObject(ofClass: UIImage.self) else { return }
+                  provider.canLoadObject(ofClass: UIImage.self) else { 
+                print("❌ ProfilePhotoPicker: No valid image provider found")
+                parent.dismiss()
+                return 
+            }
             
             provider.loadObject(ofClass: UIImage.self) { image, error in
                 DispatchQueue.main.async {
-                    self.parent.selectedImage = image as? UIImage
+                    if let error = error {
+                        print("❌ ProfilePhotoPicker: Failed to load image: \(error.localizedDescription)")
+                        self.parent.dismiss()
+                        return
+                    }
+                    
+                    if let uiImage = image as? UIImage {
+                        print("✅ ProfilePhotoPicker: Image loaded successfully, size: \(uiImage.size)")
+                        self.parent.selectedImage = uiImage
+                        self.parent.dismiss()
+                    } else {
+                        print("❌ ProfilePhotoPicker: Failed to cast to UIImage")
+                        self.parent.dismiss()
+                    }
                 }
             }
         }

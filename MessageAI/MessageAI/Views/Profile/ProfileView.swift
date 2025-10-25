@@ -63,7 +63,12 @@ struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to sign out?")
             }
-            .sheet(isPresented: $showEditProfile) {
+            .sheet(isPresented: $showEditProfile, onDismiss: {
+                // Reload profile data when returning from edit view
+                Task {
+                    await viewModel.loadProfile(authService: authService)
+                }
+            }) {
                 ProfileEditView()
                     .environmentObject(authService)
             }
