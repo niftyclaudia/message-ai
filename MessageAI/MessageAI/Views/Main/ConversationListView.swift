@@ -14,7 +14,6 @@ struct ConversationListView: View {
     // MARK: - Properties
     
     @StateObject private var viewModel = ConversationListViewModel()
-    @StateObject private var testDataService = TestDataService()
     let currentUserID: String
     
     // MARK: - Navigation State
@@ -40,13 +39,6 @@ struct ConversationListView: View {
             }
         }
         .task {
-            // Create test data in Firestore for development
-            do {
-                try await testDataService.createTestChatData(currentUserID: currentUserID)
-            } catch {
-                print("⚠️ Failed to create test data: \(error)")
-            }
-            
             // Load chats from Firestore
             await viewModel.loadChats(userID: currentUserID)
             viewModel.observeChatsRealTime(userID: currentUserID)

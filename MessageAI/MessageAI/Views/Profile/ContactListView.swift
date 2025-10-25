@@ -13,7 +13,6 @@ struct ContactListView: View {
     // MARK: - State Objects
     
     @StateObject private var viewModel = ContactListViewModel()
-    @StateObject private var testDataService = TestDataService()
     @EnvironmentObject private var authService: AuthService
     
     // MARK: - State
@@ -50,15 +49,6 @@ struct ContactListView: View {
                 viewModel.searchQuery = newValue
             }
             .task {
-                // Create test data in Firestore for development
-                if let currentUserID = authService.currentUser?.uid {
-                    do {
-                        try await testDataService.createTestChatData(currentUserID: currentUserID)
-                    } catch {
-                        print("⚠️ Failed to create test data: \(error)")
-                    }
-                }
-                
                 await viewModel.loadUsers()
                 viewModel.observeUsersRealTime()
                 viewModel.observePresence()
