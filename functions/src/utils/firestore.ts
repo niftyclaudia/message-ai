@@ -11,7 +11,7 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const db = admin.firestore();
+export const db = admin.firestore();
 
 /**
  * Fetch chat document data by chatID
