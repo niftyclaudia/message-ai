@@ -37,19 +37,20 @@ class MessageService {
     /// - Parameters:
     ///   - chatID: The chat's ID
     ///   - text: The message text
+    ///   - messageID: The message ID to use (optional, generates new if nil)
     /// - Returns: Message ID
     /// - Throws: MessageServiceError for various failure scenarios
-    func sendMessageOptimistic(chatID: String, text: String) async throws -> String {
+    func sendMessageOptimistic(chatID: String, text: String, messageID: String? = nil) async throws -> String {
         guard let currentUser = Auth.auth().currentUser else {
             throw MessageServiceError.permissionDenied
         }
         
-        let messageID = UUID().uuidString
+        let finalMessageID = messageID ?? UUID().uuidString
         let timestamp = Date()
         
         // Create optimistic message for immediate UI display
         let _ = OptimisticMessage(
-            id: messageID,
+            id: finalMessageID,
             chatID: chatID,
             text: text,
             timestamp: timestamp,
@@ -58,36 +59,32 @@ class MessageService {
         )
         
         do {
-            // Create message with server timestamp
+            // Create message with sent status to avoid extra Firestore updates
             let message = Message(
-                id: messageID,
+                id: finalMessageID,
                 chatID: chatID,
                 senderID: currentUser.uid,
                 text: text,
                 timestamp: timestamp,
                 serverTimestamp: nil, // Will be set by server
                 readBy: [currentUser.uid],
-                status: .sending,
+                status: .sent, // Start with sent status to avoid extra updates
                 senderName: nil,
                 isOffline: false,
                 retryCount: 0,
-                isOptimistic: true
+                isOptimistic: false // Not optimistic since it's going to Firestore
             )
             
             // Save to Firestore with server timestamp
             try firestore.collection("chats")
                 .document(chatID)
                 .collection(Message.collectionName)
-                .document(messageID)
+                .document(finalMessageID)
                 .setData(from: message)
-            
-            // Update status to sent
-            try await updateMessageStatus(messageID: messageID, status: .sent)
-            
-            return messageID
+            return finalMessageID
         } catch {
             // If send fails, mark as failed
-            try? await updateMessageStatus(messageID: messageID, status: .failed)
+            try? await updateMessageStatus(messageID: finalMessageID, status: .failed)
             throw MessageServiceError.networkError(error)
         }
     }

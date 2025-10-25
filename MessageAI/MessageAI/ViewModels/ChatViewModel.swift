@@ -39,7 +39,21 @@ class ChatViewModel: ObservableObject {
     /// Combined messages including optimistic updates
     var allMessages: [Message] {
         let combined = messages + optimisticMessages
-        return messageService.sortMessagesByServerTimestamp(combined)
+        let sorted = messageService.sortMessagesByServerTimestamp(combined)
+        
+        // Debug: Check for duplicate IDs
+        let messageIDs = sorted.map { $0.id }
+        let uniqueIDs = Set(messageIDs)
+        if messageIDs.count != uniqueIDs.count {
+            print("🔍 DUPLICATE MESSAGE IDS DETECTED!")
+            print("🔍 Total messages: \(messageIDs.count)")
+            print("🔍 Unique IDs: \(uniqueIDs.count)")
+            print("🔍 Message IDs: \(messageIDs)")
+            print("🔍 Real messages: \(messages.map { $0.id })")
+            print("🔍 Optimistic messages: \(optimisticMessages.map { $0.id })")
+        }
+        
+        return sorted
     }
     
     // MARK: - Private Properties
@@ -108,7 +122,15 @@ class ChatViewModel: ObservableObject {
         // Enable real-time listener for PR-6
         listener = messageService.observeMessages(chatID: chatID) { [weak self] newMessages in
             Task { @MainActor in
-                self?.messages = newMessages
+                if let self = self {
+                    self.messages = newMessages
+                    
+                    // Remove optimistic messages that now exist in the real messages
+                    let realMessageIDs = Set(newMessages.map { $0.id })
+                    self.optimisticMessages.removeAll { optimisticMessage in
+                        realMessageIDs.contains(optimisticMessage.id)
+                    }
+                }
             }
         }
         
@@ -271,8 +293,11 @@ class ChatViewModel: ObservableObject {
                         updateQueuedMessageCount()
                     }
                 } else {
+                    // Generate a single message ID to use for both optimistic and actual message
+                    let messageID = UUID().uuidString
+                    
                     // Create optimistic message for immediate UI display
-                    let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text)
+                    let optimisticMessage = createOptimisticMessage(chatID: chat.id, text: text, messageID: messageID)
                     
                     // Add to optimistic messages for immediate display
                     await MainActor.run {
@@ -282,24 +307,14 @@ class ChatViewModel: ObservableObject {
                     
                     // Try to send with optimistic updates
                     do {
-                        let messageID = try await messageService.sendMessageOptimistic(chatID: chat.id, text: text)
+                        let _ = try await messageService.sendMessageOptimistic(chatID: chat.id, text: text, messageID: messageID)
                         
-                        // Update optimistic message status
+                        // Remove optimistic message since it's now in Firestore
                         await MainActor.run {
-                            if let index = optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                optimisticMessages[index].status = .sent
-                                optimisticMessages[index].isOptimistic = false
-                            }
+                            optimisticMessages.removeAll { $0.id == messageID }
                         }
                         
-                        // Simulate delivered status after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            Task { @MainActor in
-                                if let index = self?.optimisticMessages.firstIndex(where: { $0.id == messageID }) {
-                                    self?.optimisticMessages[index].status = .delivered
-                                }
-                            }
-                        }
+                        // Message is now in Firestore and will be updated via the real-time listener
                         
                     } catch {
                         // Handle optimistic update failure
@@ -409,10 +424,11 @@ class ChatViewModel: ObservableObject {
     /// - Parameters:
     ///   - chatID: The chat ID
     ///   - text: The message text
+    ///   - messageID: The message ID to use (optional, generates new if nil)
     /// - Returns: Optimistic message
-    private func createOptimisticMessage(chatID: String, text: String) -> Message {
+    private func createOptimisticMessage(chatID: String, text: String, messageID: String? = nil) -> Message {
         return Message(
-            id: UUID().uuidString,
+            id: messageID ?? UUID().uuidString,
             chatID: chatID,
             senderID: currentUserID,
             text: text,
