@@ -7,74 +7,10 @@
 
 import SwiftUI
 import FirebaseCore
-import FirebaseMessaging
-import UserNotifications
 
-// MARK: - Notification Delegate Class
-
-/// Handles notification delegates since structs cannot conform to class protocols
-class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
-    
-    private let notificationService: NotificationService
-    private let authService: AuthService
-    
-    init(notificationService: NotificationService, authService: AuthService) {
-        self.notificationService = notificationService
-        self.authService = authService
-    }
-    
-    // MARK: - UNUserNotificationCenterDelegate
-    
-    /// Handle notification received while app is in foreground
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        Task { @MainActor in
-            let options = notificationService.handleForegroundNotification(notification)
-            completionHandler(options)
-        }
-    }
-    
-    /// Handle notification tap (background or terminated)
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        Task { @MainActor in
-            if let chatID = notificationService.handleNotificationTap(response) {
-                // Navigate to conversation with chatID
-                navigateToChat(chatID: chatID)
-            }
-            completionHandler()
-        }
-    }
-    
-    // MARK: - MessagingDelegate
-    
-    /// Handle FCM token refresh
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        print("📱 FCM token refreshed: \(fcmToken ?? "nil")")
-        
-        // Update token in Firestore if user is authenticated
-        if let userID = authService.currentUser?.uid {
-            Task {
-                do {
-                    try await notificationService.updateToken(userID: userID)
-                } catch {
-                    print("❌ Failed to update FCM token: \(error)")
-                }
-            }
-        }
-    }
-    
-    // MARK: - Navigation Helpers
-    
-    /// Navigate to specific chat from notification
-    /// - Parameter chatID: Chat ID to navigate to
-    private func navigateToChat(chatID: String) {
-        print("📱 Notification tap - navigate to chat: \(chatID)")
-        
-        // TODO: Implement navigation to specific chat
-        // This would require passing the chatID to the root view
-        // For now, we'll log the navigation intent
-        // The actual navigation will be handled by the ConversationListView
-    }
-}
+// MARK: - Notification Delegate Class (DISABLED)
+// Notification functionality has been temporarily disabled to prevent misleading errors
+// TODO: Re-enable when APNS setup is complete
 
 @main
 struct MessageAIApp: App {
@@ -87,11 +23,9 @@ struct MessageAIApp: App {
     /// App lifecycle manager - handles presence status based on app state
     @StateObject private var lifecycleManager = AppLifecycleManager()
     
-    /// Notification service - handles push notifications and device tokens
-    @StateObject private var notificationService = NotificationService()
-    
-    /// Notification delegate for handling push notifications
-    @State private var notificationDelegate: NotificationDelegate?
+    // MARK: - Notification Service (DISABLED)
+    // Notification functionality has been temporarily disabled to prevent misleading errors
+    // TODO: Re-enable when APNS setup is complete
     
     // MARK: - Initialization
     
@@ -112,30 +46,21 @@ struct MessageAIApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(authService)
-                .environmentObject(notificationService)
-                .onAppear {
-                    configureNotificationDelegates()
-                }
+                // Notification service temporarily disabled
+                // .environmentObject(notificationService)
+                // .onAppear {
+                //     configureNotificationDelegates()
+                // }
         }
     }
     
-    // MARK: - Notification Configuration
+    // MARK: - Notification Configuration (DISABLED)
     
     /// Configure notification delegates and register for remote notifications
+    /// DISABLED: Notification functionality temporarily removed to prevent misleading errors
+    /// TODO: Re-enable when APNS setup is complete
     private func configureNotificationDelegates() {
-        // Create notification delegate
-        notificationDelegate = NotificationDelegate(
-            notificationService: notificationService,
-            authService: authService
-        )
-        
-        // Set notification center delegate
-        UNUserNotificationCenter.current().delegate = notificationDelegate
-        
-        // Set FCM messaging delegate
-        Messaging.messaging().delegate = notificationDelegate
-        
-        // Register for remote notifications
-        UIApplication.shared.registerForRemoteNotifications()
+        // Notification setup has been disabled
+        // TODO: Re-implement when APNS is properly configured
     }
 }

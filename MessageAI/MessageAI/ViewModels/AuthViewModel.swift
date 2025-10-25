@@ -28,13 +28,15 @@ class AuthViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let authService: AuthService
-    private let notificationService: NotificationService
+    // Notification service temporarily disabled to prevent misleading errors
+    // private let notificationService: NotificationService
     
     // MARK: - Initialization
     
-    init(authService: AuthService, notificationService: NotificationService) {
+    init(authService: AuthService, notificationService: NotificationService? = nil) {
         self.authService = authService
-        self.notificationService = notificationService
+        // Notification service temporarily disabled
+        // self.notificationService = notificationService
     }
     
     // MARK: - Public Methods
@@ -58,8 +60,8 @@ class AuthViewModel: ObservableObject {
             try await authService.signIn(email: email, password: password)
             // Success - AuthService will update isAuthenticated
             
-            // Register for notifications after successful login
-            await registerForNotifications()
+            // Notification registration temporarily disabled
+            // await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
@@ -93,8 +95,8 @@ class AuthViewModel: ObservableObject {
             _ = try await authService.signUp(email: email, password: password, displayName: displayName)
             // Success - AuthService will update isAuthenticated
             
-            // Register for notifications after successful signup
-            await registerForNotifications()
+            // Notification registration temporarily disabled
+            // await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
@@ -112,8 +114,8 @@ class AuthViewModel: ObservableObject {
             try await authService.signInWithGoogle()
             // Success - AuthService will update isAuthenticated
             
-            // Register for notifications after successful Google sign-in
-            await registerForNotifications()
+            // Notification registration temporarily disabled
+            // await registerForNotifications()
         } catch {
             showErrorAlert(getUserFriendlyMessage(for: error))
         }
@@ -123,14 +125,14 @@ class AuthViewModel: ObservableObject {
     
     /// Sign out current user
     func signOut() async {
-        // Remove FCM token before logout
-        if let userID = authService.currentUser?.uid {
-            do {
-                try await notificationService.removeToken(userID: userID)
-            } catch {
-                print("❌ Failed to remove FCM token: \(error)")
-            }
-        }
+        // Notification token removal temporarily disabled
+        // if let userID = authService.currentUser?.uid {
+        //     do {
+        //         try await notificationService.removeToken(userID: userID)
+        //     } catch {
+        //         print("❌ Failed to remove FCM token: \(error)")
+        //     }
+        // }
         
         // Sign out from auth service
         do {
@@ -150,21 +152,11 @@ class AuthViewModel: ObservableObject {
     // MARK: - Private Methods
     
     /// Register for push notifications after successful authentication
+    /// DISABLED: Notification functionality temporarily removed to prevent misleading errors
     private func registerForNotifications() async {
-        // Request notification permission
-        let granted = await notificationService.requestPermission()
-        
-        if granted, let userID = authService.currentUser?.uid {
-            do {
-                try await notificationService.registerForNotifications(userID: userID)
-                print("✅ Successfully registered for push notifications")
-            } catch {
-                print("❌ Failed to register for notifications: \(error)")
-                // Don't show error to user - notifications are optional
-            }
-        } else {
-            print("📱 Notification permission denied - app continues without notifications")
-        }
+        // Notification registration has been disabled
+        // TODO: Re-enable when APNS setup is complete
+        print("📱 Notification registration disabled - will be re-enabled when APNS is configured")
     }
     
     /// Shows error alert with message
