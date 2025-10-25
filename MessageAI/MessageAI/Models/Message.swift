@@ -60,6 +60,18 @@ struct Message: Codable, Identifiable {
     /// Whether this is an optimistic update (not yet confirmed by server)
     var isOptimistic: Bool = false
     
+    /// Message priority classification (urgent/normal)
+    var priority: String?
+    
+    /// Confidence score for classification (0.0-1.0)
+    var classificationConfidence: Double?
+    
+    /// Method used for classification (openai/keyword/fallback)
+    var classificationMethod: String?
+    
+    /// Timestamp when classification was completed
+    var classificationTimestamp: Date?
+    
     /// Firestore collection name
     static let collectionName = "messages"
     
@@ -79,11 +91,15 @@ struct Message: Codable, Identifiable {
         case isOffline
         case retryCount
         case isOptimistic
+        case priority
+        case classificationConfidence
+        case classificationMethod
+        case classificationTimestamp
     }
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false, priority: String? = nil, classificationConfidence: Double? = nil, classificationMethod: String? = nil, classificationTimestamp: Date? = nil) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
@@ -97,6 +113,10 @@ struct Message: Codable, Identifiable {
         self.isOffline = isOffline
         self.retryCount = retryCount
         self.isOptimistic = isOptimistic
+        self.priority = priority
+        self.classificationConfidence = classificationConfidence
+        self.classificationMethod = classificationMethod
+        self.classificationTimestamp = classificationTimestamp
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -115,6 +135,16 @@ struct Message: Codable, Identifiable {
         isOffline = try container.decodeIfPresent(Bool.self, forKey: .isOffline) ?? false
         retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
         isOptimistic = try container.decodeIfPresent(Bool.self, forKey: .isOptimistic) ?? false
+        priority = try container.decodeIfPresent(String.self, forKey: .priority)
+        classificationConfidence = try container.decodeIfPresent(Double.self, forKey: .classificationConfidence)
+        classificationMethod = try container.decodeIfPresent(String.self, forKey: .classificationMethod)
+        
+        // Handle classification timestamp
+        if let classificationTimestamp = try? container.decode(Timestamp.self, forKey: .classificationTimestamp) {
+            self.classificationTimestamp = classificationTimestamp.dateValue()
+        } else {
+            self.classificationTimestamp = try container.decodeIfPresent(Date.self, forKey: .classificationTimestamp)
+        }
         
         // Handle readAt dictionary with Timestamp conversion
         if let readAtTimestamps = try? container.decodeIfPresent([String: Timestamp].self, forKey: .readAt) {
@@ -157,6 +187,14 @@ struct Message: Codable, Identifiable {
         try container.encode(isOffline, forKey: .isOffline)
         try container.encode(retryCount, forKey: .retryCount)
         try container.encode(isOptimistic, forKey: .isOptimistic)
+        try container.encodeIfPresent(priority, forKey: .priority)
+        try container.encodeIfPresent(classificationConfidence, forKey: .classificationConfidence)
+        try container.encodeIfPresent(classificationMethod, forKey: .classificationMethod)
+        
+        // Handle classification timestamp if present
+        if let classificationTimestamp = classificationTimestamp {
+            try container.encode(Timestamp(date: classificationTimestamp), forKey: .classificationTimestamp)
+        }
         
         // Convert date to Firestore Timestamp
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
