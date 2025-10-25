@@ -35,10 +35,6 @@ final class ConversationListUITests: XCTestCase {
         // Then: Conversation list should be displayed
         let navigationBar = app.navigationBars["Chats"]
         XCTAssertTrue(navigationBar.waitForExistence(timeout: 5))
-        
-        // And: Logout button should be present
-        let logoutButton = app.buttons["Logout"]
-        XCTAssertTrue(logoutButton.exists)
     }
     
     func testConversationList_ShowsEmptyStateWhenNoChats() throws {
@@ -87,16 +83,16 @@ final class ConversationListUITests: XCTestCase {
         XCTAssertTrue(navigationBar.exists)
     }
     
-    func testConversationList_LogoutButtonExists() throws {
+    func testConversationList_PlusButtonExists() throws {
         // Given: App is launched and user is on Chats tab
         let chatsTab = app.tabBars.buttons["Chats"]
         XCTAssertTrue(chatsTab.waitForExistence(timeout: 5))
         chatsTab.tap()
         
-        // When: User looks for logout button
-        // Then: Logout button should be present
-        let logoutButton = app.buttons["Logout"]
-        XCTAssertTrue(logoutButton.exists)
+        // When: User looks for create chat button
+        // Then: Plus button should be present in toolbar
+        let plusButton = app.navigationBars.buttons["plus"]
+        XCTAssertTrue(plusButton.exists)
     }
     
     // MARK: - Tab Navigation Tests
@@ -147,11 +143,6 @@ final class ConversationListUITests: XCTestCase {
         
         // Then: Tab should have proper accessibility label
         XCTAssertEqual(chatsTab.label, "Chats")
-        
-        // And: Logout button should have proper accessibility
-        let logoutButton = app.buttons["Logout"]
-        XCTAssertTrue(logoutButton.exists)
-        XCTAssertEqual(logoutButton.label, "Logout")
     }
     
     // MARK: - Performance Tests

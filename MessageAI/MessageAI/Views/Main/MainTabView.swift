@@ -17,7 +17,6 @@ struct MainTabView: View {
     
     // MARK: - State
     
-    @State private var showLogoutAlert: Bool = false
     @State private var showingCreateChat: Bool = false
     @State private var createdChat: Chat?
     @State private var navigateToChat: Bool = false
@@ -30,14 +29,6 @@ struct MainTabView: View {
             NavigationStack {
                 ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
                     .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            showLogoutAlert = true
-                        } label: {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                        }
-                    }
-                    
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             print("🔄 Plus button tapped - showingCreateChat: \(showingCreateChat)")
@@ -48,14 +39,6 @@ struct MainTabView: View {
                         }
                         .foregroundColor(AppTheme.primaryColor)
                     }
-                }
-                .alert("Sign Out", isPresented: $showLogoutAlert) {
-                    Button("Cancel", role: .cancel) {}
-                    Button("Sign Out", role: .destructive) {
-                        handleLogout()
-                    }
-                } message: {
-                    Text("Are you sure you want to sign out?")
                 }
                 .navigationDestination(isPresented: $navigateToChat) {
                     if let chat = createdChat {
@@ -98,17 +81,6 @@ struct MainTabView: View {
                 navigateToChat = true
                 print("🔄 MainTabView: Navigation state set - navigateToChat: \(navigateToChat)")
             }
-        }
-    }
-    
-    // MARK: - Private Methods
-    
-    /// Handles user logout
-    private func handleLogout() {
-        do {
-            try authService.signOut()
-        } catch {
-            print("❌ Logout error: \(error.localizedDescription)")
         }
     }
 }
