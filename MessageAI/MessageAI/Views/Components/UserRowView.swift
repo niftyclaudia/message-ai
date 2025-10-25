@@ -24,7 +24,7 @@ struct UserRowView: View {
                 AvatarView(
                     photoURL: user.profilePhotoURL,
                     displayName: user.displayName,
-                    size: 40
+                    size: 50
                 )
                 
                 // Presence indicator

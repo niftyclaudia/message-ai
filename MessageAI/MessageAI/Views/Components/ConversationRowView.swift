@@ -52,7 +52,7 @@ struct ConversationRowView: View {
                 AvatarView(
                     photoURL: profilePhotoURL,
                     displayName: displayName,
-                    size: 40
+                    size: 50
                 )
                 
                 // Presence indicator

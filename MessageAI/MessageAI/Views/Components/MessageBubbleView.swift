@@ -37,10 +37,10 @@ struct MessageBubbleView: View {
                 }
                 
                 Text(message.text)
-                    .font(.body)
+                    .font(.system(size: 18, weight: .regular))
                     .foregroundColor(isFromCurrentUser ? .white : .primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(isFromCurrentUser ? Color.blue : Color.gray.opacity(0.2))
