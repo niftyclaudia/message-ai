@@ -38,6 +38,9 @@ struct Chat: Codable, Identifiable, Equatable {
     /// User ID of who created this chat
     var createdBy: String
     
+    /// Unread message count per user (userID -> count)
+    var unreadCount: [String: Int]
+    
     /// Firestore collection name
     static let collectionName = "chats"
     
@@ -63,11 +66,12 @@ struct Chat: Codable, Identifiable, Equatable {
         case groupName
         case createdAt
         case createdBy
+        case unreadCount
     }
     
     // MARK: - Initialization
     
-    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date, createdBy: String) {
+    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date, createdBy: String, unreadCount: [String: Int] = [:]) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -77,6 +81,7 @@ struct Chat: Codable, Identifiable, Equatable {
         self.groupName = groupName
         self.createdAt = createdAt
         self.createdBy = createdBy
+        self.unreadCount = unreadCount
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -92,6 +97,7 @@ struct Chat: Codable, Identifiable, Equatable {
         isGroupChat = try container.decode(Bool.self, forKey: .isGroupChat)
         groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
         createdBy = try container.decode(String.self, forKey: .createdBy)
+        unreadCount = try container.decodeIfPresent([String: Int].self, forKey: .unreadCount) ?? [:]
         
         // Handle lastMessageTimestamp with fallback for null values
         if let timestamp = try? container.decode(Timestamp.self, forKey: .lastMessageTimestamp) {
@@ -125,6 +131,7 @@ struct Chat: Codable, Identifiable, Equatable {
         try container.encode(isGroupChat, forKey: .isGroupChat)
         try container.encodeIfPresent(groupName, forKey: .groupName)
         try container.encode(createdBy, forKey: .createdBy)
+        try container.encode(unreadCount, forKey: .unreadCount)
         
         // Convert dates to Firestore Timestamps
         try container.encode(Timestamp(date: lastMessageTimestamp), forKey: .lastMessageTimestamp)

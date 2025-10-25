@@ -78,6 +78,8 @@ struct ChatView: View {
             viewModel.chat = chat
             Task {
                 await viewModel.loadMessages(chatID: chat.id)
+                // Reset unread count when user opens chat
+                await viewModel.resetUnreadCount(chatID: chat.id, userID: viewModel.currentUserID)
                 viewModel.observeMessagesRealTime(chatID: chat.id)
                 
                 // Mark all messages in chat as read when opening (PR-12)

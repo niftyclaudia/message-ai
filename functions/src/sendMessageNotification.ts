@@ -90,6 +90,38 @@ export const sendMessageNotification = functions.firestore
         isGroupChat: chatData.isGroupChat 
       });
       
+      // NEW STEP: Update chat document with latest message
+      try {
+        // Build unread count updates for recipients
+        const recipientIDs = getRecipientIDs(chatData.members, senderID);
+        const unreadUpdates: any = {};
+        recipientIDs.forEach(recipientID => {
+          unreadUpdates[`unreadCount.${recipientID}`] = admin.firestore.FieldValue.increment(1);
+        });
+
+        await admin.firestore()
+          .collection('chats')
+          .doc(chatID)
+          .update({
+            lastMessage: text,
+            lastMessageTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            lastMessageSenderID: senderID,
+            ...unreadUpdates
+          });
+        
+        logger.info('Chat document updated with latest message', { 
+          chatID, 
+          lastMessage: text.substring(0, 50) + '...',
+          unreadUpdatesCount: Object.keys(unreadUpdates).length
+        });
+      } catch (chatUpdateError) {
+        logger.error('Failed to update chat document', { 
+          chatID, 
+          error: chatUpdateError instanceof Error ? chatUpdateError.message : String(chatUpdateError) 
+        });
+        // Continue with notifications even if chat update fails
+      }
+      
       // Step 3: Compute recipients (CRITICAL: exclude sender)
       const recipientIDs = getRecipientIDs(chatData.members, senderID);
       
@@ -126,7 +158,9 @@ export const sendMessageNotification = functions.firestore
       });
       
       // Step 5: Build notification payload
-      const senderName = recipients[0]?.displayName || 'Unknown User'; // Get sender name from first recipient for now
+      // Fetch sender's display name from users collection
+      const senderDoc = await admin.firestore().collection('users').doc(senderID).get();
+      const senderName = senderDoc.data()?.displayName || 'Unknown User';
       const payload = buildNotificationPayload(
         senderName,
         text,

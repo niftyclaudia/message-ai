@@ -491,6 +491,16 @@ class MessageService {
         return networkMonitor.connectionType
     }
     
+    /// Resets unread count for a user in a chat
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - userID: The user's ID
+    func resetUnreadCount(chatID: String, userID: String) async throws {
+        try await firestore.collection("chats")
+            .document(chatID)
+            .updateData(["unreadCount.\(userID)": 0])
+    }
+    
     /// Starts automatic sync when network becomes available
     func startAutoSync() {
         // This would be called by the ChatViewModel when network status changes

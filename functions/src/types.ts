@@ -13,6 +13,10 @@ export interface ChatData {
   id: string;
   members: string[];
   isGroupChat: boolean;
+  lastMessage?: string;
+  lastMessageTimestamp?: any;
+  lastMessageSenderID?: string;
+  unreadCount?: { [userId: string]: number };
 }
 
 export interface UserData {

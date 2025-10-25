@@ -80,9 +80,22 @@ struct ConversationRowView: View {
                     
                     Spacer()
                     
-                    Text(timestamp)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        Text(timestamp)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.secondary)
+                        
+                        // Unread count badge
+                        if let unreadCount = chat.unreadCount[currentUserID], unreadCount > 0 {
+                            Text("\(unreadCount)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue)
+                                .clipShape(Capsule())
+                        }
+                    }
                 }
                 
                 // Message preview with member count for groups

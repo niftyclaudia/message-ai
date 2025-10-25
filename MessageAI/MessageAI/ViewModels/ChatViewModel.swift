@@ -588,4 +588,17 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    /// Resets unread count for the current user in the chat
+    /// - Parameters:
+    ///   - chatID: The chat's ID
+    ///   - userID: The user's ID
+    func resetUnreadCount(chatID: String, userID: String) async {
+        do {
+            try await messageService.resetUnreadCount(chatID: chatID, userID: userID)
+            print("✅ Reset unread count for user \(userID) in chat \(chatID)")
+        } catch {
+            print("❌ Failed to reset unread count: \(error)")
+        }
+    }
+    
 }
