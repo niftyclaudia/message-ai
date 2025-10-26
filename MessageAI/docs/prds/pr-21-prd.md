@@ -36,8 +36,8 @@ Build the Focus Mode UI foundation with an inline toggle switch and two-section 
 
 ## 3. Non-Goals / Out of Scope
 
-- [ ] AI integration (handled in PR #22)
-- [ ] Real-time classification updates (handled in PR #22)
+- [x] AI integration (handled in PR #22) ✅ Complete
+- [x] Real-time classification updates (handled in PR #22) ✅ Complete
 - [ ] Summary generation (handled in PR #23)
 - [ ] Search functionality (handled in PR #24)
 - [ ] Custom urgency keywords or user training
@@ -254,8 +254,8 @@ struct FocusSession {
 ## 17. Appendix: Out-of-Scope Backlog
 
 Items deferred for future PRs:
-- [ ] Real-time AI classification integration (PR #22)
-- [ ] User feedback on message priority (PR #22)
+- [x] Real-time AI classification integration (PR #22) ✅ Complete
+- [x] User feedback on message priority (PR #22) ✅ Complete
 - [ ] Session summarization (PR #23)
 - [ ] Semantic search (PR #24)
 - [ ] Custom urgency keywords
