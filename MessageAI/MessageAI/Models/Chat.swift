@@ -26,6 +26,9 @@ struct Chat: Codable, Identifiable, Equatable {
     /// User ID of who sent the most recent message
     var lastMessageSenderID: String
     
+    /// ID of the most recent message
+    var lastMessageID: String?
+    
     /// Whether this is a group chat (false for 1-on-1 chats)
     var isGroupChat: Bool
     
@@ -54,6 +57,24 @@ struct Chat: Codable, Identifiable, Equatable {
         return members.first { $0 != currentUserID }
     }
     
+    // MARK: - Private Helper Methods
+    
+    /// Decodes a timestamp from Firestore with fallback for null values
+    /// - Parameters:
+    ///   - container: The decoder container
+    ///   - key: The coding key for the timestamp
+    /// - Returns: Decoded Date or current date as fallback
+    private static func decodeTimestamp(from container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Date {
+        if let timestamp = try? container.decode(Timestamp.self, forKey: key) {
+            return timestamp.dateValue()
+        } else if let date = try? container.decode(Date.self, forKey: key) {
+            return date
+        } else {
+            // Fallback to current date if timestamp is null or missing
+            return Date()
+        }
+    }
+    
     // MARK: - Codable Keys
     
     enum CodingKeys: String, CodingKey {
@@ -62,6 +83,7 @@ struct Chat: Codable, Identifiable, Equatable {
         case lastMessage
         case lastMessageTimestamp
         case lastMessageSenderID
+        case lastMessageID
         case isGroupChat
         case groupName
         case createdAt
@@ -71,12 +93,13 @@ struct Chat: Codable, Identifiable, Equatable {
     
     // MARK: - Initialization
     
-    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, isGroupChat: Bool, groupName: String? = nil, createdAt: Date, createdBy: String, unreadCount: [String: Int] = [:]) {
+    init(id: String, members: [String], lastMessage: String, lastMessageTimestamp: Date, lastMessageSenderID: String, lastMessageID: String? = nil, isGroupChat: Bool, groupName: String? = nil, createdAt: Date, createdBy: String, unreadCount: [String: Int] = [:]) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
         self.lastMessageTimestamp = lastMessageTimestamp
         self.lastMessageSenderID = lastMessageSenderID
+        self.lastMessageID = lastMessageID
         self.isGroupChat = isGroupChat
         self.groupName = groupName
         self.createdAt = createdAt
@@ -94,30 +117,15 @@ struct Chat: Codable, Identifiable, Equatable {
         members = try container.decode([String].self, forKey: .members)
         lastMessage = try container.decode(String.self, forKey: .lastMessage)
         lastMessageSenderID = try container.decode(String.self, forKey: .lastMessageSenderID)
+        lastMessageID = try container.decodeIfPresent(String.self, forKey: .lastMessageID)
         isGroupChat = try container.decode(Bool.self, forKey: .isGroupChat)
         groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
         createdBy = try container.decode(String.self, forKey: .createdBy)
         unreadCount = try container.decodeIfPresent([String: Int].self, forKey: .unreadCount) ?? [:]
         
-        // Handle lastMessageTimestamp with fallback for null values
-        if let timestamp = try? container.decode(Timestamp.self, forKey: .lastMessageTimestamp) {
-            lastMessageTimestamp = timestamp.dateValue()
-        } else if let date = try? container.decode(Date.self, forKey: .lastMessageTimestamp) {
-            lastMessageTimestamp = date
-        } else {
-            // Fallback to current date if lastMessageTimestamp is null or missing
-            lastMessageTimestamp = Date()
-        }
-        
-        // Handle createdAt with fallback for null values
-        if let timestamp = try? container.decode(Timestamp.self, forKey: .createdAt) {
-            createdAt = timestamp.dateValue()
-        } else if let date = try? container.decode(Date.self, forKey: .createdAt) {
-            createdAt = date
-        } else {
-            // Fallback to current date if createdAt is null or missing
-            createdAt = Date()
-        }
+        // Handle timestamps with fallback for null values
+        lastMessageTimestamp = Self.decodeTimestamp(from: container, forKey: .lastMessageTimestamp)
+        createdAt = Self.decodeTimestamp(from: container, forKey: .createdAt)
     }
     
     /// Encode to Firestore document
@@ -128,6 +136,7 @@ struct Chat: Codable, Identifiable, Equatable {
         try container.encode(members, forKey: .members)
         try container.encode(lastMessage, forKey: .lastMessage)
         try container.encode(lastMessageSenderID, forKey: .lastMessageSenderID)
+        try container.encodeIfPresent(lastMessageID, forKey: .lastMessageID)
         try container.encode(isGroupChat, forKey: .isGroupChat)
         try container.encodeIfPresent(groupName, forKey: .groupName)
         try container.encode(createdBy, forKey: .createdBy)
