@@ -45,11 +45,14 @@ class PresenceService {
         currentUserPresenceRef = presenceRef
         
         // Create online presence status
-        let deviceInfo = PresenceStatus.DeviceInfo(
-            platform: "iOS",
-            version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-            model: UIDevice.current.model
-        )
+        // Create device info on main actor for thread safety in Swift 6
+        let deviceInfo = await MainActor.run { () -> PresenceStatus.DeviceInfo in
+            return PresenceStatus.DeviceInfo(
+                platform: "iOS",
+                version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+                model: UIDevice.current.model
+            )
+        }
         
         let onlineStatus = PresenceStatus(
             status: .online,
@@ -72,7 +75,10 @@ class PresenceService {
             
         } catch {
             print("⚠️ Failed to set user online: \(error)")
-            try await handleRetry(operation: { [weak self] in try await self?.setUserOnline(userID: userID) }, error: error)
+            try await handleRetry(operation: { [weak self] in
+                guard let self = self else { throw PresenceServiceError.unknown(error) }
+                try await self.setUserOnline(userID: userID)
+            }, error: error)
         }
     }
     
@@ -103,7 +109,10 @@ class PresenceService {
             
         } catch {
             print("⚠️ Failed to set user offline: \(error)")
-            try await handleRetry(operation: { [weak self] in try await self?.setUserOffline(userID: userID) }, error: error)
+            try await handleRetry(operation: { [weak self] in
+                guard let self = self else { throw PresenceServiceError.unknown(error) }
+                try await self.setUserOffline(userID: userID)
+            }, error: error)
         }
     }
     

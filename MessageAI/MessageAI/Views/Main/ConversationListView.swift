@@ -21,61 +21,65 @@ struct ConversationListView: View {
     
     /// Chat ID to navigate to from notification tap
     @State private var selectedChatID: String?
+    @State private var navigateToNotification = false
     
     // MARK: - Body
     
     var body: some View {
-        ZStack {
-            // Background
-            AppTheme.backgroundColor
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Header with Focus Mode toggle
-                headerView
+        NavigationStack {
+            ZStack {
+                // Background
+                AppTheme.backgroundColor
+                    .ignoresSafeArea()
                 
-                // Content based on state
-                if viewModel.isLoading {
-                    LoadingView(message: "Loading conversations...")
-                } else if viewModel.chats.isEmpty {
-                    emptyStateView
-                } else {
-                    conversationList
+                VStack(spacing: 0) {
+                    // Header with Focus Mode toggle
+                    headerView
+                    
+                    // Content based on state
+                    if viewModel.isLoading {
+                        LoadingView(message: "Loading conversations...")
+                    } else if viewModel.chats.isEmpty {
+                        emptyStateView
+                    } else {
+                        conversationList
+                    }
+                }
+            }
+            .task {
+                // Load chats from Firestore
+                await viewModel.loadChats(userID: currentUserID)
+                viewModel.observeChatsRealTime(userID: currentUserID)
+                viewModel.observePresence()
+            }
+            .onDisappear {
+                viewModel.stopObserving()
+                viewModel.stopObservingPresence()
+            }
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                }
+            }
+            .onAppear {
+                // Check for pending notification navigation
+                checkForNotificationNavigation()
+            }
+            .navigationDestination(isPresented: $navigateToNotification) {
+                if let chatID = selectedChatID,
+                   let chat = viewModel.chats.first(where: { $0.id == chatID }) {
+                    ChatView(
+                        chat: chat,
+                        currentUserID: currentUserID,
+                        otherUser: viewModel.getOtherUser(chat: chat)
+                    )
                 }
             }
         }
-        .task {
-            // Load chats from Firestore
-            await viewModel.loadChats(userID: currentUserID)
-            viewModel.observeChatsRealTime(userID: currentUserID)
-            viewModel.observePresence()
-        }
-        .onDisappear {
-            viewModel.stopObserving()
-            viewModel.stopObservingPresence()
-        }
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-            }
-        }
-        .onAppear {
-            // Check for pending notification navigation
-            checkForNotificationNavigation()
-        }
-        .background(
-            // Hidden navigation for notification deep linking
-            NavigationLink(
-                destination: notificationDestination,
-                isActive: .constant(selectedChatID != nil)
-            ) {
-                EmptyView()
-            }
-        )
     }
     
     // MARK: - Private Views
@@ -247,32 +251,17 @@ struct ConversationListView: View {
         // For now, this is a placeholder for the navigation logic
     }
     
-    /// Navigation destination for notification deep linking
-    var notificationDestination: some View {
-        Group {
-            if let chatID = selectedChatID,
-               let chat = viewModel.chats.first(where: { $0.id == chatID }) {
-                ChatView(
-                    chat: chat,
-                    currentUserID: currentUserID,
-                    otherUser: viewModel.getOtherUser(chat: chat)
-                )
-            } else {
-                // Fallback to conversation list if chat not found
-                ConversationListView(currentUserID: currentUserID)
-            }
-        }
-    }
-    
     /// Navigate to specific chat from notification
     /// - Parameter chatID: Chat ID to navigate to
     func navigateToChat(chatID: String) {
         selectedChatID = chatID
+        navigateToNotification = true
     }
     
     /// Clear notification navigation
     func clearNotificationNavigation() {
         selectedChatID = nil
+        navigateToNotification = false
     }
 }
 
