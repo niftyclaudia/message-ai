@@ -158,51 +158,68 @@ struct ChatView: View {
     // MARK: - Messages List
     
     private var messagesList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
-                    let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
-                    
-                    // Use optimistic message row for optimistic messages
-                    if message.isOptimistic {
-                        OptimisticMessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel,
-                            onRetry: {
-                                viewModel.retryMessage(messageID: message.id)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(viewModel.allMessages.enumerated()), id: \.element.id) { index, message in
+                        let previousMessage = index > 0 ? viewModel.allMessages[index - 1] : nil
+                        
+                        // Use optimistic message row for optimistic messages
+                        if message.isOptimistic {
+                            OptimisticMessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel,
+                                onRetry: {
+                                    viewModel.retryMessage(messageID: message.id)
+                                }
+                            )
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
-                            }
-                        }
-                    } else {
-                        MessageRowView(
-                            message: message,
-                            previousMessage: previousMessage,
-                            viewModel: viewModel
-                        )
-                        .onAppear {
-                            // Mark message as read when it appears
-                            if !viewModel.isMessageFromCurrentUser(message: message) {
-                                viewModel.markMessageAsRead(messageID: message.id)
+                        } else {
+                            MessageRowView(
+                                message: message,
+                                previousMessage: previousMessage,
+                                viewModel: viewModel
+                            )
+                            .onAppear {
+                                // Mark message as read when it appears
+                                if !viewModel.isMessageFromCurrentUser(message: message) {
+                                    viewModel.markMessageAsRead(messageID: message.id)
+                                }
                             }
                         }
                     }
+                    
+                    // Bottom anchor for positioning
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .onAppear {
+                    // Scroll to bottom immediately when messages first appear
+                    proxy.scrollTo("bottom", anchor: .bottom)
+                }
+                .onChange(of: viewModel.allMessages.count) { _ in
+                    // Scroll to bottom when new messages arrive
+                    withAnimation {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded { _ in
+                        // Dismiss keyboard when tapping on messages
+                    }
+            )
         }
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded { _ in
-                    // Dismiss keyboard when tapping on messages
-                }
-        )
     }
     
     // MARK: - Loading State
@@ -282,7 +299,6 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
     
     // MARK: - Helper Properties
     

@@ -211,7 +211,7 @@ struct SummaryServiceTests {
     private func createTestSummary() -> FocusSummary {
         return FocusSummary(
             id: "test-summary-\(UUID().uuidString)",
-            sessionID: "test-session-\(UUID().uuidString)",
+            sessionID: nil,
             userID: "test-user-\(UUID().uuidString)",
             generatedAt: Date(),
             overview: "Test session overview with important discussions and decisions.",
@@ -226,6 +226,7 @@ struct SummaryServiceTests {
                 "Postponed launch date to Q2"
             ],
             messageCount: 25,
+            urgentMessageCount: 8,
             confidence: 0.85,
             processingTimeMs: 2500,
             method: "openai",

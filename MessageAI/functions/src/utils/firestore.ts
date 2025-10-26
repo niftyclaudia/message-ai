@@ -5,6 +5,7 @@
 import * as admin from 'firebase-admin';
 import { ChatData, RecipientData } from '../types';
 import { logger } from './logger';
+import { COLLECTIONS, FIELDS } from '../constants/firestore';
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -18,7 +19,7 @@ export const db = admin.firestore();
  */
 export async function fetchChatData(chatID: string): Promise<ChatData | null> {
   try {
-    const chatDoc = await db.collection('chats').doc(chatID).get();
+    const chatDoc = await db.collection(COLLECTIONS.CHATS).doc(chatID).get();
     
     if (!chatDoc.exists) {
       logger.warn('Chat document not found', { chatID });
@@ -28,7 +29,7 @@ export async function fetchChatData(chatID: string): Promise<ChatData | null> {
     const data = chatDoc.data();
     return {
       id: chatID,
-      members: data?.members || [],
+      members: data?.[FIELDS.MEMBERS] || [],
       isGroupChat: data?.isGroupChat || false
     };
   } catch (error) {
@@ -43,7 +44,7 @@ export async function fetchChatData(chatID: string): Promise<ChatData | null> {
 export async function fetchMultipleUsers(userIDs: string[]): Promise<RecipientData[]> {
   try {
     const userPromises = userIDs.map(userID => 
-      db.collection('users').doc(userID).get()
+      db.collection(COLLECTIONS.USERS).doc(userID).get()
     );
     
     const userDocs = await Promise.all(userPromises);
@@ -83,7 +84,7 @@ export async function fetchMultipleUsers(userIDs: string[]): Promise<RecipientDa
  */
 export async function removeInvalidToken(userID: string): Promise<void> {
   try {
-    await db.collection('users').doc(userID).update({
+    await db.collection(COLLECTIONS.USERS).doc(userID).update({
       fcmToken: admin.firestore.FieldValue.delete()
     });
     logger.info('Removed invalid FCM token', { userID });

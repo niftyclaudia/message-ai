@@ -13,8 +13,8 @@ struct FocusSummary: Codable, Identifiable {
     /// Unique summary identifier
     let id: String
     
-    /// ID of the session this summary belongs to
-    let sessionID: String
+    /// ID of the session this summary belongs to (optional - not needed for direct generation)
+    let sessionID: String?
     
     /// User ID who owns this summary
     let userID: String
@@ -33,6 +33,9 @@ struct FocusSummary: Codable, Identifiable {
     
     /// Number of messages in the session
     let messageCount: Int
+    
+    /// Number of urgent/priority messages
+    let urgentMessageCount: Int
     
     /// Confidence score for the summary quality (0.0-1.0)
     let confidence: Double
@@ -63,6 +66,7 @@ struct FocusSummary: Codable, Identifiable {
         case actionItems
         case keyDecisions
         case messageCount
+        case urgentMessageCount
         case confidence
         case exportData
         case processingTimeMs
@@ -72,7 +76,7 @@ struct FocusSummary: Codable, Identifiable {
     
     // MARK: - Initialization
     
-    init(id: String, sessionID: String, userID: String, generatedAt: Date, overview: String, actionItems: [String], keyDecisions: [String], messageCount: Int, confidence: Double, exportData: String? = nil, processingTimeMs: Int, method: String, sessionDuration: Int) {
+    init(id: String, sessionID: String? = nil, userID: String, generatedAt: Date, overview: String, actionItems: [String], keyDecisions: [String], messageCount: Int, urgentMessageCount: Int, confidence: Double, exportData: String? = nil, processingTimeMs: Int, method: String, sessionDuration: Int) {
         self.id = id
         self.sessionID = sessionID
         self.userID = userID
@@ -81,6 +85,7 @@ struct FocusSummary: Codable, Identifiable {
         self.actionItems = actionItems
         self.keyDecisions = keyDecisions
         self.messageCount = messageCount
+        self.urgentMessageCount = urgentMessageCount
         self.confidence = confidence
         self.exportData = exportData
         self.processingTimeMs = processingTimeMs
@@ -95,12 +100,13 @@ struct FocusSummary: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         id = try container.decode(String.self, forKey: .id)
-        sessionID = try container.decode(String.self, forKey: .sessionID)
+        sessionID = try container.decodeIfPresent(String.self, forKey: .sessionID)
         userID = try container.decode(String.self, forKey: .userID)
         overview = try container.decode(String.self, forKey: .overview)
         actionItems = try container.decodeIfPresent([String].self, forKey: .actionItems) ?? []
         keyDecisions = try container.decodeIfPresent([String].self, forKey: .keyDecisions) ?? []
         messageCount = try container.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
+        urgentMessageCount = try container.decodeIfPresent(Int.self, forKey: .urgentMessageCount) ?? 0
         confidence = try container.decodeIfPresent(Double.self, forKey: .confidence) ?? 0.0
         exportData = try container.decodeIfPresent(String.self, forKey: .exportData)
         processingTimeMs = try container.decodeIfPresent(Int.self, forKey: .processingTimeMs) ?? 0
@@ -120,12 +126,13 @@ struct FocusSummary: Codable, Identifiable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(id, forKey: .id)
-        try container.encode(sessionID, forKey: .sessionID)
+        try container.encodeIfPresent(sessionID, forKey: .sessionID)
         try container.encode(userID, forKey: .userID)
         try container.encode(overview, forKey: .overview)
         try container.encode(actionItems, forKey: .actionItems)
         try container.encode(keyDecisions, forKey: .keyDecisions)
         try container.encode(messageCount, forKey: .messageCount)
+        try container.encode(urgentMessageCount, forKey: .urgentMessageCount)
         try container.encode(confidence, forKey: .confidence)
         try container.encodeIfPresent(exportData, forKey: .exportData)
         try container.encode(processingTimeMs, forKey: .processingTimeMs)
@@ -191,6 +198,7 @@ extension FocusSummary {
         export += "Generated: \(sessionDate)\n"
         export += "Duration: \(duration)\n"
         export += "Messages: \(messageCount)\n"
+        export += "Urgent Messages: \(urgentMessageCount)\n"
         export += "Confidence: \(String(format: "%.1f%%", confidence * 100))\n\n"
         
         export += "OVERVIEW\n"
@@ -223,6 +231,7 @@ extension FocusSummary {
         export += "**Generated:** \(sessionDate)\n"
         export += "**Duration:** \(duration)\n"
         export += "**Messages:** \(messageCount)\n"
+        export += "**Urgent Messages:** \(urgentMessageCount)\n"
         export += "**Confidence:** \(String(format: "%.1f%%", confidence * 100))\n\n"
         
         export += "## Overview\n\n"

@@ -71,19 +71,16 @@ class FocusSummaryViewModel: ObservableObject {
     }
     
     /// Loads an existing summary
-    /// - Parameter sessionID: ID of the session
+    /// - Parameter sessionID: ID of the summary (keeping param name for compatibility)
     func loadSummary(for sessionID: String) async {
         isLoading = true
         error = nil
         
         do {
-            if let existingSummary = try await summaryService.getSessionSummary(sessionID: sessionID) {
-                summary = existingSummary
-                isPresented = true
-            } else {
-                // No summary exists, generate one
-                await generateSummary(for: sessionID)
-            }
+            // Try to load by summary ID directly
+            let loadedSummary = try await summaryService.getSummaryByID(summaryID: sessionID)
+            summary = loadedSummary
+            isPresented = true
         } catch {
             self.error = error
         }
@@ -123,7 +120,8 @@ class FocusSummaryViewModel: ObservableObject {
     func retrySummaryGeneration() async {
         guard let summary = summary else { return }
         
-        await generateSummary(for: summary.sessionID)
+        // Reload the existing summary by ID
+        await loadSummary(for: summary.id)
     }
     
     /// Clears the current error

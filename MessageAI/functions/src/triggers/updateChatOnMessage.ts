@@ -6,6 +6,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from '../utils/logger';
 import { db } from '../utils/firestore';
 import * as admin from 'firebase-admin';
+import { COLLECTIONS, FIELDS } from '../constants/firestore';
 
 /**
  * Updates the chat document when a new message is created
@@ -27,7 +28,7 @@ export const onMessageCreatedUpdateChat = onDocumentCreated(
       logger.info('Updating chat document with new message', { chatId, messageId });
 
       // Get the chat document to access members
-      const chatDoc = await db.collection('chats').doc(chatId).get();
+      const chatDoc = await db.collection(COLLECTIONS.CHATS).doc(chatId).get();
       const chatData = chatDoc.data();
       
       if (!chatData) {
@@ -36,8 +37,8 @@ export const onMessageCreatedUpdateChat = onDocumentCreated(
       }
 
       // Get all members except the sender
-      const members = chatData.members || [];
-      const senderID = messageData.senderID;
+      const members = chatData[FIELDS.MEMBERS] || [];
+      const senderID = messageData[FIELDS.SENDER_ID];
       const recipientIDs = members.filter((memberID: string) => memberID !== senderID);
 
       // Prepare unread count updates for all recipients
@@ -47,19 +48,19 @@ export const onMessageCreatedUpdateChat = onDocumentCreated(
       });
 
       // Update the chat document with the new message info and unread counts
-      await db.collection('chats').doc(chatId).update({
-        lastMessage: messageData.text || '',
-        lastMessageTimestamp: messageData.timestamp || new Date(),
-        lastMessageSenderID: messageData.senderID || '',
-        lastMessageID: messageId,
+      await db.collection(COLLECTIONS.CHATS).doc(chatId).update({
+        [FIELDS.LAST_MESSAGE]: messageData[FIELDS.TEXT] || '',
+        [FIELDS.LAST_MESSAGE_TIMESTAMP]: messageData[FIELDS.TIMESTAMP] || new Date(),
+        lastMessageSenderID: messageData[FIELDS.SENDER_ID] || '',
+        [FIELDS.LAST_MESSAGE_ID]: messageId,
         ...unreadCountUpdates
       });
 
       logger.info('Chat document updated successfully', { 
         chatId, 
         messageId,
-        lastMessage: messageData.text,
-        lastMessageSenderID: messageData.senderID
+        lastMessage: messageData[FIELDS.TEXT],
+        lastMessageSenderID: messageData[FIELDS.SENDER_ID]
       });
 
     } catch (error) {

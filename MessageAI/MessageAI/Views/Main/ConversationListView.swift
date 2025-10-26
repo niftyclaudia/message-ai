@@ -49,6 +49,26 @@ struct ConversationListView: View {
                     // Header with Focus Mode toggle
                     headerView
                     
+                    // Loading banner when generating summary
+                    if focusModeService.isGeneratingSummary {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.2, green: 0.7, blue: 0.7)))
+                            
+                            Text("Generating your summary...")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(red: 0.2, green: 0.7, blue: 0.7).opacity(0.1))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    
                     // Content based on state
                     if viewModel.isLoading {
                         LoadingView(message: "Loading conversations...")
@@ -58,6 +78,7 @@ struct ConversationListView: View {
                         conversationList
                     }
                 }
+                .animation(.easeInOut(duration: 0.3), value: focusModeService.isGeneratingSummary)
             }
             .onAppear {
                 // View model is initialized by MainTabView
@@ -88,6 +109,11 @@ struct ConversationListView: View {
                     )
                 }
             }
+            .sheet(isPresented: $focusModeService.shouldShowSummary) {
+                if let sessionID = focusModeService.currentSessionID {
+                    FocusSummaryView(sessionID: sessionID)
+                }
+            }
         }
     }
     
@@ -110,7 +136,7 @@ struct ConversationListView: View {
             }
             .foregroundColor(focusModeService.isActive ? Color(red: 0.2, green: 0.7, blue: 0.7) : .secondary)
             
-            // Toggle switch
+            // Toggle switch - disabled during loading
             Toggle("", isOn: Binding(
                 get: { focusModeService.isActive },
                 set: { _ in
@@ -120,6 +146,8 @@ struct ConversationListView: View {
                 }
             ))
             .toggleStyle(CustomToggleStyle())
+            .opacity(focusModeService.isGeneratingSummary ? 0.5 : 1)
+            .disabled(focusModeService.isGeneratingSummary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -234,7 +262,7 @@ struct ConversationListView: View {
             }
         }
         .background(Color(.systemBackground))
-        .id(viewModel.aiClassificationService.classificationStatus.count) // Force SwiftUI to recreate when classification changes
+        // Removed .id() modifier - SwiftUI will update views when data changes without destroying them
     }
     
     /// Individual conversation row
@@ -269,6 +297,7 @@ struct ConversationListView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .id(chat.id) // Use only chat ID - SwiftUI will update when properties change
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete", role: .destructive) {
                 Task {

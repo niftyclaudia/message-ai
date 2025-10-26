@@ -4,6 +4,7 @@
 
 import { logger } from './logger';
 import { db } from './firestore';
+import { COLLECTIONS, FIELDS, PRIORITY_LEVELS } from '../constants/firestore';
 
 /**
  * Logs all messages across all chats with their priority, text, and timestamp
@@ -14,7 +15,7 @@ export async function logAllMessagesWithPriority(): Promise<void> {
     logger.info('Starting to log all messages with priority data...');
 
     // Get all chats
-    const chatsSnapshot = await db.collection('chats').get();
+    const chatsSnapshot = await db.collection(COLLECTIONS.CHATS).get();
     
     if (chatsSnapshot.empty) {
       logger.info('No chats found');
@@ -32,17 +33,17 @@ export async function logAllMessagesWithPriority(): Promise<void> {
       const chatData = chatDoc.data();
       
       logger.info(`\n=== CHAT: ${chatId} ===`);
-      logger.info(`Chat Members: ${JSON.stringify(chatData.members)}`);
-      logger.info(`Last Message: "${chatData.lastMessage || 'N/A'}"`);
-      logger.info(`Last Message Time: ${chatData.lastMessageTimestamp?.toDate?.() || 'N/A'}`);
+      logger.info(`Chat Members: ${JSON.stringify(chatData[FIELDS.MEMBERS])}`);
+      logger.info(`Last Message: "${chatData[FIELDS.LAST_MESSAGE] || 'N/A'}"`);
+      logger.info(`Last Message Time: ${chatData[FIELDS.LAST_MESSAGE_TIMESTAMP]?.toDate?.() || 'N/A'}`);
       logger.info(`Last Message Sender: ${chatData.lastMessageSenderID || 'N/A'}`);
 
       // Get all messages in this chat
       const messagesSnapshot = await db
-        .collection('chats')
+        .collection(COLLECTIONS.CHATS)
         .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', 'desc')
+        .collection(COLLECTIONS.MESSAGES)
+        .orderBy(FIELDS.TIMESTAMP, 'desc')
         .get();
 
       if (messagesSnapshot.empty) {
@@ -60,18 +61,18 @@ export async function logAllMessagesWithPriority(): Promise<void> {
         totalMessages++;
         
         // Extract message details
-        const text = messageData.text || '';
-        const timestamp = messageData.timestamp?.toDate?.() || new Date();
-        const senderId = messageData.senderID || '';
-        const priority = messageData.priority || 'unclassified';
+        const text = messageData[FIELDS.TEXT] || '';
+        const timestamp = messageData[FIELDS.TIMESTAMP]?.toDate?.() || new Date();
+        const senderId = messageData[FIELDS.SENDER_ID] || '';
+        const priority = messageData[FIELDS.PRIORITY] || 'unclassified';
         const confidence = messageData.classificationConfidence || 0;
         const classificationMethod = messageData.classificationMethod || 'none';
         const classificationTimestamp = messageData.classificationTimestamp?.toDate?.() || null;
         
         // Count by priority
-        if (priority === 'urgent') {
+        if (priority === PRIORITY_LEVELS.URGENT) {
           urgentMessages++;
-        } else if (priority === 'normal') {
+        } else if (priority === PRIORITY_LEVELS.NORMAL) {
           normalMessages++;
         } else {
           unclassifiedMessages++;
@@ -86,11 +87,11 @@ export async function logAllMessagesWithPriority(): Promise<void> {
         logger.info(`Confidence: ${confidence}`);
         logger.info(`Classification Method: ${classificationMethod}`);
         logger.info(`Classification Time: ${classificationTimestamp?.toISOString() || 'Not classified'}`);
-        logger.info(`Read By: ${JSON.stringify(messageData.readBy || [])}`);
+        logger.info(`Read By: ${JSON.stringify(messageData[FIELDS.READ_BY] || [])}`);
         logger.info(`Status: ${messageData.status || 'unknown'}`);
         
         // Highlight urgent messages
-        if (priority === 'urgent') {
+        if (priority === PRIORITY_LEVELS.URGENT) {
           logger.info(`🚨 URGENT MESSAGE DETECTED: "${text}"`);
         }
       }
@@ -126,7 +127,7 @@ export async function logMessagesForChat(chatId: string): Promise<void> {
     logger.info(`Logging messages for chat: ${chatId}`);
 
     // Get chat info
-    const chatDoc = await db.collection('chats').doc(chatId).get();
+    const chatDoc = await db.collection(COLLECTIONS.CHATS).doc(chatId).get();
     if (!chatDoc.exists) {
       logger.warn(`Chat ${chatId} not found`);
       return;
@@ -134,15 +135,15 @@ export async function logMessagesForChat(chatId: string): Promise<void> {
 
     const chatData = chatDoc.data()!;
     logger.info(`\n=== CHAT: ${chatId} ===`);
-    logger.info(`Chat Members: ${JSON.stringify(chatData.members)}`);
-    logger.info(`Last Message: "${chatData.lastMessage || 'N/A'}"`);
+    logger.info(`Chat Members: ${JSON.stringify(chatData[FIELDS.MEMBERS])}`);
+    logger.info(`Last Message: "${chatData[FIELDS.LAST_MESSAGE] || 'N/A'}"`);
 
     // Get all messages in this chat
     const messagesSnapshot = await db
-      .collection('chats')
+      .collection(COLLECTIONS.CHATS)
       .doc(chatId)
-      .collection('messages')
-      .orderBy('timestamp', 'desc')
+      .collection(COLLECTIONS.MESSAGES)
+      .orderBy(FIELDS.TIMESTAMP, 'desc')
       .get();
 
     if (messagesSnapshot.empty) {
@@ -157,10 +158,10 @@ export async function logMessagesForChat(chatId: string): Promise<void> {
       const messageData = messageDoc.data();
       const messageId = messageDoc.id;
       
-      const text = messageData.text || '';
-      const timestamp = messageData.timestamp?.toDate?.() || new Date();
-      const senderId = messageData.senderID || '';
-      const priority = messageData.priority || 'unclassified';
+      const text = messageData[FIELDS.TEXT] || '';
+      const timestamp = messageData[FIELDS.TIMESTAMP]?.toDate?.() || new Date();
+      const senderId = messageData[FIELDS.SENDER_ID] || '';
+      const priority = messageData[FIELDS.PRIORITY] || 'unclassified';
       const confidence = messageData.classificationConfidence || 0;
       const classificationMethod = messageData.classificationMethod || 'none';
       const classificationTimestamp = messageData.classificationTimestamp?.toDate?.() || null;
@@ -174,7 +175,7 @@ export async function logMessagesForChat(chatId: string): Promise<void> {
       logger.info(`Classification Method: ${classificationMethod}`);
       logger.info(`Classification Time: ${classificationTimestamp?.toISOString() || 'Not classified'}`);
       
-      if (priority === 'urgent') {
+      if (priority === PRIORITY_LEVELS.URGENT) {
         logger.info(`🚨 URGENT MESSAGE: "${text}"`);
       }
     }
