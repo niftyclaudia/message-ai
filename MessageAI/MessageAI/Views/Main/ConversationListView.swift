@@ -88,6 +88,11 @@ struct ConversationListView: View {
                     )
                 }
             }
+            .sheet(isPresented: $focusModeService.shouldShowSummary) {
+                if let sessionID = focusModeService.currentSessionID {
+                    FocusSummaryView(sessionID: sessionID)
+                }
+            }
         }
     }
     

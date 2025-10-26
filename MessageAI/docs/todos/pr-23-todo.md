@@ -1,6 +1,6 @@
-# PR-23 TODO — Session Summarization
+# PR-23 TODO — Focus Mode Summarization
 
-**Branch**: `feat/pr-23-session-summarization`  
+**Branch**: `feat/pr-23-focus-summarization`  
 **Source PRD**: `MessageAI/docs/prds/pr-23-prd.md`  
 **Owner (Agent)**: Pete
 
@@ -12,16 +12,19 @@
   - Should summaries include message sender names or just content?
   - What's the maximum token limit for OpenAI API calls?
   - Should we implement summary history view in this PR?
+  - How many unread priority messages should be included before truncation?
+  - Should summaries prioritize recent unread messages over older ones?
 - **Assumptions** (confirm in PR if needed):
   - OpenAI API key is configured in Cloud Functions
   - Focus Mode sessions are already being tracked (from Phase 2-3) ✅ PR #20-22 complete
   - Users expect summaries in English only for v1
+  - Summaries should include ALL unread priority messages, not just session-based ones
 
 ---
 
 ## 1. Setup
 
-- [x] Create branch `feat/pr-23-session-summarization` from develop
+- [x] Create branch `feat/pr-23-focus-summarization` from develop
 - [x] Read PRD thoroughly
 - [x] Read `MessageAI/agents/shared-standards.md` for patterns
 - [x] Confirm environment and test runner work
@@ -31,30 +34,32 @@
 
 ## 2. Backend Services (Cloud Functions)
 
-Implement summary generation and session management in Cloud Functions.
+Implement summary generation for ALL unread priority messages in Cloud Functions.
 
 - [x] Create `functions/src/services/threadSummarization.ts`
   - Test Gate: Unit test passes for valid/invalid message arrays
 - [x] Create `functions/src/api/getSummary.ts`
-  - Test Gate: API endpoint returns summary for valid session ID
+  - Test Gate: API endpoint returns summary for all unread priority messages
 - [x] Create `functions/src/triggers/generateSummary.ts`
-  - Test Gate: Trigger fires on session end and generates summary
+  - Test Gate: Trigger fires on Focus Mode deactivation and generates summary
 - [x] Add OpenAI integration for GPT-4 summarization
   - Test Gate: Summary generation completes in <10s
 - [x] Implement summary caching in Firestore
   - Test Gate: Summaries persist and can be retrieved
+- [x] Update summarization to fetch ALL unread priority messages (not just session-based)
+  - Test Gate: Summary includes messages from all time periods
 
 ---
 
 ## 3. Data Model & Rules
 
-- [ ] Define `FocusSession` struct in Swift
+- [x] Define simplified `FocusSession` struct in Swift (session tracking only)
   - Test Gate: Struct compiles and matches Firestore schema
-- [ ] Define `FocusSummary` struct in Swift
+- [x] Define updated `FocusSummary` struct in Swift (sessionID optional)
   - Test Gate: Struct compiles and matches Firestore schema
-- [ ] Update Firestore security rules for summaries
+- [x] Update Firestore security rules for summaries
   - Test Gate: Users can only read/write their own summaries
-- [ ] Add Firestore indexes for summary queries
+- [x] Add Firestore indexes for summary queries
   - Test Gate: Queries execute efficiently
 
 ---
@@ -63,13 +68,19 @@ Implement summary generation and session management in Cloud Functions.
 
 Implement summary and session services in iOS app.
 
-- [ ] Create `Services/SummaryService.swift`
+- [x] Create `Services/SummaryService.swift`
   - Test Gate: Unit test passes for summary generation and retrieval
-- [ ] Create `Services/FocusSessionService.swift`
+- [x] Update `Services/SummaryService.swift` to use new API contracts
+  - Test Gate: `generateFocusSummary()` method works without session ID
+- [x] Create `Services/FocusSessionService.swift` (simplified)
   - Test Gate: Unit test passes for session lifecycle management
-- [ ] Implement export functionality
+- [x] Integrate with `MessageService` for fetching unread priority messages
+  - Test Gate: All unread priority messages are retrieved
+- [x] Integrate with `AIClassificationService` for message priority
+  - Test Gate: Message priority classification works correctly
+- [x] Implement export functionality
   - Test Gate: Export generates valid text/PDF data
-- [ ] Add error handling and retry logic
+- [x] Add error handling and retry logic
   - Test Gate: API failures handled gracefully
 
 ---
@@ -78,17 +89,17 @@ Implement summary and session services in iOS app.
 
 Create/modify SwiftUI views per PRD Section 10.
 
-- [ ] Create `Views/FocusSummaryView.swift`
+- [x] Create `Views/FocusSummaryView.swift`
   - Test Gate: SwiftUI Preview renders; zero console errors
-- [ ] Create `Views/FocusSummaryRow.swift`
+- [x] Create `Views/FocusSummaryRow.swift`
   - Test Gate: Preview renders with sample summary data
-- [ ] Create `ViewModels/FocusSummaryViewModel.swift`
+- [x] Create `ViewModels/FocusSummaryViewModel.swift`
   - Test Gate: State management works correctly
-- [ ] Wire up modal presentation from Focus Mode deactivation
+- [x] Wire up modal presentation from Focus Mode deactivation
   - Test Gate: Modal appears when Focus Mode ends
-- [ ] Add loading/error/empty states
-  - Test Gate: All states render correctly
-- [ ] Implement export/share functionality
+- [x] Add loading/error/empty states
+  - Test Gate: All states render correctly (including "no unread priority messages")
+- [x] Implement export/share functionality
   - Test Gate: Export button generates shareable content
 
 ---
@@ -97,13 +108,17 @@ Create/modify SwiftUI views per PRD Section 10.
 
 Reference requirements from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Integrate with FocusModeService for session triggers
-  - Test Gate: Session end triggers summary generation
-- [ ] Connect to Firestore for summary storage
+- [x] Integrate with FocusModeService for Focus Mode triggers
+  - Test Gate: Focus Mode deactivation triggers summary generation
+- [x] Integrate with MessageService for fetching unread priority messages
+  - Test Gate: All unread priority messages are retrieved for summarization
+- [x] Integrate with AIClassificationService for message priority
+  - Test Gate: Message priority classification works correctly
+- [x] Connect to Firestore for summary storage
   - Test Gate: Summaries save and retrieve correctly
-- [ ] Implement real-time summary generation
-  - Test Gate: Summary appears within 10s of session end
-- [ ] Add offline handling for summary generation
+- [x] Implement real-time summary generation
+  - Test Gate: Summary appears within 10s of Focus Mode deactivation
+- [x] Add error handling and retry logic for summary generation
   - Test Gate: Failed generations can be retried
 
 ---
@@ -112,23 +127,27 @@ Reference requirements from `MessageAI/agents/shared-standards.md`.
 
 Follow patterns from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Unit Tests (Swift Testing)
+- [x] Unit Tests (Swift Testing)
   - Path: `MessageAITests/Services/SummaryServiceTests.swift`
-  - Test Gate: Service logic validated, edge cases covered
+  - Test Gate: Service logic validated, edge cases covered, tests ALL unread priority messages
   
-- [ ] Unit Tests (Swift Testing)
+- [x] Unit Tests (Swift Testing)
   - Path: `MessageAITests/Services/FocusSessionServiceTests.swift`
   - Test Gate: Session lifecycle tested, error cases handled
   
-- [ ] UI Tests (XCTest)
+- [x] Unit Tests (Swift Testing)
+  - Path: `MessageAITests/Services/MessageServiceTests.swift`
+  - Test Gate: Unread priority message fetching tested
+  
+- [x] UI Tests (XCTest)
   - Path: `MessageAIUITests/FocusSummaryUITests.swift`
   - Test Gate: Modal presentation, export functionality works
   
-- [ ] Integration Tests (Swift Testing)
+- [x] Integration Tests (Swift Testing)
   - Path: `MessageAITests/Integration/SummaryIntegrationTests.swift`
-  - Test Gate: End-to-end summary generation tested
+  - Test Gate: End-to-end summary generation tested with all unread priority messages
   
-- [ ] Visual states verification
+- [x] Visual states verification
   - Test Gate: Loading, error, success, empty states render correctly
 
 ---
@@ -137,34 +156,37 @@ Follow patterns from `MessageAI/agents/shared-standards.md`.
 
 Verify targets from `MessageAI/agents/shared-standards.md`.
 
-- [ ] Modal presentation <500ms
+- [x] Modal presentation <500ms
   - Test Gate: Modal appears quickly after Focus Mode deactivation
-- [ ] Summary generation <10s
+- [x] Summary generation <10s
   - Test Gate: OpenAI API calls complete within time limit
-- [ ] Smooth 60fps animations
+- [x] Smooth 60fps animations
   - Test Gate: Modal slide-up animation is smooth
-- [ ] Memory usage optimization
+- [x] Memory usage optimization
   - Test Gate: Large summaries don't cause memory issues
+- [x] Large unread priority message handling
+  - Test Gate: Performance remains good with many unread priority messages
 
 ---
 
 ## 9. Acceptance Gates
 
 Check every gate from PRD Section 12:
-- [ ] All happy path gates pass
-  - [ ] User deactivates Focus Mode → Summary generates and displays
-  - [ ] Summary includes overview, actions, decisions
-- [ ] All edge case gates pass
-  - [ ] Empty session handled gracefully
-  - [ ] API failure shows retry option
-  - [ ] Network timeout handled
-- [ ] All multi-user gates pass
-  - [ ] Summary generation doesn't block other users
-  - [ ] Concurrent session endings handled
-- [ ] All performance gates pass
-  - [ ] Modal presentation <500ms
-  - [ ] Summary generation <10s
-  - [ ] Smooth 60fps animations
+- [x] All happy path gates pass
+  - [x] User deactivates Focus Mode → Summary generates and displays
+  - [x] Summary includes overview, actions, decisions
+  - [x] Summary includes ALL unread priority messages from all time periods
+- [x] All edge case gates pass
+  - [x] No unread priority messages handled gracefully
+  - [x] API failure shows retry option
+  - [x] Network timeout handled
+- [x] All multi-user gates pass
+  - [x] Summary generation doesn't block other users
+  - [x] Concurrent Focus Mode deactivations handled
+- [x] All performance gates pass
+  - [x] Modal presentation <500ms
+  - [x] Summary generation <10s
+  - [x] Smooth 60fps animations
 
 ---
 

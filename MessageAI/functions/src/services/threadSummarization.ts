@@ -191,12 +191,61 @@ Generate a comprehensive summary following the format above.`
 function createFallbackSummaryResult(messages: Message[], startTime: number): SummarizationResult {
   const urgentMessages = messages.filter(msg => msg.priority === 'urgent');
   
+  // Create a more useful overview with actual message content
+  let overview = '';
+  
+  if (urgentMessages.length > 0) {
+    // Show urgent message content
+    overview = `You have ${urgentMessages.length} urgent message${urgentMessages.length === 1 ? '' : 's'}: `;
+    
+    // Include up to 3 urgent message previews
+    const messagePreviews = urgentMessages.slice(0, 3).map(msg => {
+      const preview = msg.text.length > 100 ? msg.text.substring(0, 100) + '...' : msg.text;
+      return `"${preview}"`;
+    });
+    
+    overview += messagePreviews.join('; ');
+    
+    if (urgentMessages.length > 3) {
+      overview += ` and ${urgentMessages.length - 3} more urgent message${urgentMessages.length - 3 === 1 ? '' : 's'}.`;
+    }
+  } else {
+    // Show regular message content
+    overview = `You received ${messages.length} message${messages.length === 1 ? '' : 's'}: `;
+    
+    // Include up to 3 message previews
+    const messagePreviews = messages.slice(0, 3).map(msg => {
+      const preview = msg.text.length > 100 ? msg.text.substring(0, 100) + '...' : msg.text;
+      return `"${preview}"`;
+    });
+    
+    overview += messagePreviews.join('; ');
+    
+    if (messages.length > 3) {
+      overview += ` and ${messages.length - 3} more message${messages.length - 3 === 1 ? '' : 's'}.`;
+    }
+  }
+  
+  // Extract basic action items from message content
+  const actionItems: string[] = [];
+  
+  // Look for messages with action-oriented keywords
+  for (const msg of messages) {
+    const text = msg.text.toLowerCase();
+    if (text.includes('can you') || text.includes('could you') || text.includes('please') || 
+        text.includes('need') || text.includes('urgent') || text.includes('asap')) {
+      const preview = msg.text.length > 80 ? msg.text.substring(0, 80) + '...' : msg.text;
+      actionItems.push(`Check: "${preview}"`);
+      if (actionItems.length >= 3) break; // Limit to 3 action items
+    }
+  }
+  
   const summary: SessionSummary = {
-    overview: `Focus Mode session with ${messages.length} messages${urgentMessages.length > 0 ? `, including ${urgentMessages.length} urgent messages` : ''}.`,
-    actionItems: urgentMessages.length > 0 ? ['Review urgent messages for action items'] : [],
+    overview,
+    actionItems: actionItems.length > 0 ? actionItems : ['Review all messages for action items'],
     keyDecisions: [],
     messageCount: messages.length,
-    confidence: 0.3, // Low confidence for fallback
+    confidence: 0.5, // Moderate confidence for content-based fallback
     processingTimeMs: Date.now() - startTime
   };
 

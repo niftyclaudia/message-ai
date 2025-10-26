@@ -24,7 +24,10 @@ export interface FocusSession {
  * Generates a summary when session status changes to 'completed'
  */
 export const generateSummary = onDocumentUpdated(
-  'focusSessions/{sessionId}',
+  {
+    document: 'focusSessions/{sessionId}',
+    secrets: ['OPENAI_API_KEY']
+  },
   async (event) => {
     try {
       const sessionId = event.params.sessionId;
@@ -60,23 +63,68 @@ export const generateSummary = onDocumentUpdated(
         return;
       }
 
-      // Get messages from the session
-      const messagesSnapshot = await db
-        .collection('messages')
-        .where('sessionID', '==', sessionId)
-        .orderBy('timestamp', 'asc')
+      // Get ALL unread priority messages for the user (not just session-based)
+      // Fetch user's chats
+      const chatsSnapshot = await db
+        .collection('chats')
+        .where('members', 'array-contains', afterData.userID)
         .get();
 
-      const messages: Message[] = messagesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          text: data.text,
-          senderID: data.senderID,
-          timestamp: data.timestamp.toDate(),
-          priority: data.priority
-        };
+      const messages: Message[] = [];
+      
+      // Fetch messages from each chat's subcollection
+      for (const chatDoc of chatsSnapshot.docs) {
+        const chatId = chatDoc.id;
+        
+        // Get all messages from this chat's subcollection
+        const messagesSnapshot = await db
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('priority', '==', 'urgent')
+          .orderBy('timestamp', 'asc')
+          .get();
+
+        // Filter out messages already read by user
+        messagesSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const readBy = data.readBy || [];
+          
+          // Only include unread priority messages
+          if (!readBy.includes(afterData.userID)) {
+            messages.push({
+              id: doc.id,
+              text: data.text,
+              senderID: data.senderID,
+              timestamp: data.timestamp.toDate(),
+              priority: data.priority
+            });
+          }
+        });
+      }
+
+      logger.info('✅ Fetched UNREAD PRIORITY messages for summary', {
+        sessionId,
+        userID: afterData.userID,
+        totalChats: chatsSnapshot.size,
+        unreadPriorityMessages: messages.length
       });
+      
+      // If no unread priority messages, skip summary generation
+      if (messages.length === 0) {
+        logger.info('No unread priority messages to summarize', {
+          sessionId,
+          userID: afterData.userID
+        });
+        
+        // Update session to indicate no messages to summarize
+        await db.collection('focusSessions').doc(sessionId).update({
+          status: 'completed',
+          summaryError: 'No unread priority messages to summarize'
+        });
+        
+        return;
+      }
 
       // Calculate session duration
       const sessionDuration = afterData.endTime && afterData.startTime
@@ -85,6 +133,9 @@ export const generateSummary = onDocumentUpdated(
 
       // Generate summary
       const summaryResult = await generateSessionSummary(messages, sessionDuration);
+
+      // Count urgent messages
+      const urgentMessageCount = messages.filter(msg => msg.priority === 'urgent').length;
 
       // Save summary to Firestore
       const summaryData = {
@@ -95,6 +146,7 @@ export const generateSummary = onDocumentUpdated(
         actionItems: summaryResult.summary.actionItems,
         keyDecisions: summaryResult.summary.keyDecisions,
         messageCount: summaryResult.summary.messageCount,
+        urgentMessageCount: urgentMessageCount,
         confidence: summaryResult.summary.confidence,
         processingTimeMs: summaryResult.summary.processingTimeMs,
         method: summaryResult.method,

@@ -156,7 +156,7 @@ struct FocusSummaryRow_Previews: PreviewProvider {
             FocusSummaryRow(
                 summary: FocusSummary(
                     id: "preview-1",
-                    sessionID: "session-1",
+                    sessionID: nil,
                     userID: "user-1",
                     generatedAt: Date(),
                     overview: "Team discussed Q4 planning and resource allocation. Key topics included budget approval and hiring priorities.",
@@ -169,6 +169,7 @@ struct FocusSummaryRow_Previews: PreviewProvider {
                         "Decided to hire 2 additional developers in Q4"
                     ],
                     messageCount: 15,
+                    urgentMessageCount: 5,
                     confidence: 0.85,
                     processingTimeMs: 2500,
                     method: "openai",
@@ -180,13 +181,14 @@ struct FocusSummaryRow_Previews: PreviewProvider {
             FocusSummaryRow(
                 summary: FocusSummary(
                     id: "preview-2",
-                    sessionID: "session-2",
+                    sessionID: nil,
                     userID: "user-1",
                     generatedAt: Date().addingTimeInterval(-3600),
                     overview: "Quick standup meeting to discuss project status and blockers.",
                     actionItems: [],
                     keyDecisions: [],
                     messageCount: 8,
+                    urgentMessageCount: 2,
                     confidence: 0.3,
                     processingTimeMs: 500,
                     method: "fallback",

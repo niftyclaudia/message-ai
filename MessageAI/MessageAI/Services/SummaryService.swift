@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseFunctions
 
 /// Service for managing Focus Mode session summaries
 @MainActor
@@ -42,6 +43,52 @@ class SummaryService: ObservableObject {
     
     // MARK: - Public Methods
     
+    /// Generates a summary for all unread priority messages (no session required)
+    /// - Returns: Generated summary
+    func generateFocusSummary() async throws -> FocusSummary {
+        guard let userID = currentUserID else {
+            throw SummaryError.notAuthenticated
+        }
+        
+        isLoading = true
+        error = nil
+        
+        do {
+            print("📞 Calling Cloud Function: generateFocusSummaryDirect for user: \(userID)")
+            
+            // Call Cloud Function using Firebase SDK (handles auth automatically)
+            let functions = Functions.functions()
+            let result = try await functions.httpsCallable("generateFocusSummaryDirect").call()
+            
+            print("✅ Cloud Function response received")
+            
+            // Parse response
+            guard let data = result.data as? [String: Any],
+                  let summaryId = data["summaryId"] as? String else {
+                print("❌ Invalid response format: \(result.data)")
+                throw SummaryError.invalidResponse
+            }
+            
+            print("📄 Summary ID: \(summaryId)")
+            
+            // Fetch the actual summary from Firestore
+            let summary = try await getSummaryByID(summaryID: summaryId)
+            
+            currentSummary = summary
+            isLoading = false
+            
+            print("✅ Summary loaded successfully")
+            
+            return summary
+            
+        } catch {
+            print("❌ generateFocusSummary error: \(error)")
+            isLoading = false
+            self.error = error
+            throw error
+        }
+    }
+    
     /// Generates a summary for a completed session
     /// - Parameter sessionID: ID of the session to summarize
     /// - Returns: Generated summary
@@ -65,6 +112,32 @@ class SummaryService: ObservableObject {
             
         } catch {
             isLoading = false
+            self.error = error
+            throw error
+        }
+    }
+    
+    /// Gets a summary by its ID
+    /// - Parameter summaryID: ID of the summary
+    /// - Returns: Summary if found
+    func getSummaryByID(summaryID: String) async throws -> FocusSummary {
+        guard let userID = currentUserID else {
+            throw SummaryError.notAuthenticated
+        }
+        
+        do {
+            let document = try await db.collection(FocusSummary.collectionName)
+                .document(summaryID)
+                .getDocument()
+            
+            guard document.exists else {
+                throw SummaryError.summaryNotFound
+            }
+            
+            let summary = try document.data(as: FocusSummary.self)
+            return summary
+            
+        } catch {
             self.error = error
             throw error
         }
@@ -216,6 +289,12 @@ class SummaryService: ObservableObject {
     }
 }
 
+// MARK: - Response Types
+
+struct FocusSummaryResponse: Codable {
+    let summaryId: String
+}
+
 // MARK: - Error Types
 
 enum SummaryError: LocalizedError {
@@ -257,18 +336,22 @@ extension FocusSummary {
     func toFirestoreData() throws -> [String: Any] {
         var data: [String: Any] = [
             "id": id,
-            "sessionID": sessionID,
             "userID": userID,
             "generatedAt": Timestamp(date: generatedAt),
             "overview": overview,
             "actionItems": actionItems,
             "keyDecisions": keyDecisions,
             "messageCount": messageCount,
+            "urgentMessageCount": urgentMessageCount,
             "confidence": confidence,
             "processingTimeMs": processingTimeMs,
             "method": method,
             "sessionDuration": sessionDuration
         ]
+        
+        if let sessionID = sessionID {
+            data["sessionID"] = sessionID
+        }
         
         if let exportData = exportData {
             data["exportData"] = exportData

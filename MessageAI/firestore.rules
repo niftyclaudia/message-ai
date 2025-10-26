@@ -88,6 +88,36 @@ service cloud.firestore {
       allow delete: if false;
     }
     
+    // Focus Sessions collection rules (PR #23) - Development mode
+    match /focusSessions/{sessionID} {
+      // Allow authenticated users to read any session (for development)
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to create sessions (for development)
+      allow create: if isAuthenticated();
+      
+      // Allow authenticated users to update sessions (for development)
+      allow update: if isAuthenticated();
+      
+      // No one can delete sessions
+      allow delete: if false;
+    }
+    
+    // Focus Summaries collection rules (PR #23) - Development mode
+    match /focusSummaries/{summaryID} {
+      // Allow authenticated users to read any summary (for development)
+      allow read: if isAuthenticated();
+      
+      // Allow authenticated users to create summaries (for development)
+      allow create: if isAuthenticated();
+      
+      // Allow authenticated users to update summaries (for development)
+      allow update: if isAuthenticated();
+      
+      // No one can delete summaries
+      allow delete: if false;
+    }
+    
     /* 
     // PRODUCTION SECURITY RULES (commented out for development)
     // Uncomment and use these rules in production:

@@ -15,8 +15,8 @@ struct FocusSummaryView: View {
     @StateObject private var viewModel = FocusSummaryViewModel()
     @Environment(\.dismiss) private var dismiss
     
-    /// Session ID to generate/display summary for
-    let sessionID: String
+    /// Summary ID to display (can be session ID or summary ID)
+    let sessionID: String  // Keeping name for compatibility, but it's actually the summary ID now
     
     // MARK: - Body
     
@@ -129,6 +129,8 @@ struct FocusSummaryView: View {
             
             HStack {
                 Label("\(summary.messageCount) messages", systemImage: "message")
+                Spacer()
+                Label("\(summary.urgentMessageCount) urgent", systemImage: "exclamationmark.circle")
                 Spacer()
                 Label(viewModel.formattedDuration ?? "", systemImage: "clock")
             }
