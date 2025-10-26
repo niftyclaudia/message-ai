@@ -7,6 +7,7 @@ import { logger } from '../utils/logger';
 import { db } from '../utils/firestore';
 import { classifyMessage } from '../services/aiPrioritization';
 import { logClassification } from '../utils/classificationLogger';
+import { COLLECTIONS, FIELDS, PRIORITY_LEVELS } from '../constants/firestore';
 
 // Firestore collections - using full path for subcollections
 
@@ -37,10 +38,10 @@ export const onMessageCreated = onDocumentCreated(
       }
 
       // Skip classification if already classified
-      if (messageData.priority) {
+      if (messageData[FIELDS.PRIORITY]) {
         logger.info('Message already classified, skipping', { 
           messageId, 
-          existingPriority: messageData.priority 
+          existingPriority: messageData[FIELDS.PRIORITY]
         });
         return;
       }
@@ -74,9 +75,9 @@ export const onMessageCreated = onDocumentCreated(
       // Log the error for monitoring
       await logClassification(
         messageId,
-        messageData.text || '',
+        messageData[FIELDS.TEXT] || '',
         {
-          priority: 'normal',
+          priority: PRIORITY_LEVELS.NORMAL,
           confidence: 0.0,
           method: 'fallback',
           processingTimeMs: 0,
@@ -107,13 +108,13 @@ async function updateMessageWithClassification(
 ): Promise<void> {
   try {
     const updateData = {
-      priority: classificationResult.priority,
+      [FIELDS.PRIORITY]: classificationResult.priority,
       classificationConfidence: classificationResult.confidence,
       classificationMethod: classificationResult.method,
       classificationTimestamp: classificationResult.timestamp
     };
 
-    await db.collection('chats').doc(chatId).collection('messages').doc(messageId).update(updateData);
+    await db.collection(COLLECTIONS.CHATS).doc(chatId).collection(COLLECTIONS.MESSAGES).doc(messageId).update(updateData);
 
     logger.info('Message updated with classification', {
       messageId,
@@ -144,7 +145,7 @@ export async function classifyMessageManually(chatId: string, messageId: string)
 }> {
   try {
     // Get the message document
-    const messageDoc = await db.collection('chats').doc(chatId).collection('messages').doc(messageId).get();
+    const messageDoc = await db.collection(COLLECTIONS.CHATS).doc(chatId).collection(COLLECTIONS.MESSAGES).doc(messageId).get();
     
     if (!messageDoc.exists) {
       return {
@@ -154,7 +155,7 @@ export async function classifyMessageManually(chatId: string, messageId: string)
     }
 
     const messageData = messageDoc.data();
-    if (!messageData?.text) {
+    if (!messageData?.[FIELDS.TEXT]) {
       return {
         success: false,
         error: 'No message text found'
@@ -162,13 +163,13 @@ export async function classifyMessageManually(chatId: string, messageId: string)
     }
 
     // Classify the message
-    const classificationResult = await classifyMessage(messageData.text);
+    const classificationResult = await classifyMessage(messageData[FIELDS.TEXT]);
 
     // Update the message
     await updateMessageWithClassification(chatId, messageId, classificationResult);
 
     // Log the classification
-    await logClassification(messageId, messageData.text, classificationResult);
+    await logClassification(messageId, messageData[FIELDS.TEXT], classificationResult);
 
     return {
       success: true,

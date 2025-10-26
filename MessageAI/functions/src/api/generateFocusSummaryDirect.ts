@@ -7,6 +7,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import { logger } from '../utils/logger';
 import { db } from '../utils/firestore';
 import { generateSessionSummary, Message } from '../services/threadSummarization';
+import { COLLECTIONS, FIELDS, PRIORITY_LEVELS } from '../constants/firestore';
 
 /**
  * Generate a Focus Mode summary directly (no session required)
@@ -26,8 +27,8 @@ export const generateFocusSummaryDirect = onCall(
 
       // Get ALL unread priority messages for the user
       const chatsSnapshot = await db
-        .collection('chats')
-        .where('members', 'array-contains', userID)
+        .collection(COLLECTIONS.CHATS)
+        .where(FIELDS.MEMBERS, 'array-contains', userID)
         .get();
 
       const messages: Message[] = [];
@@ -38,26 +39,26 @@ export const generateFocusSummaryDirect = onCall(
 
         // Get urgent messages from this chat's subcollection
         const messagesSnapshot = await db
-          .collection('chats')
+          .collection(COLLECTIONS.CHATS)
           .doc(chatId)
-          .collection('messages')
-          .where('priority', '==', 'urgent')
-          .orderBy('timestamp', 'asc')
+          .collection(COLLECTIONS.MESSAGES)
+          .where(FIELDS.PRIORITY, '==', PRIORITY_LEVELS.URGENT)
+          .orderBy(FIELDS.TIMESTAMP, 'asc')
           .get();
 
         // Filter out messages already read by user
         messagesSnapshot.docs.forEach(doc => {
           const data = doc.data();
-          const readBy = data.readBy || [];
+          const readBy = data[FIELDS.READ_BY] || [];
 
           // Only include unread priority messages
           if (!readBy.includes(userID)) {
             messages.push({
               id: doc.id,
-              text: data.text,
-              senderID: data.senderID,
-              timestamp: data.timestamp.toDate(),
-              priority: data.priority
+              text: data[FIELDS.TEXT],
+              senderID: data[FIELDS.SENDER_ID],
+              timestamp: data[FIELDS.TIMESTAMP].toDate(),
+              priority: data[FIELDS.PRIORITY]
             });
           }
         });
@@ -74,7 +75,7 @@ export const generateFocusSummaryDirect = onCall(
         logger.info('No unread priority messages to summarize', { userID });
 
         // Create empty summary
-        const summaryRef = db.collection('focusSummaries').doc();
+        const summaryRef = db.collection(COLLECTIONS.FOCUS_SUMMARIES).doc();
         const summaryData = {
           id: summaryRef.id,
           userID: userID,
@@ -99,10 +100,10 @@ export const generateFocusSummaryDirect = onCall(
       const summaryResult = await generateSessionSummary(messages, 0);
 
       // Count urgent messages
-      const urgentMessageCount = messages.filter(msg => msg.priority === 'urgent').length;
+      const urgentMessageCount = messages.filter(msg => msg.priority === PRIORITY_LEVELS.URGENT).length;
 
       // Save summary to Firestore with ID in the data
-      const summaryRef = db.collection('focusSummaries').doc();
+      const summaryRef = db.collection(COLLECTIONS.FOCUS_SUMMARIES).doc();
       const summaryData = {
         id: summaryRef.id, // IMPORTANT: Include ID in data!
         userID: userID,

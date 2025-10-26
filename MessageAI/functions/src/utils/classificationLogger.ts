@@ -5,9 +5,10 @@
 import { logger } from './logger';
 import { ClassificationResult } from '../services/openaiClient';
 import { db } from './firestore';
+import { COLLECTIONS, PRIORITY_LEVELS } from '../constants/firestore';
 
-// Firestore collection for classification logs
-const CLASSIFICATION_LOGS_COLLECTION = 'classificationLogs';
+// Use the constant from the centralized file
+const CLASSIFICATION_LOGS_COLLECTION = COLLECTIONS.CLASSIFICATION_LOGS;
 
 export interface ClassificationLog {
   messageID: string;
@@ -105,7 +106,7 @@ export async function getClassificationStats(
       const data = doc.data() as ClassificationLog;
       stats.totalClassifications++;
       
-      if (data.classificationResult === 'urgent') {
+      if (data.classificationResult === PRIORITY_LEVELS.URGENT) {
         stats.urgentCount++;
       } else {
         stats.normalCount++;

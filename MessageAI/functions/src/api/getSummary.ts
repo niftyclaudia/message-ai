@@ -5,6 +5,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from '../utils/logger';
 import { getFirestore } from 'firebase-admin/firestore';
+import { COLLECTIONS, FIELDS } from '../constants/firestore';
 
 const db = getFirestore();
 
@@ -71,9 +72,9 @@ export const getSummary = onRequest(
 
       // Get summary from Firestore
       const summaryDoc = await db
-        .collection('focusSummaries')
-        .where('sessionID', '==', sessionID)
-        .where('userID', '==', userID)
+        .collection(COLLECTIONS.FOCUS_SUMMARIES)
+        .where(FIELDS.SESSION_ID, '==', sessionID)
+        .where(FIELDS.USER_ID, '==', userID)
         .limit(1)
         .get();
 
