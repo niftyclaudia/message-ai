@@ -34,8 +34,8 @@ Build the AI-powered message classification backend that automatically categoriz
 ## 3. Non-Goals / Out of Scope
 
 - [ ] UI components for Focus Mode (handled in PR #21)
-- [ ] Real-time UI updates based on classification (handled in PR #22)
-- [ ] User feedback mechanism for classification accuracy (handled in PR #22)
+- [x] Real-time UI updates based on classification (handled in PR #22) ✅ Complete
+- [x] User feedback mechanism for classification accuracy (handled in PR #22) ✅ Complete
 - [ ] Message summarization (handled in PR #23)
 - [ ] Semantic search capabilities (handled in PR #24)
 
@@ -257,8 +257,8 @@ See standards in `MessageAI/agents/shared-standards.md`:
 ## 17. Appendix: Out-of-Scope Backlog
 
 Items deferred for future:
-- [ ] User-customizable urgency keywords (PR #22)
-- [ ] Classification feedback mechanism (PR #22)
+- [x] User-customizable urgency keywords (PR #22) ✅ Complete
+- [x] Classification feedback mechanism (PR #22) ✅ Complete
 - [ ] Multi-language classification support
 - [ ] Advanced ML models beyond GPT-4
 

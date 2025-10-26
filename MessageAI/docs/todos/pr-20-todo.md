@@ -9,7 +9,7 @@
 ## 0. Clarifying Questions & Assumptions
 
 - **Questions**: 
-  - Should we implement custom urgency keywords per user, or use global keywords? (Decision: Start with global keywords, add per-user customization in PR #22)
+  - Should we implement custom urgency keywords per user, or use global keywords? (Decision: Start with global keywords, add per-user customization in PR #22) ✅ Complete
   - What confidence threshold should trigger manual review of classifications? (Decision: <0.7 confidence logged for review)
 - **Assumptions (confirm in PR if needed)**:
   - OpenAI API key will be provided via environment variables
