@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 /// Service for managing Focus Mode state and filtering messages
 /// - Note: Manages local Focus Mode state with UserDefaults persistence
@@ -22,19 +23,31 @@ class FocusModeService: ObservableObject {
         }
     }
     
+    /// Whether summary modal should be presented
+    @Published var shouldShowSummary: Bool = false
+    
+    /// Current session ID for summary generation
+    @Published var currentSessionID: String?
+    
     // MARK: - Private Properties
     
     /// Current Focus Mode state
     private var focusMode: FocusMode
     
     /// Active Focus Session
-    private var activeSession: FocusSession?
+    private var activeSession: FocusSessionSummary?
     
     /// UserDefaults key for persistence
     private let userDefaultsKey = "FocusModeState"
     
     /// Array to store session history (for future use)
-    private var sessionHistory: [FocusSession] = []
+    private var sessionHistory: [FocusSessionSummary] = []
+    
+    /// Focus Session Service for session management
+    private let focusSessionService = FocusSessionService()
+    
+    /// Summary Service for summary generation
+    private let summaryService = SummaryService()
     
     // MARK: - Initialization
     
@@ -74,10 +87,29 @@ class FocusModeService: ObservableObject {
         focusMode.activatedAt = now
         focusMode.sessionId = sessionId
         
-        // Create new session
-        activeSession = FocusSession(id: sessionId, startTime: now)
-        
-        print("✅ Focus Mode activated")
+        // Create new session in Firestore
+        do {
+            let createdSessionID = try await focusSessionService.createFocusSession()
+            currentSessionID = createdSessionID
+            
+            // Create local session for immediate use
+            activeSession = FocusSessionSummary(
+                id: createdSessionID,
+                userID: "", // Will be set by the service
+                startTime: now
+            )
+            
+            print("✅ Focus Mode activated with session: \(createdSessionID)")
+        } catch {
+            print("❌ Failed to create Focus Mode session: \(error)")
+            // Fallback to local session
+            activeSession = FocusSessionSummary(
+                id: sessionId,
+                userID: "",
+                startTime: now
+            )
+            currentSessionID = sessionId
+        }
     }
     
     /// Deactivates Focus Mode
@@ -94,9 +126,23 @@ class FocusModeService: ObservableObject {
             activeSession = nil
         }
         
+        // End session in Firestore and trigger summary generation
+        if let sessionID = currentSessionID {
+            do {
+                try await focusSessionService.endFocusSession(sessionID: sessionID)
+                
+                // Trigger summary generation
+                await generateSummaryForSession(sessionID: sessionID)
+                
+            } catch {
+                print("❌ Failed to end Focus Mode session: \(error)")
+            }
+        }
+        
         focusMode.isActive = false
         focusMode.activatedAt = nil
         focusMode.sessionId = nil
+        currentSessionID = nil
         
         print("✅ Focus Mode deactivated")
     }
@@ -129,12 +175,39 @@ class FocusModeService: ObservableObject {
     }
     
     /// Gets the current active Focus Session
-    /// - Returns: Current FocusSession if active, nil otherwise
-    func getCurrentSession() -> FocusSession? {
+    /// - Returns: Current FocusSessionSummary if active, nil otherwise
+    func getCurrentSession() -> FocusSessionSummary? {
         return activeSession
     }
     
     // MARK: - Private Methods
+    
+    /// Generates summary for a completed session
+    /// - Parameter sessionID: ID of the session to summarize
+    private func generateSummaryForSession(sessionID: String) async {
+        do {
+            // Generate summary
+            let summary = try await summaryService.generateSessionSummary(sessionID: sessionID)
+            
+            // Show summary modal
+            currentSessionID = sessionID
+            shouldShowSummary = true
+            
+            print("✅ Summary generated for session: \(sessionID)")
+            
+        } catch {
+            print("❌ Failed to generate summary for session \(sessionID): \(error)")
+            // Still show summary modal but with error state
+            currentSessionID = sessionID
+            shouldShowSummary = true
+        }
+    }
+    
+    /// Dismisses the summary modal
+    func dismissSummary() {
+        shouldShowSummary = false
+        currentSessionID = nil
+    }
     
     /// Saves Focus Mode state to UserDefaults
     private func saveToUserDefaults() {
