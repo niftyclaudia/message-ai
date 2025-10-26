@@ -8,6 +8,27 @@
 
 ---
 
+## 🐛 Bug Fixes
+
+### Issue: Flow Mode Not Showing Urgent Messages in Priority Section
+**Status**: ✅ Fixed  
+**Date**: 2025-01-25  
+**Root Cause**: 
+1. UI wasn't reactive to classification status changes
+2. Initial chat load wasn't populating classification data
+
+**Fix**: 
+1. Added reactive observation of `classificationStatus` in `ConversationListView`
+2. Added call to `populateClassificationDataForChats` in initial `loadChats` method
+3. Added debug logging to track classification updates
+
+**Files Modified**:
+- `MessageAI/MessageAI/Views/Main/ConversationListView.swift`
+- `MessageAI/MessageAI/ViewModels/ConversationListViewModel.swift`
+- `MessageAI/MessageAI/Services/AIClassificationService.swift`
+
+---
+
 ## 🎯 Overview
 
 Build the Focus Mode UI foundation with an inline toggle switch and two-section conversation list (Priority / HOLDING). Users can activate Focus Mode to filter messages into priority and non-priority sections, with a clean placeholder state for held messages.
