@@ -13,7 +13,7 @@ struct ConversationListView: View {
     
     // MARK: - Properties
     
-    @StateObject private var viewModel = ConversationListViewModel()
+    @EnvironmentObject private var viewModel: ConversationListViewModel
     @StateObject private var focusModeService = FocusModeService()
     let currentUserID: String
     
@@ -22,6 +22,19 @@ struct ConversationListView: View {
     /// Chat ID to navigate to from notification tap
     @State private var selectedChatID: String?
     @State private var navigateToNotification = false
+    
+    // MARK: - Lifecycle State
+    
+    /// Tracks if the view has been initialized to prevent multiple setups
+    @State private var hasInitialized = false
+    
+    // MARK: - Initialization
+    
+    init(currentUserID: String, aiClassificationService: AIClassificationService) {
+        self.currentUserID = currentUserID
+        // aiClassificationService is now accessed via viewModel
+    }
+    
     
     // MARK: - Body
     
@@ -46,15 +59,15 @@ struct ConversationListView: View {
                     }
                 }
             }
-            .task {
-                // Load chats from Firestore
-                await viewModel.loadChats(userID: currentUserID)
-                viewModel.observeChatsRealTime(userID: currentUserID)
-                viewModel.observePresence()
+            .onAppear {
+                // View model is initialized by MainTabView
+                // Just check for pending notification navigation
+                checkForNotificationNavigation()
             }
             .onDisappear {
-                viewModel.stopObserving()
-                viewModel.stopObservingPresence()
+                // Only clean up if we're actually leaving the view (not just tab switching)
+                // In TabView, onDisappear can be called when switching tabs
+                // We'll let the deinit handle cleanup instead
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") {
@@ -64,10 +77,6 @@ struct ConversationListView: View {
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                 }
-            }
-            .onAppear {
-                // Check for pending notification navigation
-                checkForNotificationNavigation()
             }
             .navigationDestination(isPresented: $navigateToNotification) {
                 if let chatID = selectedChatID,
@@ -124,9 +133,15 @@ struct ConversationListView: View {
                 if focusModeService.isActive {
                     // Two-section layout when Focus Mode is active
                     focusModeSections
+                        .onAppear {
+                            print("🔍 [CONVERSATION LIST] Rendering Focus Mode sections")
+                        }
                 } else {
                     // Single section layout when Focus Mode is inactive
                     allConversationsList
+                        .onAppear {
+                            print("🔍 [CONVERSATION LIST] Rendering single section (Focus Mode OFF)")
+                        }
                 }
             }
         }
@@ -142,9 +157,25 @@ struct ConversationListView: View {
     
     /// Two sections for Priority and HOLDING (Focus Mode ON)
     private var focusModeSections: some View {
-        let filtered = focusModeService.filterChats(viewModel.chats)
+        // Create a computed property that forces SwiftUI to observe changes
+        let filtered = focusModeService.filterChats(
+            viewModel.chats, 
+            aiClassificationService: viewModel.aiClassificationService, 
+            currentUserID: currentUserID
+        )
         
-        return Group {
+        // Use the filtered results
+        return createFocusModeSections(priority: filtered.priority, holding: filtered.holding)
+            .onAppear {
+                print("🔍 [CONVERSATION LIST] Focus Mode sections being computed - Focus Mode active: \(focusModeService.isActive)")
+                print("🔍 [CONVERSATION LIST] Total chats: \(viewModel.chats.count)")
+                print("🔍 [CONVERSATION LIST] Filtering result: \(filtered.priority.count) priority, \(filtered.holding.count) holding")
+            }
+    }
+    
+    @ViewBuilder
+    private func createFocusModeSections(priority: [Chat], holding: [Chat]) -> some View {
+        VStack(spacing: 0) {
             // Priority Section
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -152,7 +183,7 @@ struct ConversationListView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.secondary)
                         .textCase(.uppercase)
-                    Text("(\(filtered.priority.count))")
+                    Text("(\(priority.count))")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -161,7 +192,7 @@ struct ConversationListView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 8)
                 
-                if filtered.priority.isEmpty {
+                if priority.isEmpty {
                     // Empty priority state
                     VStack(spacing: 12) {
                         Text("All caught up!")
@@ -176,35 +207,34 @@ struct ConversationListView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
                 } else {
-                    ForEach(filtered.priority) { chat in
+                    ForEach(priority) { chat in
                         conversationRow(for: chat)
                     }
                 }
             }
             
-            // HOLDING Section - Only show placeholder, no messages
-            if !filtered.holding.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("HOLDING")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .textCase(.uppercase)
-                        Text("(\(filtered.holding.count))")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
-                    
-                    // Show placeholder for held messages (but don't show the actual messages)
-                    HoldingPlaceholderView()
+            // HOLDING Section - Always show when Focus Mode is active
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("HOLDING")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    Text("(\(holding.count))")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                
+                // Show placeholder for held messages (but don't show the actual messages)
+                HoldingPlaceholderView()
             }
         }
         .background(Color(.systemBackground))
+        .id(viewModel.aiClassificationService.classificationStatus.count) // Force SwiftUI to recreate when classification changes
     }
     
     /// Individual conversation row
@@ -220,7 +250,22 @@ struct ConversationListView: View {
                         return viewModel.userPresence[otherUser.id]
                     }
                     return nil
-                }()
+                }(),
+                classificationStatus: getLastMessageClassificationStatus(for: chat),
+                onFeedbackSubmitted: { priority, reason in
+                    Task {
+                        await viewModel.submitClassificationFeedback(
+                            messageId: chat.lastMessageID ?? "",
+                            suggestedPriority: priority,
+                            reason: reason
+                        )
+                    }
+                },
+                onRetryRequested: {
+                    Task {
+                        await viewModel.retryClassification(messageId: chat.lastMessageID ?? "")
+                    }
+                }
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -231,6 +276,14 @@ struct ConversationListView: View {
                 }
             }
         }
+    }
+    
+    /// Gets the classification status for the last message in a chat
+    private func getLastMessageClassificationStatus(for chat: Chat) -> ClassificationStatus {
+        guard let lastMessageID = chat.lastMessageID else {
+            return .pending
+        }
+        return viewModel.getClassificationStatus(messageId: lastMessageID)
     }
     
     /// Empty state when no conversations exist
@@ -294,21 +347,21 @@ struct CustomToggleStyle: ToggleStyle {
 // MARK: - Preview
 
 #Preview("With Conversations") {
-    ConversationListView(currentUserID: "user1")
+    ConversationListView(currentUserID: "user1", aiClassificationService: AIClassificationService())
         .onAppear {
             // Mock data for preview
         }
 }
 
 #Preview("Empty State") {
-    ConversationListView(currentUserID: "user1")
+    ConversationListView(currentUserID: "user1", aiClassificationService: AIClassificationService())
         .onAppear {
             // Empty state will show by default
         }
 }
 
 #Preview("Loading State") {
-    ConversationListView(currentUserID: "user1")
+    ConversationListView(currentUserID: "user1", aiClassificationService: AIClassificationService())
         .onAppear {
             // Loading state would be shown during initial load
         }

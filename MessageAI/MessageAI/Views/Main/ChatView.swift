@@ -68,17 +68,18 @@ struct ChatView: View {
                     messageText = ""
                 }
             )
-            .onTapGesture {
-                // This helps ensure the text field can be tapped
-            }
             
         }
         .navigationBarHidden(true)
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside text field
+        }
         .onAppear {
             viewModel.chat = chat
             Task {
                 await viewModel.loadMessages(chatID: chat.id)
                 // Reset unread count when user opens chat
+                print("🔄 [CHAT VIEW] About to reset unread count for chat \(chat.id)")
                 await viewModel.resetUnreadCount(chatID: chat.id, userID: viewModel.currentUserID)
                 viewModel.observeMessagesRealTime(chatID: chat.id)
                 
@@ -101,7 +102,9 @@ struct ChatView: View {
     
     private var navigationHeader: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { 
+                dismiss() 
+            }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
                     .foregroundColor(.blue)
@@ -121,7 +124,9 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: {}) {
+            Button(action: { 
+                // TODO: Implement info action
+            }) {
                 Image(systemName: "info.circle")
                     .font(.title2)
                     .foregroundColor(.blue)
@@ -192,6 +197,12 @@ struct ChatView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    // Dismiss keyboard when tapping on messages
+                }
+        )
     }
     
     // MARK: - Loading State

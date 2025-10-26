@@ -51,7 +51,9 @@ struct MessageInputView: View {
                 .disabled(isSending)
                 .focused($isTextFieldFocused)
                 .onTapGesture {
-                    isTextFieldFocused = true
+                    DispatchQueue.main.async {
+                        isTextFieldFocused = true
+                    }
                 }
                 .onSubmit {
                     // Handle Enter key press

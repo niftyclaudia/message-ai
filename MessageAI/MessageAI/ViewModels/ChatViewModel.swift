@@ -45,12 +45,6 @@ class ChatViewModel: ObservableObject {
         let messageIDs = sorted.map { $0.id }
         let uniqueIDs = Set(messageIDs)
         if messageIDs.count != uniqueIDs.count {
-            print("🔍 DUPLICATE MESSAGE IDS DETECTED!")
-            print("🔍 Total messages: \(messageIDs.count)")
-            print("🔍 Unique IDs: \(uniqueIDs.count)")
-            print("🔍 Message IDs: \(messageIDs)")
-            print("🔍 Real messages: \(messages.map { $0.id })")
-            print("🔍 Optimistic messages: \(optimisticMessages.map { $0.id })")
         }
         
         return sorted
@@ -60,6 +54,7 @@ class ChatViewModel: ObservableObject {
     
     private let messageService: MessageService
     private let readReceiptService: ReadReceiptService
+    private let aiClassificationService = AIClassificationService()
     private var listener: ListenerRegistration?
     private var readReceiptListener: ListenerRegistration?
     private let networkMonitor = NetworkMonitor()
@@ -125,6 +120,10 @@ class ChatViewModel: ObservableObject {
                 if let self = self {
                     self.messages = newMessages
                     
+                    
+                    // Populate AI classification service with message metadata
+                    self.aiClassificationService.populateMessageMetadata(from: newMessages)
+                    
                     // Remove optimistic messages that now exist in the real messages
                     let realMessageIDs = Set(newMessages.map { $0.id })
                     self.optimisticMessages.removeAll { optimisticMessage in
@@ -137,9 +136,16 @@ class ChatViewModel: ObservableObject {
         // Enable real-time listener for read receipts (PR-12)
         readReceiptListener = readReceiptService.observeReadReceipts(chatID: chatID) { [weak self] receipts in
             Task { @MainActor in
-                print("🔍 ReadReceipts Debug: Received read receipts update: \(receipts)")
                 self?.readReceipts = receipts
                 self?.updateMessageStatusesWithReadReceipts()
+            }
+        }
+        
+        // Start AI classification listening for this chat
+        Task {
+            do {
+                try await aiClassificationService.listenForClassificationUpdates(chatID: chatID)
+            } catch {
             }
         }
     }
@@ -150,6 +156,12 @@ class ChatViewModel: ObservableObject {
         listener = nil
         readReceiptListener?.remove()
         readReceiptListener = nil
+        
+        // Stop AI classification listening for this chat
+        if let chat = chat {
+            aiClassificationService.stopListeningForChat(chatID: chat.id)
+            print("🔍 [CHATS TAB] Stopped AI classification listening for chat: \(chat.id)")
+        }
     }
     
     /// Marks a message as read by the current user
@@ -183,19 +195,14 @@ class ChatViewModel: ObservableObject {
     
     /// Updates message statuses based on read receipts
     private func updateMessageStatusesWithReadReceipts() {
-        print("🔍 ReadReceipts Debug: Updating message statuses with \(readReceipts.count) read receipts")
-        
         for i in 0..<messages.count {
             let message = messages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has read receipts: \(readAt)")
                 // Message has been read by at least one user
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating message \(message.id) from \(message.status) to .read")
                     messages[i].status = .read
                 }
-            } else {
-                print("🔍 ReadReceipts Debug: Message \(message.id) has no read receipts, status: \(message.status)")
+                
             }
         }
         
@@ -203,11 +210,10 @@ class ChatViewModel: ObservableObject {
         for i in 0..<optimisticMessages.count {
             let message = optimisticMessages[i]
             if let readAt = readReceipts[message.id], !readAt.isEmpty {
-                print("🔍 ReadReceipts Debug: Optimistic message \(message.id) has read receipts: \(readAt)")
                 if message.status != .read {
-                    print("🔍 ReadReceipts Debug: Updating optimistic message \(message.id) from \(message.status) to .read")
                     optimisticMessages[i].status = .read
                 }
+                
             }
         }
     }
