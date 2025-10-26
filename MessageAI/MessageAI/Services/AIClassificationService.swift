@@ -327,9 +327,6 @@ class AIClassificationService: ObservableObject {
     
     /// Handles message updates from Firestore listeners
     private func handleMessageUpdate(_ message: Message) async {
-        // Debug log: Print classification update details
-        let username = message.senderName ?? message.senderID
-        
         // Update classification status based on message priority
         if let priority = message.priority,
            let confidence = message.classificationConfidence {

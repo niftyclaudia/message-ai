@@ -274,6 +274,7 @@ struct ConversationListView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .id("\(chat.id)-\(getLastMessageClassificationStatus(for: chat))")
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete", role: .destructive) {
                 Task {

@@ -88,8 +88,11 @@ struct ConversationRowView: View {
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(.secondary)
                         
-                        // Priority badge for urgent messages
-                        if case .classified(let priority, _) = classificationStatus, priority == "urgent" {
+                        // Priority badge for urgent messages (only show if unread)
+                        if case .classified(let priority, _) = classificationStatus, 
+                           priority == "urgent",
+                           let unreadCount = chat.unreadCount[currentUserID],
+                           unreadCount > 0 {
                             PriorityBadge(
                                 priority: priority,
                                 classificationStatus: classificationStatus,
