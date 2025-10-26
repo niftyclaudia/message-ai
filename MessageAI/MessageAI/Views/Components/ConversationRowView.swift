@@ -18,6 +18,9 @@ struct ConversationRowView: View {
     let currentUserID: String
     let timestamp: String
     let presenceStatus: PresenceState?
+    let classificationStatus: ClassificationStatus
+    let onFeedbackSubmitted: (String, String?) -> Void
+    let onRetryRequested: () -> Void
     
     // MARK: - Private Computed Properties
     
@@ -85,6 +88,15 @@ struct ConversationRowView: View {
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(.secondary)
                         
+                        // Priority badge for urgent messages
+                        if case .classified(let priority, _) = classificationStatus, priority == "urgent" {
+                            PriorityBadge(
+                                priority: priority,
+                                classificationStatus: classificationStatus,
+                                size: .small
+                            )
+                        }
+                        
                         // Unread count badge
                         if let unreadCount = chat.unreadCount[currentUserID], unreadCount > 0 {
                             Text("\(unreadCount)")
@@ -113,6 +125,16 @@ struct ConversationRowView: View {
                     }
                     
                     Spacer()
+                    
+                    // Classification feedback button (only for non-pending status)
+                    if classificationStatus != .pending {
+                        ClassificationFeedbackView(
+                            messageId: chat.lastMessageID ?? "",
+                            currentStatus: classificationStatus,
+                            onFeedbackSubmitted: onFeedbackSubmitted,
+                            onRetryRequested: onRetryRequested
+                        )
+                    }
                 }
             }
         }
@@ -133,6 +155,7 @@ struct ConversationRowView: View {
             lastMessage: "Hey, how are you doing?",
             lastMessageTimestamp: Date().addingTimeInterval(-300),
             lastMessageSenderID: "user2",
+            lastMessageID: "msg1",
             isGroupChat: false,
             createdAt: Date(),
             createdBy: "user1"
@@ -147,7 +170,10 @@ struct ConversationRowView: View {
         ),
         currentUserID: "user1",
         timestamp: "5m",
-        presenceStatus: .online
+        presenceStatus: .online,
+        classificationStatus: .classified(priority: "urgent", confidence: 0.9),
+        onFeedbackSubmitted: { _, _ in },
+        onRetryRequested: { }
     )
 }
 
@@ -159,6 +185,7 @@ struct ConversationRowView: View {
             lastMessage: "Thanks for the update!",
             lastMessageTimestamp: Date().addingTimeInterval(-600),
             lastMessageSenderID: "user1",
+            lastMessageID: "msg2",
             isGroupChat: false,
             createdAt: Date(),
             createdBy: "user1"
@@ -173,7 +200,10 @@ struct ConversationRowView: View {
         ),
         currentUserID: "user1",
         timestamp: "10m",
-        presenceStatus: .offline
+        presenceStatus: .offline,
+        classificationStatus: .pending,
+        onFeedbackSubmitted: { _, _ in },
+        onRetryRequested: { }
     )
 }
 
@@ -185,6 +215,7 @@ struct ConversationRowView: View {
             lastMessage: "This is a very long message that should be truncated when displayed in the conversation list to prevent the UI from becoming cluttered.",
             lastMessageTimestamp: Date().addingTimeInterval(-3600),
             lastMessageSenderID: "user2",
+            lastMessageID: "msg3",
             isGroupChat: false,
             createdAt: Date(),
             createdBy: "user1"
@@ -199,6 +230,9 @@ struct ConversationRowView: View {
         ),
         currentUserID: "user1",
         timestamp: "1h",
-        presenceStatus: nil
+        presenceStatus: nil,
+        classificationStatus: .failed(error: "Network error"),
+        onFeedbackSubmitted: { _, _ in },
+        onRetryRequested: { }
     )
 }

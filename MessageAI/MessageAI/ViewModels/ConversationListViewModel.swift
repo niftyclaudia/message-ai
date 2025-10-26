@@ -31,16 +31,55 @@ class ConversationListViewModel: ObservableObject {
     /// Dictionary mapping user IDs to presence status
     @Published var userPresence: [String: PresenceState] = [:]
     
+    /// AI Classification Service for observing classification status changes
+    @Published var aiClassificationService: AIClassificationService
+    
+    // MARK: - Computed Properties
+    
+    /// Total unread count across all chats for the current user
+    var totalUnreadCount: Int {
+        guard let currentUserID = currentUserID else { return 0 }
+        return chats.reduce(0) { total, chat in
+            total + (chat.unreadCount[currentUserID] ?? 0)
+        }
+    }
+    
     // MARK: - Private Properties
     
     private var listener: ListenerRegistration?
     private let chatService = ChatService()
     private let userService = UserService()
     private let presenceService = PresenceService()
+    private let messageService = MessageService()
     private var currentUserID: String?
     private var presenceHandles: [String: DatabaseHandle] = [:]
+    private var isClassificationListeningStarted: Bool = false
+    private var isInitialized: Bool = false
+    
+    // MARK: - Initialization
+    
+    init() {
+        self.aiClassificationService = AIClassificationService()
+    }
     
     // MARK: - Public Methods
+    
+    /// Initializes the view model with proper lifecycle management
+    /// - Parameter userID: The current user's ID
+    func initialize(userID: String) async {
+        guard !isInitialized else { return }
+        
+        currentUserID = userID
+        isInitialized = true
+        
+        // Load chats from Firestore
+        await loadChats(userID: userID)
+        observeChatsRealTime(userID: userID)
+        observePresence()
+        
+        // Start AI classification listening
+        await startClassificationListening()
+    }
     
     /// Loads chats for the current user
     /// - Parameter userID: The current user's ID
@@ -55,6 +94,9 @@ class ConversationListViewModel: ObservableObject {
             
             // Load user data for each chat
             await loadUserDataForChats(fetchedChats)
+            
+            // Populate AI classification service with existing message data
+            await populateClassificationDataForChats(fetchedChats)
             
         } catch {
             errorMessage = error.localizedDescription
@@ -78,6 +120,9 @@ class ConversationListViewModel: ObservableObject {
                 
                 // Load user data for new chats
                 await self?.loadUserDataForChats(updatedChats)
+                
+                // Populate AI classification service with existing message data
+                await self?.populateClassificationDataForChats(updatedChats)
             }
         }
     }
@@ -101,6 +146,12 @@ class ConversationListViewModel: ObservableObject {
                let otherUserID = chat.getOtherUserID(currentUserID: currentUserID) {
                 userIDs.insert(otherUserID)
             }
+        }
+        
+        // Only observe if we have users to observe
+        guard !userIDs.isEmpty else {
+            print("⚠️ No users to observe presence for")
+            return
         }
         
         // Observe presence for each user
@@ -185,7 +236,92 @@ class ConversationListViewModel: ObservableObject {
         }
     }
     
+    // MARK: - AI Classification Methods
+    
+    /// Gets the AI classification service instance
+    /// - Returns: The AIClassificationService instance
+    func getAIClassificationService() -> AIClassificationService {
+        return aiClassificationService
+    }
+    
+    /// Starts listening for AI classification updates for all chats
+    func startClassificationListening() async {
+        guard currentUserID != nil, !isClassificationListeningStarted else { return }
+        
+        isClassificationListeningStarted = true
+        
+        for chat in chats {
+            do {
+                try await aiClassificationService.listenForClassificationUpdates(chatID: chat.id)
+            } catch {
+                print("❌ Failed to start classification listening for chat \(chat.id): \(error)")
+            }
+        }
+    }
+    
+    /// Stops listening for AI classification updates for all chats
+    func stopClassificationListening() {
+        guard isClassificationListeningStarted else { return }
+        
+        aiClassificationService.stopAllListeners()
+        isClassificationListeningStarted = false
+    }
+    
+    /// Submits classification feedback for a message
+    /// - Parameters:
+    ///   - messageId: The message ID
+    ///   - suggestedPriority: The user's suggested priority
+    ///   - reason: Optional reason for the feedback
+    func submitClassificationFeedback(messageId: String, suggestedPriority: String, reason: String? = nil) async {
+        do {
+            try await aiClassificationService.submitClassificationFeedback(
+                messageId: messageId,
+                suggestedPriority: suggestedPriority,
+                reason: reason
+            )
+        } catch {
+            errorMessage = "Failed to submit feedback: \(error.localizedDescription)"
+            print("❌ Failed to submit classification feedback: \(error)")
+        }
+    }
+    
+    /// Retries classification for a message
+    /// - Parameter messageId: The message ID to retry classification for
+    func retryClassification(messageId: String) async {
+        do {
+            try await aiClassificationService.retryClassification(messageId: messageId)
+        } catch {
+            errorMessage = "Failed to retry classification: \(error.localizedDescription)"
+            print("❌ Failed to retry classification: \(error)")
+        }
+    }
+    
+    /// Gets the classification status for a message
+    /// - Parameter messageId: The message ID
+    /// - Returns: The current classification status
+    func getClassificationStatus(messageId: String) -> ClassificationStatus {
+        return aiClassificationService.getClassificationStatus(messageId: messageId)
+    }
+    
     // MARK: - Private Methods
+    
+    /// Populates AI classification service with existing message data for all chats
+    /// - Parameter chats: Array of chats to populate classification data for
+    private func populateClassificationDataForChats(_ chats: [Chat]) async {
+        for chat in chats {
+            do {
+                // Fetch recent messages for this chat to populate classification data
+                let messages = try await messageService.fetchMessages(chatID: chat.id, limit: 50)
+                
+                // Populate AI classification service with message metadata
+                aiClassificationService.populateMessageMetadata(from: messages)
+                
+                print("✅ Populated classification data for chat: \(chat.id) with \(messages.count) messages")
+            } catch {
+                print("⚠️ Failed to populate classification data for chat \(chat.id): \(error)")
+            }
+        }
+    }
     
     /// Loads user data for all chats
     /// - Parameter chats: Array of chats to load user data for
@@ -217,6 +353,8 @@ class ConversationListViewModel: ObservableObject {
     // MARK: - Deinitialization
     
     deinit {
+        print("🧹 ConversationListViewModel deinit - cleaning up observers")
+        
         // Clean up Firestore listener
         listener?.remove()
         listener = nil
@@ -225,5 +363,12 @@ class ConversationListViewModel: ObservableObject {
         for (userID, handle) in presenceHandles {
             presenceService.removeObserver(userID: userID, handle: handle)
         }
+        presenceHandles.removeAll()
+        
+        // Clean up AI classification listeners
+        // We can't access main actor isolated properties in deinit, so we'll use a different approach
+        // The AIClassificationService will clean up its own listeners in its deinit
+        
+        print("✅ ConversationListViewModel cleanup completed")
     }
 }

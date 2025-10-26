@@ -20,6 +20,7 @@ struct MainTabView: View {
     @State private var showingCreateChat: Bool = false
     @State private var createdChat: Chat?
     @State private var navigateToChat: Bool = false
+    @StateObject private var conversationListViewModel = ConversationListViewModel()
     
     // MARK: - Body
     
@@ -27,7 +28,8 @@ struct MainTabView: View {
         TabView {
             // Chat List (PR #4)
             NavigationStack {
-                ConversationListView(currentUserID: authService.currentUser?.uid ?? "")
+                ConversationListView(currentUserID: authService.currentUser?.uid ?? "", aiClassificationService: conversationListViewModel.aiClassificationService)
+                    .environmentObject(conversationListViewModel)
                     .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
@@ -57,6 +59,7 @@ struct MainTabView: View {
             .tabItem {
                 Label("Chats", systemImage: "bubble.left.and.bubble.right")
             }
+            .badge(conversationListViewModel.totalUnreadCount)
             
             // Contacts tab (PR #3)
             ContactListView()
@@ -72,6 +75,12 @@ struct MainTabView: View {
                     Label("Profile", systemImage: "person.circle")
                 }
             
+        }
+        .onAppear {
+            // Initialize the conversation list view model
+            Task {
+                await conversationListViewModel.initialize(userID: authService.currentUser?.uid ?? "")
+            }
         }
         .sheet(isPresented: $showingCreateChat) {
             CreateNewChatView { chat in

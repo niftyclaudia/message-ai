@@ -14,6 +14,7 @@ const URGENCY_KEYWORDS = [
   // Meeting/appointment related (with urgency modifiers)
   'meeting now', 'call now', 'call asap', 'conference now', 'appointment now',
   'schedule now', 'meeting urgent', 'call urgent', 'conference urgent',
+  'call me urgent', 'urgent call me', 'call me now', 'call me asap',
   
   // Business critical
   'decision now', 'approval now', 'signature now', 'contract now', 'deal now',
@@ -182,12 +183,23 @@ function analyzeContextualUrgency(text: string): number {
   // Look for action words followed by urgency modifiers
   actionWords.forEach(action => {
     URGENCY_MODIFIERS.forEach(modifier => {
-      // Check for patterns like "call now", "meeting urgent", etc.
-      const pattern = new RegExp(`${action}\\s+${modifier}|${modifier}\\s+${action}`, 'g');
-      const matches = text.match(pattern);
-      if (matches) {
-        contextScore += matches.length;
-      }
+      // Check for patterns like "call now", "meeting urgent", "urgent call me", etc.
+      // More flexible patterns that allow for additional words between action and modifier
+      const patterns = [
+        new RegExp(`${action}\\s+${modifier}`, 'g'), // "call urgent"
+        new RegExp(`${modifier}\\s+${action}`, 'g'), // "urgent call"
+        new RegExp(`${modifier}\\s+${action}\\s+me`, 'g'), // "urgent call me"
+        new RegExp(`${action}\\s+me\\s+${modifier}`, 'g'), // "call me urgent"
+        new RegExp(`${modifier}\\s+${action}\\s+\\w+`, 'g'), // "urgent call [anything]"
+        new RegExp(`${action}\\s+\\w+\\s+${modifier}`, 'g')  // "call [anything] urgent"
+      ];
+      
+      patterns.forEach(pattern => {
+        const matches = text.match(pattern);
+        if (matches) {
+          contextScore += matches.length;
+        }
+      });
     });
   });
   

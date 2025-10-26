@@ -148,30 +148,126 @@ class FocusModeService: ObservableObject {
     }
     
     /// Filters chats into priority and holding sections
-    /// - Parameter chats: Array of chats to filter
+    /// - Parameters:
+    ///   - chats: Array of chats to filter
+    ///   - aiClassificationService: Service to check for urgent messages
+    ///   - currentUserID: The current user's ID to check read status
     /// - Returns: Tuple with (priority chats, holding chats)
-    func filterChats(_ chats: [Chat]) -> (priority: [Chat], holding: [Chat]) {
+    func filterChats(_ chats: [Chat], aiClassificationService: AIClassificationService? = nil, currentUserID: String? = nil) -> (priority: [Chat], holding: [Chat]) {
         // If Focus Mode is inactive, return all chats as priority
         guard isActive else {
             return (priority: chats, holding: [])
         }
         
+        
         var priorityChats: [Chat] = []
         var holdingChats: [Chat] = []
         
         for chat in chats {
-            // For now, use unread count as a proxy for urgency
-            // TODO: Update to use actual message priority once available
-            let hasUnreadMessages = chat.unreadCount.values.reduce(0, +) > 0
+            // Check if chat has any unread messages
+            let hasUnreadMessages = hasUnreadMessagesInChat(chat, currentUserID: currentUserID)
             
+            // Only process chats with unread messages
             if hasUnreadMessages {
-                priorityChats.append(chat)
-            } else {
-                holdingChats.append(chat)
+                // Check if this chat has any unread urgent messages (not just any urgent messages)
+                let hasUnreadUrgentMessages = hasUnreadUrgentMessagesInChat(chat, aiClassificationService: aiClassificationService, currentUserID: currentUserID)
+                
+                if hasUnreadUrgentMessages {
+                    // Chat has unread urgent messages - add to Priority section
+                    priorityChats.append(chat)
+                } else {
+                    // Chat has unread messages but they're all non-urgent - add to Holding section
+                    holdingChats.append(chat)
+                }
             }
+            // Chats with no unread messages are skipped (don't show in Focus Mode)
         }
         
+        // Print summary in the format requested
+        print("===== FOCUS MODE SUMMARY =====")
+        print("Current User ID: \(currentUserID ?? "nil")")
+        for chat in chats {
+            let unreadCount = chat.unreadCount[currentUserID ?? ""] ?? 0
+            let hasUnread = unreadCount > 0
+            let hasUnreadUrgent = hasUnreadUrgentMessagesInChat(chat, aiClassificationService: aiClassificationService, currentUserID: currentUserID)
+            
+            print("Chat \(chat.id): unreadCount=\(unreadCount), hasUnread=\(hasUnread), hasUnreadUrgent=\(hasUnreadUrgent)")
+            
+            if hasUnreadUrgent {
+                print("[\(chat.id)] UNREAD PRIORITY (unread + most recent message is urgent)")
+            } else if hasUnread {
+                print("[\(chat.id)] UNREAD NONPRIORITY (unread but most recent message is not urgent)")
+            } else {
+                print("[\(chat.id)] READ NONPRIORITY (no unread messages)")
+            }
+        }
+        print("TOTAL PRIORITY: \(priorityChats.count)")
+        print("HOLDING: \(holdingChats.count)")
+        print("=============================")
+        
         return (priority: priorityChats, holding: holdingChats)
+    }
+    
+    /// Checks if a chat has any unread messages
+    /// - Parameters:
+    ///   - chat: The chat to check
+    ///   - currentUserID: The current user's ID to check read status
+    /// - Returns: True if the chat has any unread messages
+    private func hasUnreadMessagesInChat(_ chat: Chat, currentUserID: String?) -> Bool {
+        guard let currentUserID = currentUserID else {
+            // If no current user ID, check if there are any unread messages
+            return chat.unreadCount.values.reduce(0, +) > 0
+        }
+        
+        // Check if the current user has any unread messages in this chat
+        return (chat.unreadCount[currentUserID] ?? 0) > 0
+    }
+    
+    
+    /// Checks if a chat has any unread urgent messages
+    /// - Parameters:
+    ///   - chat: The chat to check
+    ///   - aiClassificationService: Service to check classification status
+    ///   - currentUserID: The current user's ID to check read status
+    /// - Returns: True if the chat has unread urgent messages
+    private func hasUnreadUrgentMessagesInChat(_ chat: Chat, aiClassificationService: AIClassificationService?, currentUserID: String?) -> Bool {
+        // If no AI classification service available, fall back to unread count
+        guard let aiService = aiClassificationService else {
+            let hasUnreadMessages = chat.unreadCount.values.reduce(0, +) > 0
+            return hasUnreadMessages
+        }
+        
+        // If no current user ID provided, return false (need user to check read status)
+        guard let currentUserID = currentUserID else { 
+            return false 
+        }
+        
+        // Check if the current user has any unread messages
+        let hasUnreadMessages = (chat.unreadCount[currentUserID] ?? 0) > 0
+        if !hasUnreadMessages {
+            return false
+        }
+        
+        // Get all urgent message IDs in this chat
+        let urgentMessageIds = aiService.getUrgentMessageIdsInChat(chatID: chat.id)
+        
+        // If no urgent messages at all, return false
+        guard !urgentMessageIds.isEmpty else { 
+            return false 
+        }
+        
+        // For now, we'll use a simplified approach:
+        // Check if the most recent message (lastMessageID) is urgent
+        // This is a reasonable approximation for determining if unread messages are urgent
+        
+        if let lastMessageID = chat.lastMessageID {
+            // Check if the most recent message is urgent
+            let isLastMessageUrgent = urgentMessageIds.contains(lastMessageID)
+            return isLastMessageUrgent
+        }
+        
+        // If no lastMessageID, fall back to checking if any urgent messages exist
+        return true
     }
     
     /// Gets the current active Focus Session
@@ -215,7 +311,7 @@ class FocusModeService: ObservableObject {
             let data = try JSONEncoder().encode(focusMode)
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
         } catch {
-            print("❌ Failed to save Focus Mode state: \(error)")
+            // Silently handle save errors
         }
     }
 }
@@ -227,8 +323,6 @@ extension FocusModeService {
     /// Handles errors and falls back to safe state
     /// - Parameter error: The error that occurred
     private func handleError(_ error: Error) {
-        print("❌ FocusModeService error: \(error)")
-        
         // Fallback: deactivate Focus Mode
         Task { @MainActor in
             isActive = false
