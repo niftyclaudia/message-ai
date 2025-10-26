@@ -29,6 +29,9 @@ class FocusModeService: ObservableObject {
     /// Current session ID for summary generation
     @Published var currentSessionID: String?
     
+    /// Whether summary is currently being generated
+    @Published var isGeneratingSummary: Bool = false
+    
     // MARK: - Private Properties
     
     /// Current Focus Mode state
@@ -98,8 +101,14 @@ class FocusModeService: ObservableObject {
         
         print("✅ Focus Mode deactivated - generating summary...")
         
-        // SIMPLE: Just generate summary directly
+        // Show loading indicator
+        isGeneratingSummary = true
+        
+        // Generate summary
         await generateSummary()
+        
+        // Hide loading indicator
+        isGeneratingSummary = false
     }
     
     /// Filters chats into priority and holding sections
