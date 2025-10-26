@@ -239,7 +239,7 @@ struct ConversationListView: View {
             }
         }
         .background(Color(.systemBackground))
-        .id(viewModel.aiClassificationService.classificationStatus.count) // Force SwiftUI to recreate when classification changes
+        // Removed .id() modifier - SwiftUI will update views when data changes without destroying them
     }
     
     /// Individual conversation row
@@ -274,7 +274,7 @@ struct ConversationListView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .id("\(chat.id)-\(getLastMessageClassificationStatus(for: chat))")
+        .id(chat.id) // Use only chat ID - SwiftUI will update when properties change
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete", role: .destructive) {
                 Task {

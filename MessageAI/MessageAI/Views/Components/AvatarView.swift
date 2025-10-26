@@ -30,7 +30,7 @@ struct AvatarView: View {
     var body: some View {
         Group {
             if let photoURL = photoURL, !photoURL.isEmpty, let url = URL(string: photoURL) {
-                // Show profile photo with cache-busting
+                // Show profile photo with caching enabled
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
@@ -45,7 +45,8 @@ struct AvatarView: View {
                         initialsView
                     }
                 }
-                .id(photoURL) // Force refresh when URL changes
+                // Removed .id(photoURL) to enable proper caching
+                // Cache invalidation now handled via timestamp in URL
             } else {
                 // Show initials
                 initialsView

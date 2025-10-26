@@ -73,8 +73,14 @@ class PhotoService {
                     do {
                         // Get download URL
                         let downloadURL = try await storageRef.downloadURL()
+                        
+                        // Append timestamp query parameter for cache invalidation
+                        // This ensures avatars refresh when users update their profile photo
+                        let timestamp = Int(Date().timeIntervalSince1970)
+                        let cachedURL = "\(downloadURL.absoluteString)?updated=\(timestamp)"
+                        
                         print("✅ Photo uploaded: \(photoPath)")
-                        continuation.resume(returning: downloadURL.absoluteString)
+                        continuation.resume(returning: cachedURL)
                     } catch {
                         print("❌ Failed to get download URL: \(error.localizedDescription)")
                         continuation.resume(throwing: PhotoServiceError.uploadFailed(error))
@@ -94,15 +100,18 @@ class PhotoService {
     }
     
     /// Deletes profile photo from Firebase Storage
-    /// - Parameter photoURL: Full download URL of the photo to delete
+    /// - Parameter photoURL: Full download URL of the photo to delete (may include query parameters)
     /// - Throws: PhotoServiceError.deleteFailed if deletion fails
     func deleteProfilePhoto(photoURL: String) async throws {
+        // Strip query parameters (like ?updated=timestamp) before getting storage reference
+        let cleanURL = photoURL.components(separatedBy: "?").first ?? photoURL
+        
         // Extract storage reference from URL
-        let storageRef = storage.reference(forURL: photoURL)
+        let storageRef = storage.reference(forURL: cleanURL)
 
         do {
             try await storageRef.delete()
-            print("✅ Photo deleted: \(photoURL)")
+            print("✅ Photo deleted: \(cleanURL)")
 
         } catch {
             print("❌ Photo deletion failed: \(error.localizedDescription)")

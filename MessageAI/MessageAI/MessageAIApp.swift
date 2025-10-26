@@ -30,6 +30,17 @@ struct MessageAIApp: App {
     // MARK: - Initialization
     
     init() {
+        // Configure URL cache for avatar/image caching
+        // This significantly improves avatar loading performance in lists
+        let memoryCapacity = 50 * 1024 * 1024  // 50MB memory cache
+        let diskCapacity = 100 * 1024 * 1024   // 100MB disk cache
+        let urlCache = URLCache(
+            memoryCapacity: memoryCapacity,
+            diskCapacity: diskCapacity
+        )
+        URLCache.shared = urlCache
+        print("✅ URLCache configured: \(memoryCapacity / 1024 / 1024)MB memory, \(diskCapacity / 1024 / 1024)MB disk")
+        
         // Configure Firebase on app launch
         do {
             try FirebaseService.shared.configure()
