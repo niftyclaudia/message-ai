@@ -62,6 +62,18 @@ Temporary Items
 .build/
 .swiftpm/
 
+## TypeScript build artifacts
+*.js.map
+*.d.ts
+
+## Package management
+package-lock.json
+yarn.lock
+
+## Test files
+**/test-*.js
+**/test-*.ts
+
 ## CocoaPods
 Pods/
 
@@ -105,7 +117,11 @@ firebase-debug.log*
 firestore-debug.log*
 .firebase/
 
-# Firebase Functions
-functions/node_modules/
+# Node modules (all locations)
+node_modules/
+**/node_modules/
+
+# Firebase Functions build artifacts
 functions/lib/
+**/lib/
 functions/.runtimeconfig.json

@@ -48,6 +48,12 @@ Modular architecture - Clear layer separation (UI → SignalUI → SignalService
 ## Project Context
 - Swift 5.0
 - Focus on main thread safety and responsive UI
+- **Firebase Configuration**: All Firebase config files are located in `MessageAI/` directory:
+  - `MessageAI/firebase.json` - Firebase project configuration
+  - `MessageAI/firestore.indexes.json` - Firestore database indexes
+  - `MessageAI/firestore.rules` - Firestore security rules
+  - `MessageAI/storage.rules` - Firebase Storage security rules
+  - `MessageAI/MessageAI/GoogleService-Info.plist` - iOS Firebase configuration
 
 ## Threading & Concurrency Rules
 

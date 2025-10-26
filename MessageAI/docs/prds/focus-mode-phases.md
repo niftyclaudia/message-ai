@@ -31,10 +31,10 @@ This document breaks down the Focus Mode PRD into manageable phases, each delive
 - ✅ Classification logging/analytics
 
 #### Success Criteria
-- Messages auto-classified as urgent/normal within 3s
-- Classification accuracy >85% on test set
-- Firestore updated with priority field
-- No impact on message send latency
+- ✅ Messages auto-classified as urgent/normal within 3s
+- ✅ Classification accuracy >85% on test set
+- ✅ Firestore updated with priority field
+- ✅ No impact on message send latency
 
 #### Key Files
 **Backend:**
@@ -218,10 +218,10 @@ This document breaks down the Focus Mode PRD into manageable phases, each delive
 ## 📊 Success Metrics by Phase
 
 ### Phase 1 Metrics
-- [ ] 95% of messages classified within 3s
-- [ ] Classification accuracy >85% (test set)
-- [ ] Zero impact on message send latency
-- [ ] OpenAI API cost <$5/day
+- ✅ 95% of messages classified within 3s
+- ✅ Classification accuracy >85% (test set)
+- ✅ Zero impact on message send latency
+- ✅ OpenAI API cost <$5/day
 
 ### Phase 2 Metrics
 - [ ] Focus Mode toggle responds in <300ms
@@ -281,11 +281,11 @@ This document breaks down the Focus Mode PRD into manageable phases, each delive
 ## ✅ Acceptance Criteria (Overall)
 
 ### Must-Have (MVP)
-- [ ] Messages classified as urgent/normal
+- ✅ Messages classified as urgent/normal
 - [ ] Focus Mode toggle works
 - [ ] Two-section list view (Priority/Review Later)
 - [ ] Real-time classification updates
-- [ ] Classification in <3s
+- ✅ Classification in <3s
 - [ ] Summary generation on deactivation
 - [ ] Semantic search functionality
 

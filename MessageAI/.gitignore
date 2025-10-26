@@ -1,0 +1,35 @@
+# Firebase Functions
+firebase-functions/node_modules/
+firebase-functions/lib/
+firebase-functions/.runtimeconfig.json
+
+# Firebase Debug Logs
+firebase-debug.log*
+firestore-debug.log*
+
+# Firebase Cache
+.firebase/
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+
+# Firebase service account keys (if any are added locally)
+firebase-adminsdk-*.json
+service-account-key.json
+
+# TypeScript build artifacts
+*.js.map
+*.d.ts
+
+# Test coverage
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
