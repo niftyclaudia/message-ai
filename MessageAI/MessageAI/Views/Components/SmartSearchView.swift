@@ -266,7 +266,6 @@ struct SmartSearchView: View {
     }
     
     private func handleResultTap(_ result: SearchResult) {
-        print("🔍 Tapped result: \(result.messageId) in conversation: \(result.conversationId)")
         
         // Close search modal first
         dismiss()

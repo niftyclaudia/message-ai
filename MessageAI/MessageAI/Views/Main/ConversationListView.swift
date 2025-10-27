@@ -140,15 +140,14 @@ struct ConversationListView: View {
                             otherUser: viewModel.getOtherUser(chat: chat),
                             highlightMessageId: searchSelectedMessageID
                         )
-                        .onAppear {
-                            print("🔍 [SEARCH NAV] ✅ Navigated to chat: \(chatID) with messageId: \(searchSelectedMessageID ?? "none")")
-                        }
+                            .onAppear {
+                                // Navigation completed successfully
+                            }
                     } else {
                         Text("Chat not found")
                             .foregroundColor(.red)
                             .onAppear {
-                                print("🔍 [SEARCH NAV] ❌ Chat not found: \(searchSelectedChatID ?? "nil")")
-                                print("🔍 [SEARCH NAV] Available chats: \(viewModel.chats.map { $0.id })")
+                                // Chat not found - this should not happen in normal operation
                             }
                     }
                 }

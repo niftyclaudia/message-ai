@@ -152,14 +152,6 @@ export const semanticSearch = onCall<SemanticSearchRequest, Promise<SemanticSear
       // Step 3: Filter matches by relevance score
       // Note: User access control is handled at Firestore level when fetching messages
       
-      // Log top scores for debugging
-      const topScores = queryResponse.matches.slice(0, 5).map(m => m.score);
-      logger.info('Top 5 similarity scores from Pinecone', {
-        queryId,
-        scores: topScores,
-        threshold: MIN_RELEVANCE_SCORE,
-      });
-      
       const relevantMatches = queryResponse.matches
         .filter(match => {
           const score = match.score || 0;

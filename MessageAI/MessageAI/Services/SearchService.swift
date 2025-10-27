@@ -97,47 +97,26 @@ class SearchService: ObservableObject {
             
             guard let resultData = result.data as? [String: Any],
                   let resultsArray = resultData["results"] as? [[String: Any]] else {
-                print("❌ Failed to parse search response structure")
-                print("Response data: \(result.data)")
                 throw SearchError.invalidResponse
             }
             
-            print("✅ Got \(resultsArray.count) results from backend")
-            
             // Parse results
             let results = try resultsArray.compactMap { resultDict -> SearchResult? in
-                print("📝 Parsing result: \(resultDict.keys)")
-                
-                // Debug each field
-                if resultDict["messageId"] == nil { print("❌ Missing messageId") }
-                if resultDict["conversationId"] == nil { print("❌ Missing conversationId") }
-                if resultDict["relevanceScore"] == nil { print("❌ Missing relevanceScore") }
-                if resultDict["messagePreview"] == nil { print("❌ Missing messagePreview") }
-                if resultDict["timestamp"] == nil { print("❌ Missing timestamp") }
-                if resultDict["senderName"] == nil { print("❌ Missing senderName") }
                 guard let messageId = resultDict["messageId"] as? String,
                       let conversationId = resultDict["conversationId"] as? String,
                       let relevanceScore = resultDict["relevanceScore"] as? Double,
                       let messagePreview = resultDict["messagePreview"] as? String,
                       let timestampString = resultDict["timestamp"] as? String,
                       let senderName = resultDict["senderName"] as? String else {
-                    print("❌ Guard failed for result")
                     return nil
                 }
-                
-                print("✅ All fields cast successfully")
                 
                 // Parse ISO8601 timestamp with fractional seconds
                 let formatter = ISO8601DateFormatter()
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 guard let timestamp = formatter.date(from: timestampString) else {
-                    print("❌ Timestamp parse failed: \(timestampString)")
                     return nil
                 }
-                
-                print("✅ Timestamp parsed successfully")
-                
-                print("✅ Creating SearchResult for messageId: \(messageId)")
                 
                 return SearchResult(
                     messageId: messageId,
@@ -148,8 +127,6 @@ class SearchService: ObservableObject {
                     senderName: senderName
                 )
             }
-            
-            print("✅ Total parsed results after compactMap: \(results.count)")
             
             // Results are already filtered by backend, no need to filter again
             // Update published property on main thread
