@@ -28,6 +28,14 @@ struct ConversationListView: View {
     /// Tracks if the view has been initialized to prevent multiple setups
     @State private var hasInitialized = false
     
+    /// Show semantic search view
+    @State private var showingSearch = false
+    
+    /// Search navigation state
+    @State private var searchSelectedChatID: String?
+    @State private var searchSelectedMessageID: String?
+    @State private var navigateToSearchResult = false
+    
     // MARK: - Initialization
     
     init(currentUserID: String, aiClassificationService: AIClassificationService) {
@@ -114,14 +122,52 @@ struct ConversationListView: View {
                     FocusSummaryView(sessionID: sessionID)
                 }
             }
+            .sheet(isPresented: $showingSearch) {
+                SmartSearchView { chatId, messageId in
+                    // Handle search result tap
+                    searchSelectedChatID = chatId
+                    searchSelectedMessageID = messageId
+                    navigateToSearchResult = true
+                }
+            }
+            .navigationDestination(isPresented: $navigateToSearchResult) {
+                Group {
+                    if let chatID = searchSelectedChatID,
+                       let chat = viewModel.chats.first(where: { $0.id == chatID }) {
+                        ChatView(
+                            chat: chat,
+                            currentUserID: currentUserID,
+                            otherUser: viewModel.getOtherUser(chat: chat),
+                            highlightMessageId: searchSelectedMessageID
+                        )
+                            .onAppear {
+                                // Navigation completed successfully
+                            }
+                    } else {
+                        Text("Chat not found")
+                            .foregroundColor(.red)
+                            .onAppear {
+                                // Chat not found - this should not happen in normal operation
+                            }
+                    }
+                }
+            }
         }
     }
     
     // MARK: - Private Views
     
-    /// Header with Focus Mode toggle
+    /// Header with Focus Mode toggle and search button
     private var headerView: some View {
         HStack(spacing: 12) {
+            // Search button
+            Button(action: { showingSearch = true }) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(.primary)
+                    .frame(width: 32, height: 32)
+            }
+            
             Spacer()
             
             // Flow Mode label

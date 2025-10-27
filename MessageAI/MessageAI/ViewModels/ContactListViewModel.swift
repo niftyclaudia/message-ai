@@ -31,6 +31,7 @@ class ContactListViewModel: ObservableObject {
     private let userService: UserService
     private let authService: AuthService
     private let presenceService: PresenceService
+    private let chatService: ChatService
     
     // MARK: - Private Properties
     
@@ -42,11 +43,13 @@ class ContactListViewModel: ObservableObject {
     init(
         userService: UserService = UserService(),
         authService: AuthService = AuthService(),
-        presenceService: PresenceService = PresenceService()
+        presenceService: PresenceService = PresenceService(),
+        chatService: ChatService = ChatService()
     ) {
         self.userService = userService
         self.authService = authService
         self.presenceService = presenceService
+        self.chatService = chatService
     }
     
     // MARK: - Deinitialization
@@ -63,7 +66,7 @@ class ContactListViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Loads all users from Firestore
+    /// Loads contacts from users you've actually chatted with
     func loadUsers() async {
         guard let currentUserID = authService.currentUser?.uid else {
             errorMessage = "Not authenticated"
@@ -74,13 +77,12 @@ class ContactListViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            allUsers = try await userService.fetchAllUsers(excludingUserID: currentUserID)
+            // Use new method that gets contacts from actual chats
+            allUsers = try await chatService.fetchContactsFromChats(currentUserID: currentUserID)
             filteredUsers = allUsers
-            print("✅ Loaded \(allUsers.count) users")
             
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to load users: \(error.localizedDescription)")
         }
         
         isLoading = false

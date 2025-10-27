@@ -72,6 +72,15 @@ struct Message: Codable, Identifiable {
     /// Timestamp when classification was completed
     var classificationTimestamp: Date?
     
+    /// Vector embedding for semantic search (1536 dimensions for OpenAI)
+    var embedding: [Double]?
+    
+    /// Whether embedding has been generated for this message
+    var embeddingGenerated: Bool = false
+    
+    /// Timestamp when embedding was generated
+    var embeddingTimestamp: Date?
+    
     /// Firestore collection name
     static let collectionName = "messages"
     
@@ -95,11 +104,14 @@ struct Message: Codable, Identifiable {
         case classificationConfidence
         case classificationMethod
         case classificationTimestamp
+        case embedding
+        case embeddingGenerated
+        case embeddingTimestamp
     }
     
     // MARK: - Initialization
     
-    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false, priority: String? = nil, classificationConfidence: Double? = nil, classificationMethod: String? = nil, classificationTimestamp: Date? = nil) {
+    init(id: String, chatID: String, senderID: String, text: String, timestamp: Date, serverTimestamp: Date? = nil, readBy: [String] = [], readAt: [String: Date] = [:], status: MessageStatus = .sending, senderName: String? = nil, isOffline: Bool = false, retryCount: Int = 0, isOptimistic: Bool = false, priority: String? = nil, classificationConfidence: Double? = nil, classificationMethod: String? = nil, classificationTimestamp: Date? = nil, embedding: [Double]? = nil, embeddingGenerated: Bool = false, embeddingTimestamp: Date? = nil) {
         self.id = id
         self.chatID = chatID
         self.senderID = senderID
@@ -117,6 +129,9 @@ struct Message: Codable, Identifiable {
         self.classificationConfidence = classificationConfidence
         self.classificationMethod = classificationMethod
         self.classificationTimestamp = classificationTimestamp
+        self.embedding = embedding
+        self.embeddingGenerated = embeddingGenerated
+        self.embeddingTimestamp = embeddingTimestamp
     }
     
     // MARK: - Firestore Encoding/Decoding
@@ -144,6 +159,17 @@ struct Message: Codable, Identifiable {
             self.classificationTimestamp = classificationTimestamp.dateValue()
         } else {
             self.classificationTimestamp = try container.decodeIfPresent(Date.self, forKey: .classificationTimestamp)
+        }
+        
+        // Handle embedding fields
+        embedding = try container.decodeIfPresent([Double].self, forKey: .embedding)
+        embeddingGenerated = try container.decodeIfPresent(Bool.self, forKey: .embeddingGenerated) ?? false
+        
+        // Handle embedding timestamp
+        if let embeddingTimestamp = try? container.decode(Timestamp.self, forKey: .embeddingTimestamp) {
+            self.embeddingTimestamp = embeddingTimestamp.dateValue()
+        } else {
+            self.embeddingTimestamp = try container.decodeIfPresent(Date.self, forKey: .embeddingTimestamp)
         }
         
         // Handle readAt dictionary with Timestamp conversion
@@ -194,6 +220,15 @@ struct Message: Codable, Identifiable {
         // Handle classification timestamp if present
         if let classificationTimestamp = classificationTimestamp {
             try container.encode(Timestamp(date: classificationTimestamp), forKey: .classificationTimestamp)
+        }
+        
+        // Handle embedding fields
+        try container.encodeIfPresent(embedding, forKey: .embedding)
+        try container.encode(embeddingGenerated, forKey: .embeddingGenerated)
+        
+        // Handle embedding timestamp if present
+        if let embeddingTimestamp = embeddingTimestamp {
+            try container.encode(Timestamp(date: embeddingTimestamp), forKey: .embeddingTimestamp)
         }
         
         // Convert date to Firestore Timestamp

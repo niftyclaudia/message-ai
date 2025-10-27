@@ -4,6 +4,7 @@
 
 import { OpenAI } from 'openai';
 import { logger } from '../utils/logger';
+import * as admin from 'firebase-admin';
 
 // Initialize OpenAI client (only if API key is available)
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
@@ -58,15 +59,33 @@ export async function generateSessionSummary(
       return createFallbackSummaryResult(messages, startTime);
     }
 
-    // Prepare messages for summarization
-    const messageTexts = messages.map(msg => 
-      `[${msg.timestamp.toISOString()}] ${msg.senderID}: ${msg.text}`
-    ).join('\n');
+    // Prepare messages for summarization with resolved sender names
+    const messageTexts = await Promise.all(
+      messages.map(async (msg) => {
+        // Try to resolve sender name from Firestore
+        let senderName = msg.senderID; // fallback to ID
+        
+        try {
+          const userDoc = await admin.firestore().collection('users').doc(msg.senderID).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            senderName = userData?.displayName || userData?.username || userData?.email || msg.senderID;
+          }
+        } catch (error) {
+          // If user lookup fails, use senderID as fallback
+          logger.warn('Failed to resolve sender name', { senderID: msg.senderID, error });
+        }
+        
+        return `[${msg.timestamp.toISOString()}] ${senderName}: ${msg.text}`;
+      })
+    );
+    
+    const messageText = messageTexts.join('\n');
 
     // Truncate if too long (OpenAI has token limits)
-    const truncatedMessages = messageTexts.length > 8000 
-      ? messageTexts.substring(0, 8000) + '\n... (truncated)'
-      : messageTexts;
+    const truncatedMessages = messageText.length > 8000 
+      ? messageText.substring(0, 8000) + '\n... (truncated)'
+      : messageText;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',

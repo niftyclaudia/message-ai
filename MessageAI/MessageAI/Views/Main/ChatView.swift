@@ -19,12 +19,16 @@ struct ChatView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var messageText: String = ""
     
+    // Highlight specific message (for search navigation)
+    let highlightMessageId: String?
+    @State private var hasScrolledToHighlight = false
     
     // MARK: - Initialization
     
-    init(chat: Chat, currentUserID: String, otherUser: User? = nil) {
+    init(chat: Chat, currentUserID: String, otherUser: User? = nil, highlightMessageId: String? = nil) {
         self.chat = chat
         self.otherUser = otherUser
+        self.highlightMessageId = highlightMessageId
         self._viewModel = StateObject(wrappedValue: ChatViewModel(currentUserID: currentUserID))
     }
     
@@ -174,6 +178,11 @@ struct ChatView: View {
                                     viewModel.retryMessage(messageID: message.id)
                                 }
                             )
+                            .id(message.id)
+                            .background(
+                                message.id == highlightMessageId ?
+                                Color.blue.opacity(0.2) : Color.clear
+                            )
                             .onAppear {
                                 // Mark message as read when it appears
                                 if !viewModel.isMessageFromCurrentUser(message: message) {
@@ -185,6 +194,11 @@ struct ChatView: View {
                                 message: message,
                                 previousMessage: previousMessage,
                                 viewModel: viewModel
+                            )
+                            .id(message.id)
+                            .background(
+                                message.id == highlightMessageId ?
+                                Color.blue.opacity(0.2) : Color.clear
                             )
                             .onAppear {
                                 // Mark message as read when it appears
@@ -203,13 +217,25 @@ struct ChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .onAppear {
-                    // Scroll to bottom immediately when messages first appear
-                    proxy.scrollTo("bottom", anchor: .bottom)
+                    // If navigating from search, scroll to highlighted message
+                    if let highlightId = highlightMessageId, !hasScrolledToHighlight {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation {
+                                proxy.scrollTo(highlightId, anchor: .center)
+                            }
+                            hasScrolledToHighlight = true
+                        }
+                    } else {
+                        // Otherwise scroll to bottom
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
                 }
                 .onChange(of: viewModel.allMessages.count) { _ in
-                    // Scroll to bottom when new messages arrive
-                    withAnimation {
-                        proxy.scrollTo("bottom", anchor: .bottom)
+                    // Only auto-scroll to bottom if not highlighting a specific message
+                    if highlightMessageId == nil {
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
                     }
                 }
             }
