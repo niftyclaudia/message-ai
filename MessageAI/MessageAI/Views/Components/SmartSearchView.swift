@@ -15,9 +15,8 @@ struct SmartSearchView: View {
     @State private var showingError: Bool = false
     @FocusState private var isSearchFieldFocused: Bool
     
-    // Navigation
-    @State private var selectedResult: SearchResult?
-    @State private var navigateToConversation: Bool = false
+    // Navigation callback
+    let onResultTap: (String, String) -> Void  // (chatId, messageId)
     
     var body: some View {
         NavigationView {
@@ -66,7 +65,7 @@ struct SmartSearchView: View {
                 }
             }
         }
-        .onAppear {
+            .onAppear {
             isSearchFieldFocused = true
         }
     }
@@ -267,21 +266,23 @@ struct SmartSearchView: View {
     }
     
     private func handleResultTap(_ result: SearchResult) {
-        // TODO: Navigate to the specific message in the conversation
-        // This will be implemented in the integration phase
-        selectedResult = result
+        print("🔍 Tapped result: \(result.messageId) in conversation: \(result.conversationId)")
         
-        // For now, just print the result
-        print("Tapped result: \(result.messageId) in conversation: \(result.conversationId)")
-        
-        // Close search and navigate to conversation
+        // Close search modal first
         dismiss()
+        
+        // Call parent's navigation handler after dismiss completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onResultTap(result.conversationId, result.messageId)
+        }
     }
 }
 
 // MARK: - Preview
 
 #Preview {
-    SmartSearchView()
+    SmartSearchView { chatId, messageId in
+        print("Preview: Navigate to \(chatId), message: \(messageId)")
+    }
 }
 

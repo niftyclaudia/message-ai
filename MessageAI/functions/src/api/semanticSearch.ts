@@ -224,7 +224,7 @@ export const semanticSearch = onCall<SemanticSearchRequest, Promise<SemanticSear
 
       const messages = (await Promise.all(messagePromises)).filter(m => m !== null);
 
-      // Step 5: Combine Pinecone results with Firestore data
+      // Step 5: Combine Pinecone results with Firestore data and fetch sender names
       const results: SearchResultData[] = [];
       
       for (const match of relevantMatches) {
@@ -238,13 +238,31 @@ export const semanticSearch = onCall<SemanticSearchRequest, Promise<SemanticSear
         const message = messageData.data;
         const text = message.text || '';
         
+        // Fetch sender name from users collection
+        let senderName = 'Unknown';
+        try {
+          const senderId = message.senderID || message.senderId;
+          if (senderId) {
+            const userDoc = await admin.firestore().collection('users').doc(senderId).get();
+            if (userDoc.exists) {
+              const userData = userDoc.data();
+              senderName = userData?.displayName || userData?.username || userData?.email || 'Unknown';
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to fetch sender name', { 
+            messageId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+        
         results.push({
           messageId,
           conversationId: message.chatID || message.conversationId || '',
           relevanceScore: match.score || 0,
           messagePreview: text.substring(0, 100),
           timestamp: message.timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
-          senderName: message.senderName || 'Unknown',
+          senderName: senderName,
           fullText: text,
         });
       }

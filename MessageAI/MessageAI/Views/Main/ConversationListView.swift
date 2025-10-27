@@ -31,6 +31,11 @@ struct ConversationListView: View {
     /// Show semantic search view
     @State private var showingSearch = false
     
+    /// Search navigation state
+    @State private var searchSelectedChatID: String?
+    @State private var searchSelectedMessageID: String?
+    @State private var navigateToSearchResult = false
+    
     // MARK: - Initialization
     
     init(currentUserID: String, aiClassificationService: AIClassificationService) {
@@ -118,7 +123,35 @@ struct ConversationListView: View {
                 }
             }
             .sheet(isPresented: $showingSearch) {
-                SmartSearchView()
+                SmartSearchView { chatId, messageId in
+                    // Handle search result tap
+                    searchSelectedChatID = chatId
+                    searchSelectedMessageID = messageId
+                    navigateToSearchResult = true
+                }
+            }
+            .navigationDestination(isPresented: $navigateToSearchResult) {
+                Group {
+                    if let chatID = searchSelectedChatID,
+                       let chat = viewModel.chats.first(where: { $0.id == chatID }) {
+                        ChatView(
+                            chat: chat,
+                            currentUserID: currentUserID,
+                            otherUser: viewModel.getOtherUser(chat: chat),
+                            highlightMessageId: searchSelectedMessageID
+                        )
+                        .onAppear {
+                            print("🔍 [SEARCH NAV] ✅ Navigated to chat: \(chatID) with messageId: \(searchSelectedMessageID ?? "none")")
+                        }
+                    } else {
+                        Text("Chat not found")
+                            .foregroundColor(.red)
+                            .onAppear {
+                                print("🔍 [SEARCH NAV] ❌ Chat not found: \(searchSelectedChatID ?? "nil")")
+                                print("🔍 [SEARCH NAV] Available chats: \(viewModel.chats.map { $0.id })")
+                            }
+                    }
+                }
             }
         }
     }
