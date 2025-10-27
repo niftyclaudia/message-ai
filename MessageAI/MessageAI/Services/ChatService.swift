@@ -201,6 +201,50 @@ class ChatService {
     
     // MARK: - Contact Methods
     
+    /// Fetches contacts from users you've actually chatted with
+    /// - Parameter currentUserID: Current user's ID to exclude
+    /// - Returns: Array of User objects from chats
+    /// - Throws: ChatServiceError for network errors
+    /// - Performance: Should complete in < 2 seconds (see shared-standards.md)
+    func fetchContactsFromChats(currentUserID: String) async throws -> [User] {
+        do {
+            // Get all chats where current user is a member
+            let chatsSnapshot = try await firestore.collection(Chat.collectionName)
+                .whereField("members", arrayContains: currentUserID)
+                .getDocuments()
+            
+            // Extract all unique user IDs from chat members
+            var contactUserIDs: Set<String> = []
+            for chatDoc in chatsSnapshot.documents {
+                if let members = chatDoc.data()["members"] as? [String] {
+                    contactUserIDs.formUnion(members)
+                }
+            }
+            
+            // Remove current user
+            contactUserIDs.remove(currentUserID)
+            
+            // Fetch user details for each contact
+            var contacts: [User] = []
+            for userID in contactUserIDs {
+                do {
+                    let userDoc = try await firestore.collection(User.collectionName).document(userID).getDocument()
+                    if userDoc.exists, let user = try? userDoc.data(as: User.self) {
+                        contacts.append(user)
+                    }
+                } catch {
+                    // Skip users that don't exist or can't be decoded
+                    continue
+                }
+            }
+            
+            return contacts
+            
+        } catch {
+            throw ChatServiceError.networkError(error)
+        }
+    }
+    
     /// Fetches all users (contacts) excluding current user
     /// - Parameter currentUserID: Current user's ID to exclude
     /// - Returns: Array of User objects
