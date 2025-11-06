@@ -361,7 +361,7 @@ class MessageService {
             .order(by: "timestamp", descending: false)
         
         return query.addSnapshotListener { snapshot, error in
-            if let error = error {
+            if error != nil {
                 completion([])
                 return
             }

@@ -95,7 +95,7 @@ class FocusSessionService: ObservableObject {
     /// Ends a Focus Mode session
     /// - Parameter sessionID: ID of the session to end
     func endFocusSession(sessionID: String) async throws {
-        guard let userID = currentUserID else {
+        guard currentUserID != nil else {
             throw FocusSessionError.notAuthenticated
         }
         

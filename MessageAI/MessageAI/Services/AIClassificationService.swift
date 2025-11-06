@@ -90,7 +90,7 @@ class AIClassificationService: ObservableObject {
         
         let listener = messagesRef.addSnapshotListener { [weak self] snapshot, error in
             Task { @MainActor in
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -260,7 +260,7 @@ class AIClassificationService: ObservableObject {
                 
                 if priority == "urgent" {
                     urgentCount += 1
-                    let name = message.senderName ?? message.senderID
+                    _ = message.senderName ?? message.senderID
                 } else {
                     normalCount += 1
                 }
