@@ -121,7 +121,7 @@ class SummaryService: ObservableObject {
     /// - Parameter summaryID: ID of the summary
     /// - Returns: Summary if found
     func getSummaryByID(summaryID: String) async throws -> FocusSummary {
-        guard let userID = currentUserID else {
+        guard currentUserID != nil else {
             throw SummaryError.notAuthenticated
         }
         
@@ -254,7 +254,7 @@ class SummaryService: ObservableObject {
     ///   - parameters: Query parameters
     /// - Returns: Response data
     private func makeCloudFunctionRequest(endpoint: String, parameters: [String: String]) async throws -> Data {
-        guard let userID = currentUserID else {
+        guard currentUserID != nil else {
             throw SummaryError.notAuthenticated
         }
         
