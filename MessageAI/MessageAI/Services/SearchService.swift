@@ -101,7 +101,7 @@ class SearchService: ObservableObject {
             }
             
             // Parse results
-            let results = try resultsArray.compactMap { resultDict -> SearchResult? in
+            let results = resultsArray.compactMap { resultDict -> SearchResult? in
                 guard let messageId = resultDict["messageId"] as? String,
                       let conversationId = resultDict["conversationId"] as? String,
                       let relevanceScore = resultDict["relevanceScore"] as? Double,
