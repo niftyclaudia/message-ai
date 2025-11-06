@@ -29,7 +29,7 @@ class ContactListViewModel: ObservableObject {
     // MARK: - Services
     
     private let userService: UserService
-    private let authService: AuthService
+    private var authService: AuthService  // Changed to var to allow injection
     private let presenceService: PresenceService
     private let chatService: ChatService
     
@@ -66,13 +66,28 @@ class ContactListViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
+    /// Sets the authenticated AuthService instance
+    /// - Parameter authService: The app's authenticated AuthService
+    /// - Note: Must be called before loadUsers() to ensure proper authentication
+    func setAuthService(_ authService: AuthService) {
+        self.authService = authService
+        print("✅ AuthService injected into ContactListViewModel")
+    }
+    
     /// Loads contacts from users you've actually chatted with
     func loadUsers() async {
+        // Debug logging
+        print("🔍 ContactListViewModel.loadUsers() called")
+        print("🔍 authService.currentUser: \(String(describing: authService.currentUser))")
+        print("🔍 authService.isAuthenticated: \(authService.isAuthenticated)")
+        
         guard let currentUserID = authService.currentUser?.uid else {
+            print("❌ Not authenticated - currentUser is nil")
             errorMessage = "Not authenticated"
             return
         }
         
+        print("✅ Authenticated as userID: \(currentUserID)")
         isLoading = true
         errorMessage = nil
         
@@ -153,6 +168,13 @@ class ContactListViewModel: ObservableObject {
         }
         presenceHandles.removeAll()
         userPresence.removeAll()
+    }
+    
+    /// Retries loading contacts after an error
+    /// - Note: Clears previous error state before attempting reload
+    func retry() async {
+        errorMessage = nil
+        await loadUsers()
     }
 }
 
