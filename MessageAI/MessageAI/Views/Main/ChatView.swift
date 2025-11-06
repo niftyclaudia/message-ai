@@ -230,7 +230,7 @@ struct ChatView: View {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
-                .onChange(of: viewModel.allMessages.count) { _ in
+                .onChange(of: viewModel.allMessages.count) { _, _ in
                     // Only auto-scroll to bottom if not highlighting a specific message
                     if highlightMessageId == nil {
                         withAnimation {
